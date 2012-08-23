@@ -57,14 +57,15 @@ class PreferencesDialog(Gtk.Dialog):
                          'column_homogeneous': True}
 
         general = Gtk.Grid(**grid_settings)
-        notify = Gtk.CheckButton('Show notifications')
+        notify = Gtk.CheckButton(_('Show notifications'))
         general.attach(notify, 0, 0, 2, 1)
-        refresh = Gtk.CheckButton('Refresh on start')
+        refresh = Gtk.CheckButton(_('Refresh on start'))
         general.attach(refresh, 0, 1, 2, 1)
-        refresh_label = Gtk.Label('Refresh every')
+        refresh_label = Gtk.Label(_('Refresh every'))
         refresh_combo = Gtk.ComboBoxText()
-        for time, label in ((0, 'Never'), (5, '5 minutes'), (10, '10 minutes'),
-                     (30, '30 minutes'), (60, '1 hour')):
+        for time, label in ((0, _('Never')), (5, _('5 minutes')),
+                            (10, _('10 minutes')), (30, _('30 minutes')),
+                            (60, _('1 hour'))):
             refresh_combo.append(str(time), label)
         general.attach(refresh_label, 0, 2, 1, 1)
         general.attach(refresh_combo, 1, 2, 1, 1)
@@ -72,16 +73,18 @@ class PreferencesDialog(Gtk.Dialog):
 
         cache = Gtk.Frame()
         label = Gtk.Label()
-        label.set_markup('<b>{0}</b>'.format('Cache'))
+        label.set_markup('<b>{0}</b>'.format(_('Cache')))
         cache.set_label_widget(label)
         cache_grid = Gtk.Grid(**grid_settings)
-        for row, label in enumerate(['Unread', 'Starred', 'Read']):
-            cache_grid.attach(Gtk.Label(label + ' items'), 0, row, 1, 1)
+        for row, label in enumerate([_('Unread'), _('Starred'), _('Read')]):
+            # Translators: {status} is replaced with one of Unread, Starred or Read
+            label = Gtk.Label(_('{status} items').format({'status': label}))
+            cache_grid.attach(label, 0, row, 1, 1)
             combo = Gtk.ComboBoxText()
             for days, text in ((0, 'Never'), (1, '1 day'), (2, '2 days'),
                          (3, '3 days'), (7, '1 week'), (14, '2 weeks'),
                          (28, '4 weeks'), (-1, 'Forever')):
-                combo.append(str(days), text)
+                combo.append(str(days), _(text))
             cache_grid.attach(combo, 1, row, 1, 1)
 
         cache.add(cache_grid)

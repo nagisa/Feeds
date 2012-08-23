@@ -9,7 +9,7 @@ class ToolbarSearch(Gtk.ToolItem):
     def __init__(self, *args, **kwargs):
         super(ToolbarSearch, self).__init__(*args, **kwargs)
         self.entry = Gtk.Entry()
-        self.entry.set_placeholder_text('Search 123 items')
+        self.entry.set_placeholder_text(_('Search {0} items'))
         self.entry.set_size_request(200, 0)
         self.add(self.entry)
 
@@ -64,9 +64,9 @@ class Sidebar(Gtk.HPaned):
         # Upper part
         self.categories = CategoriesView()
         # TODO: Change with custom icons.
-        for entry in [(Gtk.STOCK_JUSTIFY_FILL, 'All items',),
-                      (Gtk.STOCK_INDEX, 'Unread',),
-                      (Gtk.STOCK_ABOUT, 'Starred',)]:
+        for entry in [(Gtk.STOCK_JUSTIFY_FILL, _('All items'),),
+                      (Gtk.STOCK_INDEX, _('Unread'),),
+                      (Gtk.STOCK_ABOUT, _('Starred'),)]:
             self.categories.add_category(*entry)
 
         left_box.pack_start(self.categories, False, False, 0)
@@ -152,9 +152,6 @@ class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
         super(SubscriptionsView, self).__init__(self._store, *args,
                                                 **kwargs)
         self.set_headers_visible(False)
-        # Somewhy removes color from selected rows as well.
-        # self.override_background_color(Gtk.StateFlags.NORMAL,
-        #                                Gdk.RGBA(0, 0, 0, 0))
         Gtk.StyleContext.add_class(self.get_style_context(),
                                    Gtk.STYLE_CLASS_SIDEBAR)
 
@@ -178,6 +175,7 @@ class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
 
 
 class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
+    # TODO: Box of trees
     def __init__(self, *args, **kwargs):
         self._store = Gtk.ListStore(models.Feed) # Temp
         super(ItemsView, self).__init__(self._store, *args, **kwargs)
@@ -226,6 +224,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         return 0, 0, 0, self.height
 
     def render_date(self, widget, cell_area, ctx, y):
+        # TODO: Use locale specific date formatting
         text = '2012-03-11 12:34'
         font_desc = Pango.FontDescription()
         font_desc.set_size(self.site_size * Pango.SCALE)
