@@ -1,7 +1,7 @@
 # Is py2 or py3
 try:
     import __builtin__
-    __builtins = __builtin__.__dict__
+    __builtins__ = __builtin__.__dict__
     __builtins__['PY2'] = True
 except:
     __builtins__['PY2'] = False
