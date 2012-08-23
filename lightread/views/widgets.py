@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from gi.repository import Gtk, WebKit, Gdk, Pango, PangoCairo
 from lightread.views import utils
 from lightread import models
@@ -192,7 +193,6 @@ class ItemCellRenderer(Gtk.CellRenderer):
     # Borrowed from Geary.
 
     def __init__(self, *args, **kwargs):
-        print(*args, **kwargs)
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
         self.site_size = 9
         self.title_size = 11
