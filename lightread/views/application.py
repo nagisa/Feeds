@@ -1,5 +1,5 @@
 from gi.repository import Gtk, Gio
-from views.windows import ApplicationWindow
+from lightread.views.windows import ApplicationWindow
 
 
 class Application(Gtk.Application):

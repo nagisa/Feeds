@@ -1,6 +1,6 @@
 from gi.repository import Gtk, WebKit, Gdk, Pango, PangoCairo
-from views import utils
-import models
+from lightread.views import utils
+from lightread import models
 
 
 class ToolbarSearch(Gtk.ToolItem):

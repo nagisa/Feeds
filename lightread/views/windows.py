@@ -1,5 +1,5 @@
 from gi.repository import Gtk, WebKit
-from views import widgets
+from lightread.views import widgets
 
 
 class ApplicationWindow(Gtk.ApplicationWindow):
