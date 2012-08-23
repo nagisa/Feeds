@@ -1,5 +1,8 @@
+import copy
 from gi.repository import Gtk, WebKit
+from lightread.models import settings
 from lightread.views import widgets
+from lightread.utils import get_data_path
 
 
 class ApplicationWindow(Gtk.ApplicationWindow):
@@ -43,57 +46,78 @@ class ApplicationWindow(Gtk.ApplicationWindow):
         dialog = PreferencesDialog(self)
         dialog.show_all()
 
+    def show_about(self, data=None):
+        dialog = AboutDialog(self)
+        dialog.run()
+        dialog.destroy()
+
 
 class PreferencesDialog(Gtk.Dialog):
 
+    def __new__(cls, *args, **kwargs):
+        builder = Gtk.Builder(translation_domain='lightread')
+        path = get_data_path('ui', 'lightread-preferences.ui')
+        builder.add_from_file(path)
+        new_obj = builder.get_object('preferences-dialog')
+        new_obj.builder = builder
+        for attr, value in cls.__dict__.items():
+            setattr(new_obj, attr, value)
+        # Call __init__, somewhy it doesn't do so automatically.
+        new_obj.__init__(new_obj, *args, **kwargs)
+        return new_obj
+
     def __init__(self, parent, *args, **kwargs):
-        super(PreferencesDialog, self).__init__(*args, **kwargs)
         self.set_modal(True)
         self.set_transient_for(parent)
-        content = self.get_content_area()
 
-        grid_settings = {'row_spacing': 5, 'column_spacing': 5, 'margin': 10,
-                         'margin_top': 0, 'margin_bottom': 0,
-                         'column_homogeneous': True}
+        for cb_name in ['notifications', 'start-refresh']:
+            checkbox = self.builder.get_object(cb_name)
+            checkbox.set_active(settings[cb_name])
+            checkbox.connect('toggled', self.on_toggle, cb_name)
 
-        general = Gtk.Grid(**grid_settings)
-        notify = Gtk.CheckButton(_('Show notifications'))
-        general.attach(notify, 0, 0, 2, 1)
-        refresh = Gtk.CheckButton(_('Refresh on start'))
-        general.attach(refresh, 0, 1, 2, 1)
-        refresh_label = Gtk.Label(_('Refresh every'))
-        refresh_combo = Gtk.ComboBoxText()
+        refresh = self.builder.get_object('refresh-every')
         for time, label in ((0, _('Never')), (5, _('5 minutes')),
                             (10, _('10 minutes')), (30, _('30 minutes')),
                             (60, _('1 hour'))):
-            refresh_combo.append(str(time), label)
-        general.attach(refresh_label, 0, 2, 1, 1)
-        general.attach(refresh_combo, 1, 2, 1, 1)
-        content.pack_start(general, False, False, 0)
+            refresh.append(str(time), label)
+        refresh.set_active_id(str(settings['refresh-every']))
+        refresh.connect('changed', self.on_change, 'refresh-every')
 
-        cache = Gtk.Frame()
-        label = Gtk.Label()
-        label.set_markup('<b>{0}</b>'.format(_('Cache')))
-        cache.set_label_widget(label)
-        cache_grid = Gtk.Grid(**grid_settings)
-        for row, label in enumerate([_('Unread'), _('Starred'), _('Read')]):
-            # Translators: {status} is replaced with one of Unread, Starred or Read
-            label = Gtk.Label(_('{status} items').format({'status': label}))
-            cache_grid.attach(label, 0, row, 1, 1)
-            combo = Gtk.ComboBoxText()
-            for days, text in ((0, 'Never'), (1, '1 day'), (2, '2 days'),
-                         (3, '3 days'), (7, '1 week'), (14, '2 weeks'),
-                         (28, '4 weeks'), (-1, 'Forever')):
-                combo.append(str(days), _(text))
-            cache_grid.attach(combo, 1, row, 1, 1)
+        for cb_name in ['unread-cache', 'starred-cache', 'read-cache']:
+            combo = self.builder.get_object(cb_name)
+            combo.append('0', _('Never'))
+            setting_val = settings[cb_name]
+            combo_days = [1, 2, 3, 7, 14, 28]
+            if setting_val > 0 and setting_val not in combo_days:
+                combo_days.append(setting_val)
+            for day in sorted(combo_days):
+                label = N_('{0} day', '{0} days', day).format(day)
+                combo.append(str(day), label)
+            combo.append('-1', _('Forever'))
+            combo.set_active_id(str(setting_val))
+            combo.connect('changed', self.on_change, cb_name)
 
-        cache.add(cache_grid)
-        content.pack_start(cache, False, False, 0)
+    def on_change(widget, setting):
+        settings[setting] = int(widget.get_active_id())
+
+    def on_toggle(widget, setting):
+        settings[setting] = widget.get_active()
 
 
 class AboutDialog(Gtk.AboutDialog):
 
+    def __new__(cls, *args, **kwargs):
+        builder = Gtk.Builder(translation_domain='lightread')
+        path = get_data_path('ui', 'lightread-about.ui')
+        builder.add_from_file(path)
+        new_obj = builder.get_object('about-dialog')
+        new_obj.builder = builder
+        for attr, value in cls.__dict__.items():
+            setattr(new_obj, attr, value)
+        # Call __init__, somewhy it doesn't do so automatically.
+        new_obj.__init__(new_obj, *args, **kwargs)
+        return new_obj
+
     def __init__(self, parent, *args, **kwargs):
-        super(AboutDialog, self).__init__(*args, **kwargs)
         self.set_modal(True)
         self.set_transient_for(parent)

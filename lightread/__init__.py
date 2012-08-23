@@ -19,3 +19,6 @@ import gettext
 localedir = gettext.bindtextdomain('lightread')
 __builtins__['_'] = gettext.gettext
 __builtins__['N_'] = gettext.ngettext
+
+# Cache for application global variables
+__builtins__['_globals_cache'] = {}

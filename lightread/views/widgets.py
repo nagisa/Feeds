@@ -9,7 +9,7 @@ class ToolbarSearch(Gtk.ToolItem):
     def __init__(self, *args, **kwargs):
         super(ToolbarSearch, self).__init__(*args, **kwargs)
         self.entry = Gtk.Entry()
-        self.entry.set_placeholder_text(_('Search {0} items'))
+        self.entry.set_placeholder_text(_('Search {0} items').format(0))
         self.entry.set_size_request(200, 0)
         self.add(self.entry)
 
@@ -204,8 +204,8 @@ class ItemCellRenderer(Gtk.CellRenderer):
         self._do_render(widget, ctx, cell_area, flags.SELECTED)
 
     def _do_render(self, widget, ctx=None, cell_area=None, selected=False):
-        # TODO: the magic.
-        # HINT: it's gonna be hardest part.
+        # TODO: Employ current GTK theme colors.
+        # It should be possible, but I'll do it later
         celly = (0 if cell_area is None else cell_area.y)
         y = self.line_spacing + celly
         ink = self.render_date(widget, cell_area, ctx, y)

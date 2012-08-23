@@ -2,7 +2,7 @@
 _Name=Lightread
 _Comment=Lightread application
 Categories=GNOME;Utility;Internet;
-Exec=lightread
+Exec=python -m lightread
 Icon=lightread
 Terminal=false
 Type=Application
