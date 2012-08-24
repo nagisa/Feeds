@@ -189,23 +189,30 @@ class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
 
 class ItemCellRenderer(Gtk.CellRenderer):
     # Borrowed from Geary.
+    markup = {'date': '<span color="{color}" size="{size}">{text}</span>',
+              'site': '<span color="{color}" size="{size}">{text}</span>',
+              'title': '<span color="{color}" size="{size}" weight="bold">{text}</span>',
+              'summary': '<span color="{color}" size="{size}">{text}</span>'}
+    font_size = {'date': 9, 'site': 9, 'title': 11, 'summary': 8}
+
+
 
     def __init__(self, *args, **kwargs):
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
-        self.site_size = 9
-        self.title_size = 11
-        self.summary_size = 8
         self.summary_height = 0
         self.line_spacing = 7
         self.left_padding = 16
         self.height = 0
 
     def do_render(self, ctx, widget, bg_area, cell_area, flags):
-        self._do_render(widget, ctx, cell_area, flags.SELECTED)
+        self._do_render(widget, ctx, cell_area, flags & flags.SELECTED)
 
     def _do_render(self, widget, ctx=None, cell_area=None, selected=False):
         # TODO: Employ current GTK theme colors.
         # It should be possible, but I'll do it later
+        self.selected = selected
+        self.state = (Gtk.StateFlags.SELECTED if self.selected else
+                                                        Gtk.StateFlags.NORMAL)
         celly = (0 if cell_area is None else cell_area.y)
         y = self.line_spacing + celly
         ink = self.render_date(widget, cell_area, ctx, y)
@@ -223,16 +230,22 @@ class ItemCellRenderer(Gtk.CellRenderer):
             self._do_render(widget)
         return 0, 0, 0, self.height
 
+    def get_attrs(self, t, **kwargs):
+        mark = self.markup[t].format(size=self.font_size[t] * Pango.SCALE,
+                                     **kwargs)
+        return Pango.parse_markup(mark, -1, "§")[1]
+
     def render_date(self, widget, cell_area, ctx, y):
         # TODO: Use locale specific date formatting
-        text = '2012-03-11 12:34'
-        font_desc = Pango.FontDescription()
-        font_desc.set_size(self.site_size * Pango.SCALE)
-        mark = '<span color="{0}">{1}</span>'.format('#2727d6', text)
-        font_attrs = Pango.parse_markup(mark, -1, "§")[1]
+        text = '12:34'
+        context = widget.get_style_context()
+        if not self.selected:
+            color = context.get_background_color(Gtk.StateFlags.SELECTED)
+        else:
+            color = context.get_color(Gtk.StateFlags.SELECTED)
+        attrs = self.get_attrs('date', text=text, color=utils.hexcolor(color))
         layout = widget.create_pango_layout(text)
-        layout.set_attributes(font_attrs)
-        layout.set_font_description(font_desc)
+        layout.set_attributes(attrs)
         layout.set_alignment(Pango.Alignment.RIGHT)
         ink, logical = layout.get_pixel_extents()
         if ctx is not None and cell_area is not None:
@@ -243,27 +256,24 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     def render_site(self, widget, cell_area, ctx, y, ink):
         text = "The Blog and a the humble long long title"
-        font_desc = Pango.FontDescription()
-        font_desc.set_size(self.site_size * Pango.SCALE)
+        color = widget.get_style_context().get_color(self.state)
+        attrs = self.get_attrs('site', text=text, color=utils.hexcolor(color))
         layout = widget.create_pango_layout(text)
-        layout.set_font_description(font_desc)
+        layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         if ctx is not None and cell_area is not None:
             layout.set_width((cell_area.width - ink.width - ink.x -
-                        self.line_spacing - self.left_padding) * Pango.SCALE)
+                        self.line_spacing * 2 - self.left_padding) * Pango.SCALE)
             ctx.move_to(cell_area.x + self.left_padding, y)
             PangoCairo.show_layout(ctx, layout)
         return ink
 
     def render_title(self, widget, cell_area, ctx, y):
         text = "How I did that, then that, and then this and that"
-        font_desc = Pango.FontDescription()
-        font_desc.set_size(self.title_size * Pango.SCALE)
-        mark = '<b>{0}</b>'.format(text)
-        font_attrs = Pango.parse_markup(mark, -1, "§")[1]
+        color = widget.get_style_context().get_color(self.state)
+        attrs = self.get_attrs('title', text=text, color=utils.hexcolor(color))
         layout = widget.create_pango_layout(text)
-        layout.set_attributes(font_attrs)
-        layout.set_font_description(font_desc)
+        layout.set_attributes(attrs)
         layout.set_wrap(Pango.WrapMode.WORD)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         ink, logical = layout.get_pixel_extents()
@@ -275,11 +285,10 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     def render_summary(self, widget, cell_area, ctx, y):
         text = "Last day I did that, then I did this, but after that another thing was done. At last I did that but then I did nothing"
-
-        font_desc = Pango.FontDescription()
-        font_desc.set_size(self.summary_size * Pango.SCALE)
+        color = widget.get_style_context().get_color(self.state)
+        attrs = self.get_attrs('summary', text=text, color=utils.hexcolor(color))
         layout = widget.create_pango_layout(text)
-        layout.set_font_description(font_desc)
+        layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         layout.set_height(self.summary_height * Pango.SCALE)
         ink, logical = layout.get_pixel_extents()

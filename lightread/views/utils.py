@@ -11,3 +11,9 @@ class ScrollWindowMixin:
             self._scrollwindow_widget = Gtk.ScrolledWindow()
             self._scrollwindow_widget.add(self)
         return self._scrollwindow_widget
+
+
+def hexcolor(color):
+    return '#{0:02X}{1:02X}{2:02X}'.format(round(color.red * 0xFF),
+                                           round(color.green * 0xFF),
+                                           round(color.blue * 0xFF))
