@@ -193,14 +193,14 @@ class ItemCellRenderer(Gtk.CellRenderer):
               'site': '<span color="{color}" size="{size}">{text}</span>',
               'title': '<span color="{color}" size="{size}" weight="bold">{text}</span>',
               'summary': '<span color="{color}" size="{size}">{text}</span>'}
-    font_size = {'date': 9, 'site': 9, 'title': 11, 'summary': 8}
+    font_size = {'date': 9, 'site': 9, 'title': 10, 'summary': 8}
 
 
 
     def __init__(self, *args, **kwargs):
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
         self.summary_height = 0
-        self.line_spacing = 7
+        self.line_spacing = 6
         self.left_padding = 16
         self.height = 0
 
@@ -213,16 +213,15 @@ class ItemCellRenderer(Gtk.CellRenderer):
         self.selected = selected
         self.state = (Gtk.StateFlags.SELECTED if self.selected else
                                                         Gtk.StateFlags.NORMAL)
-        celly = (0 if cell_area is None else cell_area.y)
-        y = self.line_spacing + celly
-        ink = self.render_date(widget, cell_area, ctx, y)
-        self.render_site(widget, cell_area, ctx, y, ink)
-        y += ink.height + ink.y + self.line_spacing
+        y = self.line_spacing
+        self.render_icon(widget, cell_area, ctx, y)
+        ink, date_x = self.render_date(widget, cell_area, ctx, y)
+        self.render_site(widget, cell_area, ctx, y, date_x)
+        y += ink.height + self.line_spacing
         ink = self.render_title(widget, cell_area, ctx, y)
         y += ink.height + self.line_spacing
-        # Calculate height here smartly
         ink = self.render_summary(widget, cell_area, ctx, y)
-        y += ink.height + self.line_spacing + celly
+        y += ink.height + self.line_spacing
         self.height = y
 
     def do_get_size(self, widget, cell_area):
@@ -234,6 +233,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
         mark = self.markup[t].format(size=self.font_size[t] * Pango.SCALE,
                                      **kwargs)
         return Pango.parse_markup(mark, -1, "§")[1]
+
+    def render_icon(self, widget, cell_area, ctx, y):
+        pass
 
     def render_date(self, widget, cell_area, ctx, y):
         # TODO: Use locale specific date formatting
@@ -248,13 +250,14 @@ class ItemCellRenderer(Gtk.CellRenderer):
         layout.set_attributes(attrs)
         layout.set_alignment(Pango.Alignment.RIGHT)
         ink, logical = layout.get_pixel_extents()
+        x = None
         if ctx is not None and cell_area is not None:
-            x = cell_area.width - cell_area.x - ink.width - self.line_spacing - ink.x
+            x = cell_area.width - cell_area.x - ink.width - ink.x
             ctx.move_to(x, y)
             PangoCairo.show_layout(ctx, layout)
-        return ink
+        return ink, x
 
-    def render_site(self, widget, cell_area, ctx, y, ink):
+    def render_site(self, widget, cell_area, ctx, y, date_x):
         text = "The Blog and a the humble long long title"
         color = widget.get_style_context().get_color(self.state)
         attrs = self.get_attrs('site', text=text, color=utils.hexcolor(color))
@@ -262,11 +265,10 @@ class ItemCellRenderer(Gtk.CellRenderer):
         layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         if ctx is not None and cell_area is not None:
-            layout.set_width((cell_area.width - ink.width - ink.x -
-                        self.line_spacing * 2 - self.left_padding) * Pango.SCALE)
+            width = (date_x - self.left_padding - self.line_spacing)
+            layout.set_width(width * Pango.SCALE)
             ctx.move_to(cell_area.x + self.left_padding, y)
             PangoCairo.show_layout(ctx, layout)
-        return ink
 
     def render_title(self, widget, cell_area, ctx, y):
         text = "How I did that, then that, and then this and that"
