@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk
+from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk, GObject
 from lightread.views import utils
 from lightread import models
 
@@ -177,25 +177,24 @@ class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
 class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
     # TODO: Box of trees
     def __init__(self, *args, **kwargs):
-        self._store = Gtk.ListStore(models.Feed) # Temp
+        self._store = Gtk.ListStore(models.FeedItem)
         super(ItemsView, self).__init__(self._store, *args, **kwargs)
 
-        self._store.append((models.Feed(),))
+        self._store.append((models.FeedItem(),))
 
         renderer = ItemCellRenderer()
-        column = Gtk.TreeViewColumn("Item", renderer)
+        column = Gtk.TreeViewColumn("Item", renderer, item=0)
         self.append_column(column)
 
 
 class ItemCellRenderer(Gtk.CellRenderer):
     # Borrowed from Geary.
+    item = GObject.property(type=models.FeedItem)
     markup = {'date': '<span color="{color}" size="{size}">{text}</span>',
               'site': '<span color="{color}" size="{size}">{text}</span>',
               'title': '<span color="{color}" size="{size}" weight="bold">{text}</span>',
               'summary': '<span color="{color}" size="{size}">{text}</span>'}
-    font_size = {'date': 9, 'site': 9, 'title': 10, 'summary': 8}
-
-
+    font_size = {'date': 9, 'site': 9, 'title': 10, 'summary': 9}
 
     def __init__(self, *args, **kwargs):
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
@@ -235,25 +234,25 @@ class ItemCellRenderer(Gtk.CellRenderer):
         return Pango.parse_markup(mark, -1, "§")[1]
 
     def render_icon(self, widget, cell_area, ctx, y):
-        return
-        if ctx is not None and cell_area is not None:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size('', 16, 16)
+        if ctx is not None and cell_area is not None and \
+           self.item.icon is not None:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(self.item.icon, 16, 16)
             Gdk.cairo_set_source_pixbuf(ctx, pixbuf, cell_area.x, y)
             ctx.paint()
             self.left_padding = pixbuf.get_width() + cell_area.x
-            print(self.left_padding)
+        elif cell_area is not None:
+            self.left_padding = cell_area.x
 
 
     def render_date(self, widget, cell_area, ctx, y):
-        # TODO: Use locale specific date formatting
-        text = '12:34'
+        time = self.item.datetime.strftime('%X')
         context = widget.get_style_context()
         if not self.selected:
             color = context.get_background_color(Gtk.StateFlags.SELECTED)
         else:
             color = context.get_color(Gtk.StateFlags.SELECTED)
-        attrs = self.get_attrs('date', text=text, color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(text)
+        attrs = self.get_attrs('date', text=time, color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(time)
         layout.set_attributes(attrs)
         layout.set_alignment(Pango.Alignment.RIGHT)
         ink, logical = layout.get_pixel_extents()
@@ -265,10 +264,10 @@ class ItemCellRenderer(Gtk.CellRenderer):
         return ink, x
 
     def render_site(self, widget, cell_area, ctx, y, date_x):
-        text = "The Blog and a the humble long long title"
         color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('site', text=text, color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(text)
+        attrs = self.get_attrs('site', text=self.item.site,
+                               color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(self.item.site)
         layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         if ctx is not None and cell_area is not None:
@@ -278,28 +277,28 @@ class ItemCellRenderer(Gtk.CellRenderer):
             PangoCairo.show_layout(ctx, layout)
 
     def render_title(self, widget, cell_area, ctx, y):
-        text = "How I did that, then that, and then this and that"
         color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('title', text=text, color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(text)
+        attrs = self.get_attrs('title', text=self.item.title,
+                                                  color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(self.item.title)
         layout.set_attributes(attrs)
         layout.set_wrap(Pango.WrapMode.WORD)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         ink, logical = layout.get_pixel_extents()
         if ctx is not None and cell_area is not None:
-            layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE);
+            layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE)
             ctx.move_to(cell_area.x + self.left_padding, y)
             PangoCairo.show_layout(ctx, layout)
         return ink
 
     def render_summary(self, widget, cell_area, ctx, y):
-        text = "Last day I did that, then I did this, but after that another thing was done. At last I did that but then I did nothing"
         color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('summary', text=text, color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(text)
+        attrs = self.get_attrs('summary', text=self.item.content,
+                               color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(self.item.content)
         layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
-        layout.set_height(self.summary_height * Pango.SCALE)
+        # layout.set_height(2200 * Pango.SCALE)
         ink, logical = layout.get_pixel_extents()
         if ctx is not None and cell_area is not None:
             layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE)
