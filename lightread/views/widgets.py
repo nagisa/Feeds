@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from gi.repository import Gtk, WebKit, Gdk, Pango, PangoCairo
+from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk
 from lightread.views import utils
 from lightread import models
 
@@ -201,7 +201,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
         self.summary_height = 0
         self.line_spacing = 6
-        self.left_padding = 16
+        self.left_padding = 0 # Replaced later by render_icon
         self.height = 0
 
     def do_render(self, ctx, widget, bg_area, cell_area, flags):
@@ -235,7 +235,14 @@ class ItemCellRenderer(Gtk.CellRenderer):
         return Pango.parse_markup(mark, -1, "§")[1]
 
     def render_icon(self, widget, cell_area, ctx, y):
-        pass
+        return
+        if ctx is not None and cell_area is not None:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size('', 16, 16)
+            Gdk.cairo_set_source_pixbuf(ctx, pixbuf, cell_area.x, y)
+            ctx.paint()
+            self.left_padding = pixbuf.get_width() + cell_area.x
+            print(self.left_padding)
+
 
     def render_date(self, widget, cell_area, ctx, y):
         # TODO: Use locale specific date formatting
