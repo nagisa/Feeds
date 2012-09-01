@@ -175,13 +175,10 @@ class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
 
 
 class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
-    # TODO: Box of trees
     def __init__(self, *args, **kwargs):
-        self._store = Gtk.ListStore(models.FeedItem)
-        super(ItemsView, self).__init__(self._store, *args, **kwargs)
-
-        self._store.append((models.FeedItem(),))
-
+        super(ItemsView, self).__init__(models.feeds.AllItems(),
+                                        *args, **kwargs)
+        self.set_headers_visible(False)
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer, item=0)
         self.append_column(column)
@@ -213,6 +210,8 @@ class ItemCellRenderer(Gtk.CellRenderer):
         self.state = (Gtk.StateFlags.SELECTED if self.selected else
                                                         Gtk.StateFlags.NORMAL)
         y = self.line_spacing
+        if cell_area is not None:
+            y += cell_area.y
         self.render_icon(widget, cell_area, ctx, y)
         ink, date_x = self.render_date(widget, cell_area, ctx, y)
         self.render_site(widget, cell_area, ctx, y, date_x)
@@ -245,7 +244,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
 
     def render_date(self, widget, cell_area, ctx, y):
-        time = self.item.datetime.strftime('%X')
+        time = utils.time_ago(self.item.datetime)
         context = widget.get_style_context()
         if not self.selected:
             color = context.get_background_color(Gtk.StateFlags.SELECTED)
@@ -293,9 +292,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     def render_summary(self, widget, cell_area, ctx, y):
         color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('summary', text=self.item.content,
+        attrs = self.get_attrs('summary', text=self.item.summary,
                                color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(self.item.content)
+        layout = widget.create_pango_layout(self.item.summary)
         layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         layout.set_height(self.summary_height * Pango.SCALE)
