@@ -1,6 +1,6 @@
 import copy
 from gi.repository import Gtk, WebKit
-from lightread.models import settings
+from lightread.models import settings, auth
 from lightread.views import widgets
 from lightread.utils import get_data_path
 
@@ -121,3 +121,56 @@ class AboutDialog(Gtk.AboutDialog):
     def __init__(self, parent, *args, **kwargs):
         self.set_modal(True)
         self.set_transient_for(parent)
+
+
+class LoginDialog(Gtk.Dialog):
+    """
+    This dialog will ensure, that user becomes logged in by any means
+    """
+
+    def __new__(cls, *args, **kwargs):
+        builder = Gtk.Builder(translation_domain='lightread')
+        path = get_data_path('ui', 'lightread-login.ui')
+        builder.add_from_file(path)
+        new_obj = builder.get_object('login-dialog')
+        new_obj.builder = builder
+        for attr, value in cls.__dict__.items():
+            setattr(new_obj, attr, value)
+        # Call __init__, somewhy it doesn't do so automatically.
+        new_obj.__init__(new_obj, *args, **kwargs)
+        return new_obj
+
+    def __init__(self, parent, *args, **kwargs):
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.user_entry = self.builder.get_object('username')
+        self.passwd_entry = self.builder.get_object('password')
+        self.msg = Gtk.Label()
+        self.builder.get_object('message').pack_start(self.msg, False, True, 0)
+        user, passwd = auth._get_creds()
+        if user is not None:
+            # Prefill username we already have
+            self.user_entry.set_text(user)
+            self.passwd_entry.grab_focus()
+        self.user_entry.connect('activate', self.on_activate, self)
+        self.passwd_entry.connect('activate', self.on_activate, self)
+        self.connect('response', self.on_response)
+
+    def on_response(self, r):
+        if r == Gtk.ResponseType.DELETE_EVENT or r == Gtk.ResponseType.CANCEL:
+            # <ESC> or [Cancel] button pressed
+            self.destroy()
+            return
+        user = self.builder.get_object('username').get_text()
+        password = self.builder.get_object('password').get_text()
+        logger.debug('username={0} and passwd is {1} chr long'.format(
+                     user, len(password)))
+        if len(password) == 0 or len(user) == 0:
+            self.msg.set_text(_('All fields are required'))
+            return False
+        auth.set_creds(user, password)
+        auth.login()
+        self.destroy()
+
+    def on_activate(entry, self):
+        self.emit('response', 0)

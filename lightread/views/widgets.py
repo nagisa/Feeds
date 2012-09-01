@@ -298,7 +298,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         layout = widget.create_pango_layout(self.item.content)
         layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
-        # layout.set_height(2200 * Pango.SCALE)
+        layout.set_height(self.summary_height * Pango.SCALE)
         ink, logical = layout.get_pixel_extents()
         if ctx is not None and cell_area is not None:
             layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE)

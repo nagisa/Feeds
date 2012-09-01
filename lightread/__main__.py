@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from lightread.views import application
 from argparse import ArgumentParser
 import logging
@@ -15,5 +14,5 @@ if arguments.debug:
     logger.debug('Lightread running Py{0}'.format(2 if PY2 else 3))
 
 # At last – run lightread
-lightread = application.Application()
-lightread.run(None)
+application = application.Application()
+application.run(None)

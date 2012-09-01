@@ -2,8 +2,8 @@ from gi.repository import Gio, GLib
 
 class LightReadSettings(Gio.Settings):
     types = {'notifications': 'boolean', 'start-refresh': 'boolean',
-               'refresh-every': 'uint16', 'unread-cache': 'int16',
-               'starred-cache': 'int16', 'read-cache': 'int16'}
+             'refresh-every': 'uint16', 'unread-cache': 'int16',
+             'starred-cache': 'int16', 'read-cache': 'int16'}
 
     def __init__(self, *args, **kwargs):
         super(LightReadSettings, self).__init__(*args, **kwargs)
