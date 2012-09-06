@@ -1,7 +1,7 @@
 import copy
 from gi.repository import Gtk, WebKit
 from lightread.models import settings, auth
-from lightread.views import widgets
+from lightread.views import widgets, utils
 from lightread.utils import get_data_path
 
 
@@ -52,23 +52,14 @@ class ApplicationWindow(Gtk.ApplicationWindow):
         dialog.destroy()
 
 
-class PreferencesDialog(Gtk.Dialog):
-
-    def __new__(cls, *args, **kwargs):
-        builder = Gtk.Builder(translation_domain='lightread')
-        path = get_data_path('ui', 'lightread-preferences.ui')
-        builder.add_from_file(path)
-        new_obj = builder.get_object('preferences-dialog')
-        new_obj.builder = builder
-        for attr, value in cls.__dict__.items():
-            setattr(new_obj, attr, value)
-        # Call __init__, somewhy it doesn't do so automatically.
-        new_obj.__init__(new_obj, *args, **kwargs)
-        return new_obj
+class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
+    ui_file = 'lightread-preferences.ui'
+    top_object = 'preferences-dialog'
 
     def __init__(self, parent, *args, **kwargs):
         self.set_modal(True)
         self.set_transient_for(parent)
+        self.connect('response', self.on_response)
 
         for cb_name in ['notifications', 'start-refresh']:
             checkbox = self.builder.get_object(cb_name)
@@ -83,62 +74,39 @@ class PreferencesDialog(Gtk.Dialog):
         refresh.set_active_id(str(settings['refresh-every']))
         refresh.connect('changed', self.on_change, 'refresh-every')
 
-        for cb_name in ['unread-cache', 'starred-cache', 'read-cache']:
-            combo = self.builder.get_object(cb_name)
-            combo.append('0', _('Never'))
-            setting_val = settings[cb_name]
-            combo_days = [1, 2, 3, 7, 14, 28]
-            if setting_val > 0 and setting_val not in combo_days:
-                combo_days.append(setting_val)
-            for day in sorted(combo_days):
-                label = N_('{0} day', '{0} days', day).format(day)
-                combo.append(str(day), label)
-            combo.append('-1', _('Forever'))
-            combo.set_active_id(str(setting_val))
-            combo.connect('changed', self.on_change, cb_name)
+        adjustment = self.builder.get_object('cache-upto-value')
+        adjustment.set_value(settings['cache-items'])
+        adjustment.connect('value-changed', self.on_val_change, 'cache-items')
 
     def on_change(widget, setting):
         settings[setting] = int(widget.get_active_id())
 
+    def on_val_change(adj, setting):
+        settings[setting] = adj.get_value()
+
     def on_toggle(widget, setting):
         settings[setting] = widget.get_active()
 
+    def on_response(self, r):
+        if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.OK):
+            self.destroy()
 
-class AboutDialog(Gtk.AboutDialog):
 
-    def __new__(cls, *args, **kwargs):
-        builder = Gtk.Builder(translation_domain='lightread')
-        path = get_data_path('ui', 'lightread-about.ui')
-        builder.add_from_file(path)
-        new_obj = builder.get_object('about-dialog')
-        new_obj.builder = builder
-        for attr, value in cls.__dict__.items():
-            setattr(new_obj, attr, value)
-        # Call __init__, somewhy it doesn't do so automatically.
-        new_obj.__init__(new_obj, *args, **kwargs)
-        return new_obj
+class AboutDialog(utils.BuiltMixin, Gtk.AboutDialog):
+    ui_file = 'lightread-about.ui'
+    top_object = 'about-dialog'
 
     def __init__(self, parent, *args, **kwargs):
         self.set_modal(True)
         self.set_transient_for(parent)
 
 
-class LoginDialog(Gtk.Dialog):
+class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
     """
     This dialog will ensure, that user becomes logged in by any means
     """
-
-    def __new__(cls, *args, **kwargs):
-        builder = Gtk.Builder(translation_domain='lightread')
-        path = get_data_path('ui', 'lightread-login.ui')
-        builder.add_from_file(path)
-        new_obj = builder.get_object('login-dialog')
-        new_obj.builder = builder
-        for attr, value in cls.__dict__.items():
-            setattr(new_obj, attr, value)
-        # Call __init__, somewhy it doesn't do so automatically.
-        new_obj.__init__(new_obj, *args, **kwargs)
-        return new_obj
+    ui_file = 'lightread-login.ui'
+    top_object = 'login-dialog'
 
     def __init__(self, parent, *args, **kwargs):
         self.set_modal(True)
@@ -147,17 +115,12 @@ class LoginDialog(Gtk.Dialog):
         self.passwd_entry = self.builder.get_object('password')
         self.msg = Gtk.Label()
         self.builder.get_object('message').pack_start(self.msg, False, True, 0)
-        user, passwd = auth._get_creds()
-        if user is not None:
-            # Prefill username we already have
-            self.user_entry.set_text(user)
-            self.passwd_entry.grab_focus()
         self.user_entry.connect('activate', self.on_activate, self)
         self.passwd_entry.connect('activate', self.on_activate, self)
         self.connect('response', self.on_response)
 
     def on_response(self, r):
-        if r == Gtk.ResponseType.DELETE_EVENT or r == Gtk.ResponseType.CANCEL:
+        if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.CANCEL):
             # <ESC> or [Cancel] button pressed
             self.destroy()
             return
@@ -168,8 +131,7 @@ class LoginDialog(Gtk.Dialog):
         if len(password) == 0 or len(user) == 0:
             self.msg.set_text(_('All fields are required'))
             return False
-        auth.set_creds(user, password)
-        auth.login()
+        auth.secrets.set(user, password)
         self.destroy()
 
     def on_activate(entry, self):

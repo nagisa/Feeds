@@ -7,4 +7,3 @@ def get_data_path(*args):
     if not os.path.exists(path):
         logger.warning('Constructed path \'{0}\' does not exist'.format(path))
     return path
-

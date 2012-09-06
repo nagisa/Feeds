@@ -1,52 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="lightread">
-  <schema id="apps.lightread" path="/apps/lightread/">
-    <key name="notifications" type="b">
-      <default>true</default>
-      <summary>Show notifications</summary>
-      <description>
+    <schema id="apps.lightread" path="/apps/lightread/">
+        <key name="notifications" type="b">
+            <default>true</default>
+            <summary>Show notifications</summary>
+            <description>
 Show notifications when feeds you're subscribed to are updated
-      </description>
-    </key>
-    <key name="start-refresh" type="b">
-      <default>true</default>
-      <summary>Refresh on start</summary>
-      <description>Refresh feeds when lightread is started</description>
-    </key>
-    <key name="refresh-every" type="q">
-      <default>60</default>
-      <summary>Refresh every</summary>
-      <description>
+            </description>
+        </key>
+        <key name="start-refresh" type="b">
+            <default>true</default>
+            <summary>Refresh on start</summary>
+            <description>Refresh feeds when lightread is started</description>
+        </key>
+        <key name="refresh-every" type="q">
+            <range min="0" max="300"/>
+            <default>60</default>
+            <summary>Refresh every n minutes</summary>
+            <description>
 Automatically refresh every specified ammount of minutes.
 If value 0 is set, automatic refresh is turned off
-      </description>
-    </key>
-    <key name="unread-cache" type="n">
-      <default>14</default>
-      <summary>Cache unread entries for</summary>
-      <description>
-Keep unread items for specified ammount of days.
-If value 0 is set, cache is turned off.
-Value of -1 makes lightread to cache forever
-      </description>
-    </key>
-    <key name="starred-cache" type="n">
-      <default>28</default>
-      <summary>Refresh every</summary>
-      <description>
-Keep starred items for specified ammount of days.
-If value 0 is set, cache is turned off.
-Value of -1 makes lightread to cache forever
-      </description>
-    </key>
-    <key name="read-cache" type="n">
-      <default>7</default>
-      <summary>Refresh every</summary>
-      <description>
-Keep read items for specified ammount of days.
-If value 0 is set, cache is turned off.
-Value of -1 makes lightread to cache forever
-      </description>
-    </key>
-  </schema>
+            </description>
+        </key>
+        <key name="cache-items" type="n">
+            <range min="1" max="10000"/>
+            <default>500</default>
+            <summary>Cache up to n items</summary>
+            <description>Enter how much items to cache. Absolute maximum is 10000
+Starred items are counted separately, but abides this limit as well.
+            </description>
+        </key>
+    </schema>
 </schemalist>
