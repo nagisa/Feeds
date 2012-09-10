@@ -1,7 +1,6 @@
 from gi.repository import Gtk, Gio
 from lightread.views.windows import ApplicationWindow, LoginDialog
 from lightread.models import auth
-from lightread.models.feeds import AllItems
 
 
 class Application(Gtk.Application):
@@ -16,12 +15,15 @@ class Application(Gtk.Application):
     def on_activate(self, data=None):
         self.window = ApplicationWindow(self)
         self.window.show_all()
+        auth.secrets.connect('ask-password', self.show_login_dialog, None)
 
-        auth.connect('ask-password', self.show_login_dialog)
-        auth.login()
-
-    def show_login_dialog(self, auth):
+    def show_login_dialog(self, *args):
         # Should not show login dialog when internet is not available
         # Could not login, because credentials were incorrect
-        login = LoginDialog(self.window)
-        login.show_all()
+        def destroy_login_dialog(*args):
+            auth.login()
+            delattr(self, 'login')
+        if not hasattr(self, 'login'):
+            self.login = LoginDialog(self.window)
+            self.login.show_all()
+            self.login.connect('destroy', destroy_login_dialog)

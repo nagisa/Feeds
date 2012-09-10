@@ -1,31 +1,31 @@
 # Problem: https://live.gnome.org/GnomeGoals/LibsecretMigration
 # But libsecret is not yet available in most repositories.
+from collections import namedtuple
+import json
+
 from gi.repository import GnomeKeyring as GK
 from gi.repository import Soup, GObject
-from collections import namedtuple
 
-AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR')(1, 1<<1, 1<<2)
+from lightread.models import utils
+
+AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
+
 
 class Auth(GObject.Object):
     __gsignals__ = {
         'status-change': (GObject.SignalFlags.RUN_FIRST, None, []),
-        'ask-password': (GObject.SignalFlags.ACTION, None, [])
     }
 
     def __init__(self, *args, **kwargs):
         super(Auth, self).__init__(*args, **kwargs)
-        self.use_keyring = GK.is_available()
-        if not self.use_keyring:
-            logger.warning('Keyring is not available. Not installed?')
-        else:
-            self.keyring_name = GK.get_default_keyring_sync()[1]
+        self.secrets = SecretStore()
+        # These variables must filled after login
+        self.key = None
+        self.info = None
+        self.status = AuthStatus.NET_ERROR
 
-        self.key = False
-        self.status = AuthStatus.OK
-        self.soup_session = Soup.SessionAsync()
-        # Storage for session, in case keyring is not available
-        self.password = None
-        self.email = None
+        self._url = 'https://www.google.com/accounts/ClientLogin'
+        self._data = 'service=reader&accountType=GOOGLE&Email={0}&Passwd={1}'
 
     def login(self):
         """
@@ -33,80 +33,124 @@ class Auth(GObject.Object):
         You should connect to 'status-change' signal if you want to receive a
         response upon login (successful or not).
         """
-        email, password = self._get_creds()
-        if email is None or password is None:
+        if self.status == AuthStatus.PROGRESS:
+            logger.debug('Already authentificating')
+            return False
+        self.status = AuthStatus.PROGRESS
+
+        self.key = None
+        user, password = self.secrets['user'], self.secrets['password']
+        if user is None or password is None:
             logger.debug('Cannot login, because didn\'t get email or password')
             return False
-        m = Soup.Message.new('POST',
-                             'https://www.google.com/accounts/ClientLogin')
-        d = 'service=reader&accountType=GOOGLE&Email={email}&Passwd={password}'
-        d = d.format(email=email, password=password)
-        t = 'application/x-www-form-urlencoded'
-        m.set_request(t, Soup.MemoryUse.COPY, d, len(d))
-        self.soup_session.queue_message(m, self.logged_in, None)
 
-    def logged_in(self, session, message, data=None):
-        logger.debug('Soup status code {0}'.format(message.status_code))
+        message = utils.Message('POST', self._url)
+        req_type = 'application/x-www-form-urlencoded'
+        data = self._data.format(user, password)
+        message.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
+        utils.session.queue_message(message, self.on_login, None)
+
+    def on_login(self, session, message, data=None):
+        """
+        Should set state of Auth object to show state of login and key
+        """
         if 400 <= message.status_code < 500:
+            logger.debug('Auth failed with {0}'.format(message.status_code))
             self.status = AuthStatus.BAD
-            if not self.key:
-                self.emit('ask-password')
-        elif message.status_code < 100:
+        elif message.status_code < 100 or 500 <= message.status_code < 600:
+            logger.debug('Auth failed with {0}'.format(message.status_code))
             self.status = AuthStatus.NET_ERROR
         else:
             self.status = AuthStatus.BAD
             for line in message.response_body.data.splitlines():
                 if line.startswith('Auth='):
+                    # Set state of login
                     self.key = line[5:]
                     self.status = AuthStatus.OK
+        if self.status == AuthStatus.OK:
+            # Try to get user information
+            message = Soup.Message.new('GET', utils.api_method('user-info'))
+            heads = message.get_property('request-headers')
+            heads.append('Authorization',
+                         'GoogleLogin auth={0}'.format(self.key))
+            utils.session.queue_message(message, self.on_user_data, None)
+
+    def on_user_data(self, session, message, data=None):
+        info = json.loads(message.response_body.data)
+        self.info = {'id': info['userId']}
         self.emit('status-change')
 
-    def _get_creds(self):
-        if not self.use_keyring:
-            logger.debug('Because keyring is unavailable, giving session vars')
-            return self.email, self.password
 
-        attr = GK.Attribute
-        attrs = attr.list_new()
-        attr.list_append_string(attrs, 'application', 'lightread')
-        r = GK.find_items_sync(GK.ItemType.NETWORK_PASSWORD, attrs)
-        if r[0] == GK.Result.OK:
-            if len(r[1]) > 1:
-                logger.debug('More than 1 password belonging to lightread'
-                             ' found. Using a first one.')
-            result = r[1][0]
-            password = result.secret
-            email = None
-            for attr in GK.Attribute.list_to_glist(result.attributes):
-                if attr.name == 'email':
-                    email = attr.get_string()
-            return email, password
-        elif r[0] == GK.Result.NO_MATCH:
-            logger.debug('No passwords belonging to lightread found')
-        else:
-            logger.warning('Unexpected situation occured when retrieving '
-                           'a password from keyring')
-        return None, None
+class SecretStore(GObject.Object):
+    __gsignals__ = {
+        'ask-password': (GObject.SignalFlags.ACTION, None, [])
+    }
+    keys = ('user', 'password',)
 
-    def set_creds(self, email, password):
-        """
-        Returns True if password was saved either for session or in a keyring.
-        Will replace a password if one is saved already.
-        """
-        if not self.use_keyring:
-            logger.warning('Password was not saved to keyring, because keyring'
-                           ' is not available')
-            self.password = password
-            self.email = email
+    def __init__(self, *args, **kwargs):
+        super(SecretStore, self).__init__(*args, **kwargs)
+
+        self._password, self._user = None, None
+        self._use_keyring = GK.is_available()
+        if not self._use_keyring:
+            logger.warning('Keyring is not available')
         else:
-            attr = GK.Attribute
-            attrs = attr.list_new()
-            attr.list_append_string(attrs, 'email', email)
-            attr.list_append_string(attrs, 'application', 'lightread')
-            r = GK.item_create_sync(self.keyring_name,
-                                GK.ItemType.NETWORK_PASSWORD,
-                                'LightRead Password', attrs, password, True)
-            return r[0] == GK.Result.OK
+            self._keyring_name = GK.get_default_keyring_sync()[1]
+
+    def _load_creds(self):
+        if not self._use_keyring:
+            logger.debug('Because keyring is unavailable, loaded nothing')
+            raise EnvironmentError('Could not load password')
+
+        queryset = GK.Attribute.list_new()
+        GK.Attribute.list_append_string(queryset, 'application', 'lightread')
+        status, result = GK.find_items_sync(GK.ItemType.NETWORK_PASSWORD,
+                                            queryset)
+        if len(result) > 1:
+            logger.warning('>1 lightread specific secrets found')
+
+        if status == GK.Result.OK:
+            self._password = result[0].secret
+            for attribute in GK.Attribute.list_to_glist(result[0].attributes):
+                if attribute.name == 'user':
+                    self._user = attribute.get_string()
+            return True # All OK!
+        elif status == GK.Result.NO_MATCH:
+            logger.debug('No lightread specific secrets found')
+        else:
+            logger.warning('Unexpected keyring error occured')
+        raise EnvironmentError('Could not load password')
+
+    def __getitem__(self, key):
+        if self._password is None and self._user is None:
+            try:
+                self._load_creds()
+            except EnvironmentError:
+                self.emit('ask-password')
+                return None
+
+        if key in self.keys:
+            value = getattr(self, '_{0}'.format(key))
+            if value is None:
+                logger.debug('Getting {0} before setting it'.format(key))
+            return value
+        raise KeyError('There\'s no key named {0}'.format(key))
+
+    def set(self, user, password):
+        self._user, self._password = user, password
+
+        if not self._use_keyring:
+            logger.warning('Keyring is unavailable, didn\'t save the secret')
+            return False
+
+        attributes = GK.Attribute.list_new()
+        GK.Attribute.list_append_string(attributes, 'application', 'lightread')
+        GK.Attribute.list_append_string(attributes, 'user', user)
+        status, _ = GK.item_create_sync(self._keyring_name,
+                                        GK.ItemType.NETWORK_PASSWORD,
+                                        'LightRead Password',
+                                        attributes, password, True)
+        return status == GK.Result.OK
 
 
 if 'auth' not in _globals_cache:

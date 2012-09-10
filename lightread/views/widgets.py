@@ -16,14 +16,14 @@ class ToolbarSearch(Gtk.ToolItem):
 
 class Toolbar(Gtk.Toolbar):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, application, *args, **kwargs):
         super(Toolbar, self).__init__(*args, **kwargs)
         Gtk.StyleContext.add_class(self.get_style_context(),
                                    Gtk.STYLE_CLASS_PRIMARY_TOOLBAR)
 
         # Reload button
-        self.reload_button = Gtk.ToolButton.new_from_stock(Gtk.STOCK_REFRESH)
-        self.insert(self.reload_button, -1)
+        self.reload = Gtk.ToolButton.new_from_stock(Gtk.STOCK_REFRESH)
+        self.insert(self.reload, -1)
         # Add button
         self.add_button = Gtk.ToolButton.new_from_stock(Gtk.STOCK_ADD)
         self.insert(self.add_button, -1)
@@ -52,8 +52,11 @@ class Toolbar(Gtk.Toolbar):
         self.insert(self.preferences, -1)
 
 class Sidebar(Gtk.HPaned):
+    __gsignals__ = {
+        'change-items': (GObject.SignalFlags.ACTION, None, []),
+    }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, application, *args, **kwargs):
         super(Sidebar, self).__init__(*args, **kwargs)
         # Left side.
         left_box = Gtk.VBox()
@@ -62,42 +65,50 @@ class Sidebar(Gtk.HPaned):
                                    Gtk.STYLE_CLASS_SIDEBAR)
 
         # Upper part
-        self.categories = CategoriesView()
+        self.categories = CategoriesView(application)
         # TODO: Change with custom icons.
-        for entry in [(Gtk.STOCK_JUSTIFY_FILL, _('All items'),),
-                      (Gtk.STOCK_INDEX, _('Unread'),),
-                      (Gtk.STOCK_ABOUT, _('Starred'),)]:
-            self.categories.add_category(*entry)
-
         left_box.pack_start(self.categories, False, False, 0)
 
         # Bottom part
-        self.subscriptions = SubscriptionsView()
-
-        # Dummy data
-        for i in range(10):
-            directory = self.subscriptions.add_directory('Directory')
-            for i in range(10):
-                self.subscriptions.add_feed(Gtk.STOCK_FILE, 'Feed', directory)
-
-        for i in range(10):
-            self.subscriptions.add_feed(Gtk.STOCK_FILE, 'Feed')
-
+        self.subscriptions = SubscriptionsView(application)
         left_box.pack_start(self.subscriptions.scrollwindow, True, True, 0)
-
-
         self.pack1(left_box, False, False)
 
         # Make middle sidebar
 
-        self.items = ItemsView()
+        self.items = ItemsView(application)
         self.items.scrollwindow.set_size_request(250, 0)
         self.pack2(self.items.scrollwindow, True, False)
+        application.toolbar.reload.connect('clicked', self.on_reload)
+
+        # Connecting signals
+
+        self.subscriptions.connect('cursor-changed', self.on_change)
+        self.categories.connect('cursor-changed', self.on_change)
+        # Need to register manually, because self.categories selects
+        # first row in __init__
+        self.on_change(self.categories)
+
+
+    def on_reload(self, button):
+        self.subscriptions.sync()
+        self.items.sync()
+
+    def on_change(self, view):
+        if view.in_destruction():
+            return
+        if isinstance(view, CategoriesView):
+            self.subscriptions.selection.unselect_all()
+            selection = self.categories.selection.get_selected()
+            category = selection[0].get_value(selection[1], 2)
+            self.items.store.set_category(category)
+        else:
+            pass
 
 
 class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, application, *args, **kwargs):
         super(FeedView, self).__init__(*args, **kwargs)
         self.settings = WebKit.WebSettings()
         self.settings.set_properties(
@@ -119,11 +130,10 @@ class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
         self.set_settings(self.settings)
 
 
-
 class CategoriesView(Gtk.TreeView):
 
-    def __init__(self, *args, **kwargs):
-        self._store = Gtk.ListStore(str, str)
+    def __init__(self, application, *args, **kwargs):
+        self._store = Gtk.ListStore(str, str, str)
         super(CategoriesView, self).__init__(self._store, *args, **kwargs)
 
         self.set_headers_visible(False)
@@ -137,51 +147,83 @@ class CategoriesView(Gtk.TreeView):
         column.pack_start(title, True)
         column.add_attribute(icon, "icon-name", 0)
         column.add_attribute(title, "text", 1)
-
         self.append_column(column)
 
-    def add_category(self, icon, title):
-        return self._store.append((icon, title,))
+        self.selection = self.get_selection()
+        i = self.append(Gtk.STOCK_JUSTIFY_FILL, _('All items'), 'reading-list')
+        self.append(Gtk.STOCK_INDEX, _('Unread'), 'unread')
+        self.append(Gtk.STOCK_ABOUT, _('Starred'), 'starred')
+        self.selection.select_iter(i)
+
+    def append(self, icon, title, tp):
+        return self._store.append((icon, title, tp,))
 
 
 class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
 
-    def __init__(self, *args, **kwargs):
-        self._store = Gtk.TreeStore(str, str)
-
-        super(SubscriptionsView, self).__init__(self._store, *args,
+    def __init__(self, application, *args, **kwargs):
+        self.store = models.Subscriptions()
+        super(SubscriptionsView, self).__init__(self.store, *args,
                                                 **kwargs)
+        self.store.connect('pre-clear', self.on_pre_clear)
+        self.store.connect('sync-done', self.on_sync_done)
+        self.connect('row-collapsed', SubscriptionsView.on_collapse)
+        self.connect('row-expanded', SubscriptionsView.on_expand)
+        self.memory = {'expanded': [], 'selection': None}
         self.set_headers_visible(False)
+        self.set_level_indentation(-16)
+        self.selection = self.get_selection()
         Gtk.StyleContext.add_class(self.get_style_context(),
                                    Gtk.STYLE_CLASS_SIDEBAR)
 
         # Make column
-        _column = Gtk.TreeViewColumn("Icon and Title")
-        _icon_renderer = Gtk.CellRendererPixbuf()
-        _title_renderer = Gtk.CellRendererText()
-        _column.pack_start(_icon_renderer, False)
-        _column.pack_start(_title_renderer, True)
-        _column.add_attribute(_icon_renderer, "icon-name", 0)
-        _column.add_attribute(_title_renderer, "text", 1)
-        self.append_column(_column)
+        column = Gtk.TreeViewColumn("Subscription")
+        icon_renderer = Gtk.CellRendererPixbuf()
+        title_renderer = Gtk.CellRendererText()
+        column.pack_start(icon_renderer, False)
+        column.pack_start(title_renderer, True)
+        column.add_attribute(icon_renderer, "pixbuf", 0)
+        column.add_attribute(title_renderer, "text", 1)
+        title_renderer.set_properties(ellipsize=Pango.EllipsizeMode.END,
+                                      ellipsize_set=True)
+        self.append_column(column)
 
-    def add_directory(self, title):
-        """ Returns appended directory, which you need to use to append feeds.
-        """
-        return self._store.append(None, (None, title,))
+    def on_pre_clear(self, *args):
+        selection = self.selection.get_selected()[1]
+        if selection is not None:
+            self.memory['selection'] = self.store.get_path(selection)
 
-    def add_feed(self, icon, title, directory=None):
-        self._store.append(directory, (icon, title,))
+    def on_sync_done(self, *args):
+        for path in self.memory['expanded']:
+            self.expand_row(path, False)
+        if self.memory['selection'] is not None:
+            self.selection.select_path(self.memory['selection'])
+
+    def on_expand(self, itr, path):
+        self.memory['expanded'].append(path.copy())
+
+    def on_collapse(self, itr, path):
+        self.memory['expanded'].pop(self.memory['expanded'].index(path))
+
+    def sync(self):
+        logger.debug('Starting subscriptions\' sync')
+        self.store.sync()
 
 
 class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
-    def __init__(self, *args, **kwargs):
-        super(ItemsView, self).__init__(models.feeds.AllItems(),
-                                        *args, **kwargs)
+    def __init__(self, application, *args, **kwargs):
+        self.store = models.Items()
+        super(ItemsView, self).__init__(self.store, *args, **kwargs)
         self.set_headers_visible(False)
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer, item=0)
         self.append_column(column)
+        self.store.set_sort_column_id(0, Gtk.SortType.DESCENDING)
+        self.store.set_sort_func(0, models.Items.compare, None)
+
+    def sync(self):
+        logger.debug('Starting items\' sync')
+        self.store.sync()
 
 
 class ItemCellRenderer(Gtk.CellRenderer):
@@ -230,7 +272,76 @@ class ItemCellRenderer(Gtk.CellRenderer):
     def get_attrs(self, t, **kwargs):
         mark = self.markup[t].format(size=self.font_size[t] * Pango.SCALE,
                                      **kwargs)
-        return Pango.parse_markup(mark, -1, "§")[1]
+        try:
+            return Pango.parse_markup(mark, -1, "§")[1]
+        except:
+            logger.error('Could not get attributes, because of malformed'
+                         ' markup')
+            return Pango.parse_markup('', -1, "§")[1]
+
+
+    def render_icon(self, widget, cell_area, ctx, y):
+        if ctx is not None and cell_area is not None and \
+           self.item.icon is not None:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(self.item.icon, 16, 16)
+            Gdk.cairo_set_source_pixbuf(ctx, pixbuf, cell_area.x, y)
+            ctx.paint()
+            self.left_padding = pixbuf.get_width() + cell_area.x
+        elif cell_area is not None:
+            self.left_padding = cell_area.x
+
+
+    def render_date(self, widget, cell_area, ctx, y):
+        time = utils.time_ago(self.item.datetime)
+        context = widget.get_style_context()
+        if not self.selected:
+            color = context.get_background_color(Gtk.StateFlags.SELECTED)
+        else:
+            color = context.get_color(Gtk.StateFlags.SELECTED)
+        attrs = self.get_attrs('date', text=time, color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(time)
+        layout.set_attributes(attrs)
+        layout.set_alignment(Pango.Alignment.RIGHT)
+        ink, logical = layout.get_pixel_extents()
+        x = None
+        if ctx is not None and cell_area is not None:
+            x = cell_area.width - cell_area.x - ink.width - ink.x
+            ctx.move_to(x, y)
+            PangoCairo.show_layout(ctx, layout)
+        return ink, x
+
+    def render_site(self, widget, cell_area, ctx, y, date_x):
+        color = widget.get_style_context().get_color(self.state)
+        attrs = self.get_attrs('site', text=self.item.site,
+                               color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(self.item.site)
+        layout.set_attributes(attrs)
+        layout.set_ellipsize(Pango.EllipsizeMode.END)
+        if ctx is not None and cell_area is not None:
+            width = (date_x - self.left_padding - self.line_spacing)
+            layout.set_width(width * Pango.SCALE)
+            ctx.move_to(cell_area.x + self.left_padding, y)
+            PangoCairo.show_layout(ctx, layout)
+
+    def render_title(self, widget, cell_area, ctx, y):
+        color = widget.get_style_context().get_color(self.state)
+        attrs = self.get_attrs('title', text=self.item.title,
+                                                  color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(self.item.title)
+        layout.set_attributes(attrs)
+        layout.set_wrap(Pango.WrapMode.WORD)
+        layout.set_ellipsize(Pango.EllipsizeMode.END)
+        ink, logical = layout.get_pixel_extents()
+        if ctx is not None and cell_area is not None:
+            layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE)
+            ctx.move_to(cell_area.x + self.left_padding, y)
+            PangoCairo.show_layout(ctx, layout)
+        return ink
+
+    def render_summary(self, widget, cell_area, ctx, y):
+        color = widget.get_style_context().get_color(self.state)
+        attrs = self.get_attrs('summary', text=self.item.summary,
+                               color=utils.hexcolor(color))
 
     def render_icon(self, widget, cell_area, ctx, y):
         if ctx is not None and cell_area is not None and \
