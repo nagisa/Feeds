@@ -251,9 +251,11 @@ class ItemCellRenderer(Gtk.CellRenderer):
         self.selected = selected
         self.state = (Gtk.StateFlags.SELECTED if self.selected else
                                                         Gtk.StateFlags.NORMAL)
-        y = self.line_spacing
+        y = 0
         if cell_area is not None:
             y += cell_area.y
+        offset = y
+        y += self.line_spacing
         self.render_icon(widget, cell_area, ctx, y)
         ink, date_x = self.render_date(widget, cell_area, ctx, y)
         self.render_site(widget, cell_area, ctx, y, date_x)
@@ -262,7 +264,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         y += ink.height + self.line_spacing
         ink = self.render_summary(widget, cell_area, ctx, y)
         y += ink.height + self.line_spacing
-        self.height = y
+        self.height = y - offset
 
     def do_get_size(self, widget, cell_area):
         if self.height == 0:
@@ -279,7 +281,6 @@ class ItemCellRenderer(Gtk.CellRenderer):
                          ' markup')
             return Pango.parse_markup('', -1, "§")[1]
 
-
     def render_icon(self, widget, cell_area, ctx, y):
         if ctx is not None and cell_area is not None and \
            self.item.icon is not None:
@@ -290,72 +291,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
         elif cell_area is not None:
             self.left_padding = cell_area.x
 
-
     def render_date(self, widget, cell_area, ctx, y):
-        time = utils.time_ago(self.item.datetime)
-        context = widget.get_style_context()
-        if not self.selected:
-            color = context.get_background_color(Gtk.StateFlags.SELECTED)
-        else:
-            color = context.get_color(Gtk.StateFlags.SELECTED)
-        attrs = self.get_attrs('date', text=time, color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(time)
-        layout.set_attributes(attrs)
-        layout.set_alignment(Pango.Alignment.RIGHT)
-        ink, logical = layout.get_pixel_extents()
-        x = None
-        if ctx is not None and cell_area is not None:
-            x = cell_area.width - cell_area.x - ink.width - ink.x
-            ctx.move_to(x, y)
-            PangoCairo.show_layout(ctx, layout)
-        return ink, x
-
-    def render_site(self, widget, cell_area, ctx, y, date_x):
-        color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('site', text=self.item.site,
-                               color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(self.item.site)
-        layout.set_attributes(attrs)
-        layout.set_ellipsize(Pango.EllipsizeMode.END)
-        if ctx is not None and cell_area is not None:
-            width = (date_x - self.left_padding - self.line_spacing)
-            layout.set_width(width * Pango.SCALE)
-            ctx.move_to(cell_area.x + self.left_padding, y)
-            PangoCairo.show_layout(ctx, layout)
-
-    def render_title(self, widget, cell_area, ctx, y):
-        color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('title', text=self.item.title,
-                                                  color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(self.item.title)
-        layout.set_attributes(attrs)
-        layout.set_wrap(Pango.WrapMode.WORD)
-        layout.set_ellipsize(Pango.EllipsizeMode.END)
-        ink, logical = layout.get_pixel_extents()
-        if ctx is not None and cell_area is not None:
-            layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE)
-            ctx.move_to(cell_area.x + self.left_padding, y)
-            PangoCairo.show_layout(ctx, layout)
-        return ink
-
-    def render_summary(self, widget, cell_area, ctx, y):
-        color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('summary', text=self.item.summary,
-                               color=utils.hexcolor(color))
-
-    def render_icon(self, widget, cell_area, ctx, y):
-        if ctx is not None and cell_area is not None and \
-           self.item.icon is not None:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(self.item.icon, 16, 16)
-            Gdk.cairo_set_source_pixbuf(ctx, pixbuf, cell_area.x, y)
-            ctx.paint()
-            self.left_padding = pixbuf.get_width() + cell_area.x
-        elif cell_area is not None:
-            self.left_padding = cell_area.x
-
-
-    def render_date(self, widget, cell_area, ctx, y):
-        time = utils.time_ago(self.item.datetime)
+        #time = utils.time_ago(self.item.datetime)
+        time = str(self.item.updated)
         context = widget.get_style_context()
         if not self.selected:
             color = context.get_background_color(Gtk.StateFlags.SELECTED)
