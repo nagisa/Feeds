@@ -1,5 +1,5 @@
 from gi.repository import Gtk
-from datetime import datetime
+from time import time
 from lightread.utils import get_data_path
 
 
@@ -34,24 +34,25 @@ def hexcolor(color):
     return '#{0:02X}{1:02X}{2:02X}'.format(round(color.red * 0xFF),
                                            round(color.green * 0xFF),
                                            round(color.blue * 0xFF))
-def time_ago(datetime):
-    diff = datetime.now() - datetime
-    hours = (diff.seconds / 3600).__trunc__()
-    minutes = (diff.seconds / 60).__trunc__()
-    min_sub_hours = minutes - hours * 60
-    hour_fmt = N_("{0} hour", "{0} hours", hours)
-    day_fmt = N_("{0} day", "{0} days", diff.days)
-    min_fmt = N_("{0} minute", "{0} minutes", minutes)
-    ago_fmt = _("{0} ago")
-    if diff.days > 0 and hours > 0:
-        return ago_fmt.format("{0} {1}".format(day_fmt.format(diff.days),
-                                               hour_fmt.format(hours)))
-    elif diff.days > 0:
-        return ago_fmt.format(day_fmt.format(diff.days))
-    elif 6 > hours > 0 and minutes > 0:
-        return ago_fmt.format("{0} {1}".format(hour_fmt.format(hours),
-                                               min_fmt.format(min_sub_hours)))
-    elif hours > 0:
-        return ago_fmt.format(hour_fmt.format(hours))
-    else:
+def time_ago(timestamp):
+    ago_fmt = _('{0} ago')
+    seconds = (time() - timestamp).__trunc__()
+    if seconds < 0:
+        logger.warning('Invalid timestamp occured')
+        return _('From future')
+    if seconds < 60:
+        return _('Just now')
+
+    minutes = (seconds / 60).__trunc__()
+    min_fmt = N_('{0} minute', '{0} minutes', minutes)
+    if minutes < 60:
         return ago_fmt.format(min_fmt.format(minutes))
+
+    hours = (minutes / 60).__trunc__()
+    hour_fmt = N_('{0} hour', '{0} hours', hours)
+    if hours < 24:
+        return ago_fmt.format(hour_fmt.format(hours))
+
+    days = (hours / 24).__trunc__()
+    day_fmt = N_('{0} day', '{0} days', days)
+    return ago_fmt.format(day_fmt.format(days))

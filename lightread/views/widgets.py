@@ -292,8 +292,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
             self.left_padding = cell_area.x
 
     def render_date(self, widget, cell_area, ctx, y):
-        #time = utils.time_ago(self.item.datetime)
-        time = str(self.item.updated)
+        time = utils.time_ago(self.item.updated)
         context = widget.get_style_context()
         if not self.selected:
             color = context.get_background_color(Gtk.StateFlags.SELECTED)

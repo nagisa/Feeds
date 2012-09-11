@@ -52,7 +52,7 @@ class Ids(GObject.Object, utils.LoginRequired):
         """
         Reads its from a cache file. Returns a set with signed 64bit integers
         """
-        logger.debug('Getting ids for {0}'.format(key))
+        logger.debug('Reading {0} IDs'.format(key))
         fpath = os.path.join(CACHE_DIR, key)
         if not os.path.isfile(fpath):
             raise KeyError('ID file at {0} does not exist'.format(fpath))
@@ -72,7 +72,7 @@ class Ids(GObject.Object, utils.LoginRequired):
         Writes ids to a cache. Value expects an iterator yielding signed
         integers up to 64 bits in length
         """
-        logger.debug('Writing ID file for {0}'.format(key))
+        logger.debug('Writing {0} IDs'.format(key))
         if key not in self.states:
             logger.warning('Key {0} is not in states'.format(key))
         fpath = os.path.join(CACHE_DIR, key)
@@ -102,8 +102,19 @@ class Ids(GObject.Object, utils.LoginRequired):
         return itertools.zip_longest(*args, fillvalue=('', ''))
 
     def on_unread(self, session, msg, data=None):
+        if 'reading-list' not in self.done:
+            # We must filter out items which doesn't exist in reading-list
+            def cb(self, key, data):
+                self.disconnect(self._unread_cb)
+                delattr(self, '_unread_cb')
+                data[0](*data[1:])
+            args = (self.on_unread, session, msg, data)
+            self._unread_cb = self.connect('partial-sync', cb, args)
+            return False
+
         res = json.loads(msg.response_body.data)['itemRefs']
-        self['unread'] = set(int(item['id']) for item in res)
+        unread = set(int(item['id']) for item in res)
+        self['unread'] = unread & self['reading-list']
         self.emit('partial-sync', 'unread')
 
     def on_starred(self, session, msg, data=None):
@@ -197,50 +208,81 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         if shrt_id in self and self[shrt_id].same_date(item['updated']):
             # It didn't change, no need to change it.
             return
-        self[shrt_id] = self.normalize_item(item)
-        if 'content' in item:
-            content = item['content']['content']
-        else:
-            content = item['summary']['content']
+        self[shrt_id], content = self.normalize_item(item)
         self[shrt_id].set_content(content)
 
     def normalize_item(self, item):
+        # After a lot of fiddling around I realized one thing. We are IN NO
+        # WAY guaranteed that any of these fields exists at all.
+        # This idiocy should make this method bigger than a manpage for
+        # understanding teenage girls' thought processes.
+        """
+        Should return a dictionary, content pair with these items in dict:
+        * updated – when the item was last updated
+        * origin – where item comes from
+        * href – where to direct user for full article. Source.
+        * author – who has written this item.
+        * summary – content stripped of html and trimmed to 139 characters
+        * title
+
+        If any of values doesn't exist, they'll be replaced with meaningful
+        defaults. For example "Incognito" for author or "Untitled item" for
+        title
+        """
         result = {}
-        for key in ('title', 'author', 'updated'):
-            if key in item:
-                result[key] = item[key]
+        # The only keys that are guaranteed to exist, at least to my knowledge
+        result['updated'] = item['updated']
         result['origin'] = item['origin']['streamId']
-        result['href'] = item['alternate'][0]['href']
-        if 'summary' in item:
-            summary = item['summary']['content']
+
+        try:
+            result['href'] = item['alternate'][0]['href']
+        except KeyError:
+            result['href'] = result['origin']
+
+        if 'author' in item:
+            result['author'] = item['author']
         else:
-            summary = item['content']['content']
-        result['summary'] = self.purge_html.sub('', summary)[:250]
-        return result
+            result['author'] = _('Incognito')
+
+        # How could they even think of putting html into title?!
+        if 'title' in item:
+            result['title'] = self.purge_html.sub('', item['title'])
+        else:
+            result['title'] = _('Untitled item')
+
+        if 'summary' in item:
+            content = item['summary']['content']
+        elif 'content' in item:
+            content = item['content']['content']
+        else:
+            content = ""
+        result['summary'] = self.purge_html.sub('', content)[:140] + "…"
+
+        return result, content
 
     def set_category(self, category):
-        print(self.ids['unread'] - self.ids['reading-list'])
         try:
             self.append_ids(self.ids[category])
         except KeyError:
+            # We don't have IDs cached, and can do nothing about it before
+            # cache happens.
             return
 
     def append_ids(self, ids):
-        return
         self.clear()
         # Way to make view show filtered items
         for i in ids:
             self.append((self[i],))
 
     def compare(self, row1, row2, user_data):
-        value1 = self.get_value(row1, 0).datetime
-        value2 = self.get_value(row2, 0).datetime
-        if value1 < value2:
-            return -1
+        value1 = self.get_value(row1, 0).updated
+        value2 = self.get_value(row2, 0).updated
+        if value1 > value2:
+            return 1
         elif value1 == value2:
             return 0
         else:
-            return 1
+            return -1
 
 class FeedItem(GObject.Object):
 
@@ -255,7 +297,7 @@ class FeedItem(GObject.Object):
         else:
             logger.error('FeedItem with id {0} doesn\'t exist'.format(item_id))
         self.title = data['title']
-        self.datetime = datetime.fromtimestamp(data['updated'])
+        self.updated = data['updated']
         self.summary = data['summary']
         self.icon = None
         self.content = 'blahblab'
@@ -269,5 +311,5 @@ class FeedItem(GObject.Object):
             f.write(content)
 
     def same_date(self, timestamp):
-        return self.datetime == datetime.fromtimestamp(timestamp)
+        return self.updated == timestamp
 
