@@ -39,7 +39,7 @@ def time_ago(timestamp):
     seconds = (time() - timestamp).__trunc__()
     if seconds < 0:
         logger.warning('Invalid timestamp occured')
-        return _('From future')
+        return _('From the future')
     if seconds < 60:
         return _('Just now')
 
