@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk, GObject
+import html
+
 from lightread.views import utils
 from lightread import models
-
 
 class ToolbarSearch(Gtk.ToolItem):
 
@@ -271,15 +272,16 @@ class ItemCellRenderer(Gtk.CellRenderer):
             self._do_render(widget)
         return 0, 0, 0, self.height
 
-    def get_attrs(self, t, **kwargs):
+    def get_attrs(self, t, text, **kwargs):
         mark = self.markup[t].format(size=self.font_size[t] * Pango.SCALE,
-                                     **kwargs)
+                                     text=html.escape(text), **kwargs)
         try:
-            return Pango.parse_markup(mark, -1, "§")[1]
+            markup = Pango.parse_markup(mark, -1, '\0')
         except:
+            markup = Pango.parse_markup('', -1, '\0')
             logger.error('Could not get attributes, because of malformed'
                          ' markup')
-            return Pango.parse_markup('', -1, "§")[1]
+        return markup[1], text
 
     def render_icon(self, widget, cell_area, ctx, y):
         if ctx is not None and cell_area is not None and \
@@ -292,14 +294,14 @@ class ItemCellRenderer(Gtk.CellRenderer):
             self.left_padding = cell_area.x
 
     def render_date(self, widget, cell_area, ctx, y):
-        time = utils.time_ago(self.item.time)
         context = widget.get_style_context()
         if not self.selected:
             color = context.get_background_color(Gtk.StateFlags.SELECTED)
         else:
             color = context.get_color(Gtk.StateFlags.SELECTED)
-        attrs = self.get_attrs('date', text=time, color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(time)
+        attrs, t = self.get_attrs('date', text=utils.time_ago(self.item.time),
+                                     color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(t)
         layout.set_attributes(attrs)
         layout.set_alignment(Pango.Alignment.RIGHT)
         ink, logical = layout.get_pixel_extents()
@@ -312,9 +314,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     def render_site(self, widget, cell_area, ctx, y, date_x):
         color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('site', text=self.item.site,
-                               color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(self.item.site)
+        attrs, text = self.get_attrs('site', text=self.item.site,
+                                     color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(text)
         layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         if ctx is not None and cell_area is not None:
@@ -325,9 +327,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     def render_title(self, widget, cell_area, ctx, y):
         color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('title', text=self.item.title,
-                                                  color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(self.item.title)
+        attrs, text = self.get_attrs('title', text=self.item.title,
+                                     color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(text)
         layout.set_attributes(attrs)
         layout.set_wrap(Pango.WrapMode.WORD)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
@@ -340,9 +342,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     def render_summary(self, widget, cell_area, ctx, y):
         color = widget.get_style_context().get_color(self.state)
-        attrs = self.get_attrs('summary', text=self.item.summary,
-                               color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(self.item.summary)
+        attrs, text = self.get_attrs('summary', text=self.item.summary,
+                                     color=utils.hexcolor(color))
+        layout = widget.create_pango_layout(text)
         layout.set_attributes(attrs)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         layout.set_height(self.summary_height * Pango.SCALE)

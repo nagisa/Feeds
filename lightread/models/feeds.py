@@ -21,6 +21,7 @@ import struct
 import itertools
 import ctypes
 from urllib.parse import urlencode
+from html.entities import name2codepoint
 from datetime import datetime
 from gi.repository import Soup, GObject, GLib, Gtk
 
@@ -211,6 +212,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         self[shrt_id], content = self.normalize_item(item)
         self[shrt_id].set_content(content)
 
+
     def normalize_item(self, item):
         # After a lot of fiddling around I realized one thing. We are IN NO
         # WAY guaranteed that any of these fields exists at all.
@@ -229,6 +231,14 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         defaults. For example "Incognito" for author or "Untitled item" for
         title
         """
+        def unescape(string):
+            for entity, value in name2codepoint.items():
+                if 'amp' == entity:
+                    continue
+                string = string.replace('&{0};'.format(entity), chr(value))
+            string.replace('&amp;', '&')
+            return string
+
         result = {}
         # The only keys that are guaranteed to exist, at least to my knowledge
         result['origin'] = item['origin']['streamId']
@@ -245,7 +255,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
         # How could they even think of putting html into title?!
         if 'title' in item:
-            result['title'] = self.purge_html.sub('', item['title'])
+            result['title'] = unescape(self.purge_html.sub('', item['title']))
         else:
             result['title'] = _('Untitled item')
 
@@ -255,7 +265,8 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             content = item['content']['content']
         else:
             content = ""
-        result['summary'] = self.purge_html.sub('', content)[:140] + "…"
+        result['summary'] = unescape(self.purge_html.sub('', content))[:140]
+        result['summary'] += "…"
 
         return result, content
 
