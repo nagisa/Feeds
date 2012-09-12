@@ -147,7 +147,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
     def __init__(self, *args, **kwargs):
         self.ids = Ids()
-        self.purge_html = re.compile('<.+?>')
+        self.purge_html = re.compile('<.+?>|[\n\t\r]')
         self.syncing = 0
         super(Items, self).__init__(FeedItem, **kwargs)
 
@@ -231,9 +231,8 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         """
         result = {}
         # The only keys that are guaranteed to exist, at least to my knowledge
-        result['updated'] = item['updated']
         result['origin'] = item['origin']['streamId']
-
+        result['time'] = float(item['crawlTimeMsec']) / 1000
         try:
             result['href'] = item['alternate'][0]['href']
         except KeyError:
@@ -275,8 +274,8 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             self.append((self[i],))
 
     def compare(self, row1, row2, user_data):
-        value1 = self.get_value(row1, 0).updated
-        value2 = self.get_value(row2, 0).updated
+        value1 = self.get_value(row1, 0).time
+        value2 = self.get_value(row2, 0).time
         if value1 > value2:
             return 1
         elif value1 == value2:
@@ -297,7 +296,7 @@ class FeedItem(GObject.Object):
         else:
             logger.error('FeedItem with id {0} doesn\'t exist'.format(item_id))
         self.title = data['title']
-        self.updated = data['updated']
+        self.time = data['time']
         self.summary = data['summary']
         self.icon = None
         self.content = 'blahblab'
@@ -311,5 +310,4 @@ class FeedItem(GObject.Object):
             f.write(content)
 
     def same_date(self, timestamp):
-        return self.updated == timestamp
-
+        return self.time == timestamp

@@ -1,5 +1,5 @@
 from gi.repository import Gtk
-from time import time
+import time
 from lightread.utils import get_data_path
 
 
@@ -36,7 +36,7 @@ def hexcolor(color):
                                            round(color.blue * 0xFF))
 def time_ago(timestamp):
     ago_fmt = _('{0} ago')
-    seconds = (time() - timestamp).__trunc__()
+    seconds = (time.time() - timestamp).__trunc__()
     if seconds < 0:
         logger.warning('Invalid timestamp occured')
         return _('From the future')
