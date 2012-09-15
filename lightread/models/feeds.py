@@ -27,6 +27,12 @@ from gi.repository import Soup, GObject, GLib, Gtk
 
 from lightread.models import auth, utils, settings
 
+
+content_dir = os.path.join(CACHE_DIR, 'content')
+if not os.path.exists(content_dir):
+    os.makedirs(content_dir)
+
+
 class Ids(GObject.Object, utils.LoginRequired):
     states = {'reading-list': [('s', 'user/-/state/com.google/reading-list')],
               'unread': [('s', 'user/-/state/com.google/reading-list'),
@@ -147,7 +153,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
     def __contains__(self, key):
         q = 'SELECT COUNT(id) FROM items where id=?'
         r = utils.connection.execute(q, (key,))
-        return bool(r.fetchall()[0][0])
+        return False if r.fetchone() is None else True
 
     def sync(self):
         if self.syncing > 0:
@@ -194,12 +200,11 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         Returns wether object should continue filling cache
         """
         shrt_id = str(ctypes.c_int64(int(item['id'].split('/')[-1], 16)).value)
-        # TODO: Fix this
-        # if shrt_id in self and self[shrt_id].same_date(item['updated']):
+        if shrt_id in self and self[shrt_id].same_date(item['updated']):
             # It didn't change, no need to change it.
-        #    return
+            return
         self[shrt_id], content = self.normalize_item(item)
-        # self[shrt_id].set_content(content)
+        self[shrt_id].set_content(content)
 
 
     def normalize_item(self, item):
@@ -297,14 +302,17 @@ class FeedItem(GObject.Object):
         r = utils.connection.execute(q, (item_id,)).fetchone()
         if r is None:
             logger.error('FeedItem with id {0} doesn\'t exist'.format(item_id))
-            return
-        self.time = r[3]
-        self.title = r[0]
-        self.summary = r[1]
-        self.icon = utils.icon_pixbuf(r[4])
-        self.site = r[5]
-        #self.content = data['content']['content']
-        #self.site = data['origin']['title']
+            self.time = -1
+            self.title = ''
+            self.summary = ''
+            self.icon = None
+            self.site = None
+        else:
+            self.time = r[3]
+            self.title = r[0]
+            self.summary = r[1]
+            self.icon = utils.icon_pixbuf(r[4])
+            self.site = r[5]
 
     def set_content(self, content):
         fpath = os.path.join(content_dir, self.item_id)
