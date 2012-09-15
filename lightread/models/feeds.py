@@ -27,14 +27,6 @@ from gi.repository import Soup, GObject, GLib, Gtk
 
 from lightread.models import auth, utils, settings
 
-content_dir = os.path.join(CACHE_DIR, 'content')
-if not os.path.exists(content_dir):
-    os.makedirs(content_dir)
-metadata_dir = os.path.join(CACHE_DIR, 'metadata')
-if not os.path.exists(metadata_dir):
-    os.makedirs(metadata_dir)
-
-
 class Ids(GObject.Object, utils.LoginRequired):
     states = {'reading-list': [('s', 'user/-/state/com.google/reading-list')],
               'unread': [('s', 'user/-/state/com.google/reading-list'),
@@ -54,19 +46,9 @@ class Ids(GObject.Object, utils.LoginRequired):
         Reads its from a cache file. Returns a set with signed 64bit integers
         """
         logger.debug('Reading {0} IDs'.format(key))
-        fpath = os.path.join(CACHE_DIR, key)
-        if not os.path.isfile(fpath):
-            raise KeyError('ID file at {0} does not exist'.format(fpath))
-        size = os.path.getsize(fpath)
-        if size == 0:
-            return frozenset()
-        itemsize = struct.calcsize('q')
-        if size % itemsize != 0:
-            logger.error('File does not have expected filesize')
-            return frozenset()
-        items = int(size / itemsize)
-        with open(fpath, 'rb') as f:
-            return frozenset(struct.unpack('>{0}q'.format(items), f.read()))
+        q = 'SELECT id FROM {0}_ids'.format(key.replace('-', '_'))
+        resp = utils.connection.execute(q)
+        return frozenset(row[0] for row in resp.fetchall())
 
     def __setitem__(self, key, value):
         """
@@ -74,12 +56,11 @@ class Ids(GObject.Object, utils.LoginRequired):
         integers up to 64 bits in length
         """
         logger.debug('Writing {0} IDs'.format(key))
-        if key not in self.states:
-            logger.warning('Key {0} is not in states'.format(key))
-        fpath = os.path.join(CACHE_DIR, key)
-        items = len(value)
-        with open(fpath, 'wb') as f:
-            f.write(struct.pack('>{0}q'.format(items), *value))
+        key = key.replace('-', '_')
+        utils.connection.execute('DELETE FROM {0}_ids'.format(key))
+        q = 'INSERT INTO {0}_ids(id) values(?)'.format(key)
+        utils.connection.executemany(q, ((i,) for i in value))
+        utils.connection.commit()
 
     def sync(self):
         if not self.ensure_login(auth, self.sync):
@@ -153,14 +134,20 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         super(Items, self).__init__(FeedItem, **kwargs)
 
     def __getitem__(self, key):
-        return FeedItem(str(key))
+        return FeedItem(key)
 
     def __setitem__(self, key, data):
-        with open(os.path.join(metadata_dir, key), 'w') as f:
-            json.dump(data, f)
+        utils.connection.execute('DELETE FROM items WHERE id=?', (key,))
+        q = 'INSERT INTO items(id, title, author, summary, href, time, ' \
+            'origin_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        values = (key, data['title'], data['author'], data['summary'],
+                  data['href'], data['time'], data['origin'])
+        utils.connection.execute(q, values)
 
     def __contains__(self, key):
-        return os.path.isfile(os.path.join(metadata_dir, key))
+        q = 'SELECT COUNT(id) FROM items where id=?'
+        r = utils.connection.execute(q, (key,))
+        return bool(r.fetchall()[0][0])
 
     def sync(self):
         if self.syncing > 0:
@@ -198,6 +185,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             return False
         data = json.loads(message.response_body.data)
         [self.process_item(item) for item in data['items']]
+        utils.connection.commit()
         if self.syncing == 0:
             self.emit('sync-done')
 
@@ -206,11 +194,12 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         Returns wether object should continue filling cache
         """
         shrt_id = str(ctypes.c_int64(int(item['id'].split('/')[-1], 16)).value)
-        if shrt_id in self and self[shrt_id].same_date(item['updated']):
+        # TODO: Fix this
+        # if shrt_id in self and self[shrt_id].same_date(item['updated']):
             # It didn't change, no need to change it.
-            return
+        #    return
         self[shrt_id], content = self.normalize_item(item)
-        self[shrt_id].set_content(content)
+        # self[shrt_id].set_content(content)
 
 
     def normalize_item(self, item):
@@ -272,13 +261,13 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
     def set_category(self, category):
         try:
-            self.append_ids(self.ids[category])
+            self.set_ids(self.ids[category])
         except KeyError:
             # We don't have IDs cached, and can do nothing about it before
             # cache happens.
             return
 
-    def append_ids(self, ids):
+    def set_ids(self, ids):
         self.clear()
         # Way to make view show filtered items
         for i in ids:
@@ -299,19 +288,21 @@ class FeedItem(GObject.Object):
     def __init__(self, item_id):
         self.item_id = item_id
         super(FeedItem, self).__init__()
-
-        fpath = os.path.join(metadata_dir, item_id)
-        if os.path.isfile(fpath):
-            with open(fpath, 'r') as f:
-                data = json.load(f)
-        else:
+        q = '''
+        SELECT items.title, items.summary, items.href, items.time,
+                subscriptions.url, subscriptions.title
+        FROM items LEFT JOIN subscriptions ON
+                items.origin_id = subscriptions.strid WHERE items.id=?
+        '''
+        r = utils.connection.execute(q, (item_id,)).fetchone()
+        if r is None:
             logger.error('FeedItem with id {0} doesn\'t exist'.format(item_id))
-        self.title = data['title']
-        self.time = data['time']
-        self.summary = data['summary']
-        self.icon = None
-        self.content = 'blahblab'
-        self.site = 'blahblab'
+            return
+        self.time = r[3]
+        self.title = r[0]
+        self.summary = r[1]
+        self.icon = utils.icon_pixbuf(r[4])
+        self.site = r[5]
         #self.content = data['content']['content']
         #self.site = data['origin']['title']
 

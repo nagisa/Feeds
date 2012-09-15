@@ -2,6 +2,7 @@ import os
 import json
 import hashlib
 import random
+import collections
 from gi.repository import Gtk, Soup, GdkPixbuf, GObject
 
 from lightread.models import utils, auth
@@ -17,8 +18,6 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         super().__init__(GdkPixbuf.Pixbuf, str)
         self.favicons = Favicons()
         self.favicons.connect('sync-done', self.on_icon_update)
-        self.icon_theme = Gtk.IconTheme.get_default()
-        self.icon_flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
         self.load_data()
 
     def sync(self):
@@ -30,73 +29,74 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
 
     def on_response(self, session, msg, data=None):
         res = json.loads(msg.response_body.data)['subscriptions']
-        cached = {'labels': {}, 'subscriptions': {}}
-        for sub in res:
-            subid = str(int(sub['sortid'], 16))
-            for category in sub['categories']:
-                if category['id'] not in cached['labels']:
-                    name = category['label']
-                    cached['labels'][category['id']] = {'name': name,
-                                                        'items': []}
-                cached['labels'][category['id']]['items'].append(subid)
-            cached['subscriptions'][subid] = {'title': sub['title'],
-                                              'id': sub['id'],
-                                              'url': sub['htmlUrl']}
-            self.favicons.fetch_icon(sub['htmlUrl'])
+        labels, subs = {}, []
+        for subscription in res:
+            sortid = int(subscription['sortid'], 16)
+            # Add label if they doesn't exist yet
+            for label in subscription['categories']:
+                if label['id'] not in labels:
+                    labels[label['id']] = {'name': label['label'],
+                                           'subscriptions': []}
+                labels[label['id']]['subscriptions'].append(str(sortid))
+            subs.append((sortid, subscription['htmlUrl'],
+                         subscription['title'], subscription['id'],))
+            self.favicons.fetch_icon(subscription['htmlUrl'])
 
-        with open(os.path.join(CACHE_DIR, 'subscriptions'), 'w') as f:
-            json.dump(cached, f)
-        self.load_data(cached)
+
+        utils.connection.execute('DELETE FROM subscriptions')
+        utils.connection.execute('DELETE FROM labels')
+        q = 'INSERT INTO subscriptions(id, url, title, strid) VALUES (?,?,?,?)'
+        utils.connection.executemany(q, subs)
+        q = 'INSERT INTO labels(id, name, subscriptions) VALUES (?, ?, ?)'
+        itr = ((key, val['name'],','.join(val['subscriptions']),)
+               for key, val in labels.items())
+        utils.connection.executemany(q, itr)
+        utils.connection.commit()
+        self.load_data()
 
     def _read_data(self):
-        with open(os.path.join(CACHE_DIR, 'subscriptions'), 'r') as f:
-            return json.load(f)
+        result = collections.defaultdict(list)
+        query = 'SELECT name, subscriptions FROM labels'
+        labels = utils.connection.execute(query).fetchall()
+        added = set()
 
-    def icon_from_url(self, url):
-        fpath = self.favicons.cached_icon(url)
-        if fpath is None:
-            selections = ['image-loading']
-        elif os.path.getsize(fpath) > 10:
-            return GdkPixbuf.Pixbuf.new_from_file_at_size(fpath, 16, 16)
-        else:
-            selections = ['application-rss+xml', 'application-atom+xml',
-                          'text-html', Gtk.STOCK_FILE]
-        icon = self.icon_theme.choose_icon(selections, 16, self.icon_flag)
-        if icon is None:
-            return None
-        else:
-            return icon.load_icon()
+        if len(labels) == 0:
+            return {}, []
+
+        for label in labels:
+            subids = set(label[1].split(','))
+            added |= subids
+            w = ' OR '.join(('id={0}'.format(id) for id in subids))
+            query = 'SELECT url, title FROM subscriptions WHERE {0}'.format(w)
+            subs = utils.connection.execute(query).fetchall()
+            for url, title in subs:
+                result[label[0]].append({'url': url, 'title': title})
+
+        w = ' AND NOT '.join(('id={0}'.format(id) for id in added))
+        query = 'SELECT url, title FROM subscriptions WHERE NOT {0}'.format(w)
+        subs = utils.connection.execute(query).fetchall()
+        return result, [{'url': u, 'title': t} for u, t in subs]
 
     def load_data(self, data=None):
         self.emit('pre-clear')
         self.clear()
-        items_added = set()
-        try:
-            if data is None:
-                data = self._read_data()
-        except IOError:
-            return
-
-        # Add items to labels
-        for key, label in data['labels'].items():
-            favicon = self.icon_theme.load_icon(Gtk.STOCK_DIRECTORY, 16,
-                                                self.icon_flag)
-            ptr = self.append(None, (favicon, label['name'],))
-            for item in label['items']:
-                subscription = data['subscriptions'][item]
-                favicon = self.icon_from_url(subscription['url'])
-                self.append(ptr, (favicon, subscription['title'],))
-                items_added.add(item)
-        # Add items that are unlabeled
-        for item in set(data['subscriptions'].keys()) - items_added:
-            subscription = data['subscriptions'][item]
-            favicon = self.icon_from_url(subscription['url'])
-            self.append(None, (favicon, subscription['title'],))
+        labeled, unlabeled = self._read_data()
+        theme = Gtk.IconTheme.get_default()
+        flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
+        for label, items in labeled.items():
+            favicon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
+            ptr = self.append(None, (favicon, label,))
+            for item in items:
+                favicon = utils.icon_pixbuf(item['url'])
+                self.append(ptr, (favicon, item['title'],))
+        for item in unlabeled:
+            favicon = utils.icon_pixbuf(item['url'])
+            self.append(None, (favicon, item['title'],))
         self.emit('sync-done')
 
     def on_icon_update(self, *args):
-        for row in self:
-            pass
+        self.load_data()
+
 
 class Favicons(GObject.Object):
     __gsignals__ = {
@@ -105,16 +105,12 @@ class Favicons(GObject.Object):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.favdir = os.path.join(CACHE_DIR, 'favicons')
-        if not os.path.exists(self.favdir):
-            os.makedirs(self.favdir)
-
-    def icon_name(self, origin_url):
-        fname = hashlib.md5(bytes(origin_url, 'utf-8')).hexdigest()
-        return os.path.join(self.favdir, fname)
+        favdir = os.path.join(CACHE_DIR, 'favicons')
+        if not os.path.exists(favdir):
+            os.makedirs(favdir)
 
     def cached_icon(self, origin_url):
-        fpath = self.icon_name(origin_url)
+        fpath = utils.icon_name(origin_url)
         if os.path.isfile(fpath):
             return fpath
         return None
@@ -129,7 +125,7 @@ class Favicons(GObject.Object):
         utils.session.queue_message(msg, self.on_response, origin_url)
 
     def on_response(self, session, msg, url):
-        fpath = self.icon_name(url)
+        fpath = utils.icon_name(url)
         if not (200 <= msg.status_code < 400) or msg.status_code == 204:
             logger.warning('Could not get icon for {0}'.format(url))
             open(fpath, 'wb').close()

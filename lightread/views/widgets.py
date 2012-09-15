@@ -228,129 +228,131 @@ class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
 
 
 class ItemCellRenderer(Gtk.CellRenderer):
-    # Borrowed from Geary.
     item = GObject.property(type=models.FeedItem)
-    markup = {'date': '<span color="{color}" size="{size}">{text}</span>',
-              'site': '<span color="{color}" size="{size}">{text}</span>',
-              'title': '<span color="{color}" size="{size}" weight="bold">{text}</span>',
-              'summary': '<span color="{color}" size="{size}">{text}</span>'}
-    font_size = {'date': 9, 'site': 9, 'title': 10, 'summary': 9}
+    markup = {'date': '<span color="{color}" size="9216">{text}</span>',
+              'site': '<span color="{color}" size="9216">{text}</span>',
+              'title': '<span color="{color}" size="10240" ' \
+                       'weight="{weight}">{text}</span>',
+              'summary': '<span color="{color}" size="9216">{text}</span>'}
 
     def __init__(self, *args, **kwargs):
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
         self.summary_height = 0
-        self.line_spacing = 6
+        self.spacing = 4
         self.left_padding = 0 # Replaced later by render_icon
         self.height = 0
+        self.state = Gtk.StateFlags.FOCUSED
 
     def do_render(self, ctx, widget, bg_area, cell_area, flags):
-        self._do_render(widget, ctx, cell_area, flags & flags.SELECTED)
-
-    def _do_render(self, widget, ctx=None, cell_area=None, selected=False):
-        # TODO: Employ current GTK theme colors.
-        # It should be possible, but I'll do it later
-        self.selected = selected
-        self.state = (Gtk.StateFlags.SELECTED if self.selected else
-                                                        Gtk.StateFlags.NORMAL)
-        y = 0
-        if cell_area is not None:
-            y += cell_area.y
-        offset = y
-        y += self.line_spacing
-        self.render_icon(widget, cell_area, ctx, y)
-        ink, date_x = self.render_date(widget, cell_area, ctx, y)
-        self.render_site(widget, cell_area, ctx, y, date_x)
-        y += ink.height + self.line_spacing
-        ink = self.render_title(widget, cell_area, ctx, y)
-        y += ink.height + self.line_spacing
-        ink = self.render_summary(widget, cell_area, ctx, y)
-        y += ink.height + self.line_spacing
-        self.height = y - offset
+        if flags & Gtk.CellRendererState.FOCUSED:
+            self.state = Gtk.StateFlags.SELECTED
+        else:
+            self.state = Gtk.StateFlags.NORMAL
+        self.render(widget, cell_area, ctx)
 
     def do_get_size(self, widget, cell_area):
         if self.height == 0:
-            self._do_render(widget)
+            self.render(widget, cell_area)
         return 0, 0, 0, self.height
 
-    def get_attrs(self, t, text, **kwargs):
-        mark = self.markup[t].format(size=self.font_size[t] * Pango.SCALE,
-                                     text=html.escape(text), **kwargs)
-        try:
-            markup = Pango.parse_markup(mark, -1, '\0')
-        except:
-            markup = Pango.parse_markup('', -1, '\0')
-            logger.error('Could not get attributes, because of malformed'
-                         ' markup')
-        return markup[1], text
+    def render(self, widget, cell_area, ctx=None):
+        offset = y = cell_area.y if cell_area is not None else self.spacing
+        y += cell_area.x if cell_area is not None else self.spacing
+
+
+        # Render a first line, icon, site title and date
+        height = self.render_icon(widget, cell_area, ctx, y)
+        width = self.render_date(widget, cell_area, ctx, y, height)
+        self.render_site(widget, cell_area, ctx, y, width, height)
+        y += height + int(self.spacing / 2)
+        # Second and third lines
+        ink = self.render_title(widget, cell_area, ctx, y)
+        y += ink.height + self.spacing
+        ink = self.render_summary(widget, cell_area, ctx, y)
+        y += ink.height + self.spacing
+        self.height = y - offset if self.height == 0 else self.height
 
     def render_icon(self, widget, cell_area, ctx, y):
-        if ctx is not None and cell_area is not None and \
-           self.item.icon is not None:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(self.item.icon, 16, 16)
-            Gdk.cairo_set_source_pixbuf(ctx, pixbuf, cell_area.x, y)
-            ctx.paint()
-            self.left_padding = pixbuf.get_width() + cell_area.x
+        if self.item.icon is not None:
+            if ctx is not None and cell_area is not None:
+                Gdk.cairo_set_source_pixbuf(ctx, self.item.icon,
+                                            cell_area.x, y)
+                ctx.paint()
+                self.left_padding = self.item.icon.get_width() + cell_area.x
+                return self.item.icon.get_height()
         elif cell_area is not None:
             self.left_padding = cell_area.x
+        else:
+            self.left_padding = 0
+        return 16
 
-    def render_date(self, widget, cell_area, ctx, y):
+    def render_date(self, widget, cell_area, ctx, y, height):
+        # We want to use theme colors for time string. So in Adwaita text
+        # looks blue, and in Ubuntu default theme – orange.
         context = widget.get_style_context()
-        if not self.selected:
+        if self.state == Gtk.StateFlags.NORMAL:
             color = context.get_background_color(Gtk.StateFlags.SELECTED)
         else:
             color = context.get_color(Gtk.StateFlags.SELECTED)
-        attrs, t = self.get_attrs('date', text=utils.time_ago(self.item.time),
-                                     color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(t)
-        layout.set_attributes(attrs)
+
+        # Because of bindings' limitations we have very restricted ability to
+        # make attributes programmatically, so we have to parse markup.
+        text = utils.time_ago(self.item.time)
+        layout = widget.create_pango_layout(text)
+        layout.set_markup(self.markup['date'].format(text=text,
+                          color=utils.hexcolor(color)))
         layout.set_alignment(Pango.Alignment.RIGHT)
-        ink, logical = layout.get_pixel_extents()
-        x = None
+
+        ink, x = layout.get_pixel_extents()[0], 0
+        y += int((height - ink.height) / 2)
         if ctx is not None and cell_area is not None:
             x = cell_area.width - cell_area.x - ink.width - ink.x
             ctx.move_to(x, y)
             PangoCairo.show_layout(ctx, layout)
-        return ink, x
+        return x
 
-    def render_site(self, widget, cell_area, ctx, y, date_x):
+    def render_site(self, widget, cell_area, ctx, y, maxx, height):
         color = widget.get_style_context().get_color(self.state)
-        attrs, text = self.get_attrs('site', text=self.item.site,
-                                     color=utils.hexcolor(color))
-        layout = widget.create_pango_layout(text)
-        layout.set_attributes(attrs)
+        layout = widget.create_pango_layout(self.item.site)
+        layout.set_markup(self.markup['site'].format(text=self.item.site,
+                          color=utils.hexcolor(color)))
         layout.set_ellipsize(Pango.EllipsizeMode.END)
+        max_width = (maxx - self.left_padding - self.spacing)
+        layout.set_width(max_width * Pango.SCALE)
+
+        ink = layout.get_pixel_extents()[0]
+        y += int((height - ink.height) / 2)
         if ctx is not None and cell_area is not None:
-            width = (date_x - self.left_padding - self.line_spacing)
-            layout.set_width(width * Pango.SCALE)
             ctx.move_to(cell_area.x + self.left_padding, y)
             PangoCairo.show_layout(ctx, layout)
 
     def render_title(self, widget, cell_area, ctx, y):
         color = widget.get_style_context().get_color(self.state)
-        attrs, text = self.get_attrs('title', text=self.item.title,
-                                     color=utils.hexcolor(color))
+        text = self.item.title
         layout = widget.create_pango_layout(text)
-        layout.set_attributes(attrs)
+        layout.set_markup(self.markup['title'].format(text=html.escape(text),
+                          color=utils.hexcolor(color), weight='bold'))
         layout.set_wrap(Pango.WrapMode.WORD)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
-        ink, logical = layout.get_pixel_extents()
+
+        ink = layout.get_pixel_extents()[0]
         if ctx is not None and cell_area is not None:
-            layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE)
-            ctx.move_to(cell_area.x + self.left_padding, y)
+            layout.set_width(cell_area.width * Pango.SCALE)
+            ctx.move_to(cell_area.x, y)
             PangoCairo.show_layout(ctx, layout)
         return ink
 
     def render_summary(self, widget, cell_area, ctx, y):
         color = widget.get_style_context().get_color(self.state)
-        attrs, text = self.get_attrs('summary', text=self.item.summary,
-                                     color=utils.hexcolor(color))
+        text = self.item.summary
         layout = widget.create_pango_layout(text)
-        layout.set_attributes(attrs)
+        layout.set_markup(self.markup['summary'].format(text=html.escape(text),
+                          color=utils.hexcolor(color)))
         layout.set_ellipsize(Pango.EllipsizeMode.END)
-        layout.set_height(self.summary_height * Pango.SCALE)
-        ink, logical = layout.get_pixel_extents()
+
+        ink = layout.get_pixel_extents()[0]
         if ctx is not None and cell_area is not None:
-            layout.set_width((cell_area.width - self.left_padding) * Pango.SCALE)
-            ctx.move_to(cell_area.x + self.left_padding, y)
+            layout.set_width(cell_area.width * Pango.SCALE)
+            ctx.move_to(cell_area.x, y)
             PangoCairo.show_layout(ctx, layout)
         return ink

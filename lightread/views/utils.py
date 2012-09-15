@@ -1,5 +1,6 @@
-from gi.repository import Gtk
 import time
+import html
+from gi.repository import Gtk, Pango
 from lightread.utils import get_data_path
 
 
@@ -34,6 +35,8 @@ def hexcolor(color):
     return '#{0:02X}{1:02X}{2:02X}'.format(round(color.red * 0xFF),
                                            round(color.green * 0xFF),
                                            round(color.blue * 0xFF))
+
+
 def time_ago(timestamp):
     ago_fmt = _('{0} ago')
     seconds = (time.time() - timestamp).__trunc__()

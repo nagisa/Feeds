@@ -1,10 +1,26 @@
 from urllib import parse
-from gi.repository import Soup
+import sqlite3
+import os
+import hashlib
+from lightread.utils import get_data_path
+from gi.repository import Soup, Gtk, GdkPixbuf
 
 if 'cacher_session' not in _globals_cache:
     _globals_cache['models_session'] = Soup.SessionAsync(max_conns=50,
                                                          max_conns_per_host=8)
 session = _globals_cache['models_session']
+
+if 'sqlite_cnn' not in _globals_cache:
+    fpath = os.path.join(CACHE_DIR, 'metadata')
+    if not os.path.exists(fpath):
+        connection = sqlite3.Connection(fpath)
+        with open(get_data_path('db_init.sql'), 'r') as script:
+            connection.executescript(script.read())
+    else:
+        connection = sqlite3.Connection(fpath)
+    _globals_cache['sqlite_cnn'] = connection
+connection = _globals_cache['sqlite_cnn']
+
 
 class Message(Soup.Message):
     def __new__(cls, *args, **kwargs):
@@ -12,6 +28,7 @@ class Message(Soup.Message):
         hdr = obj.get_property('request-headers')
         hdr.append('User-Agent', 'LightRead/dev')
         return obj
+
 
 class AuthMessage(Message):
     """
@@ -22,6 +39,7 @@ class AuthMessage(Message):
         hdr = obj.get_property('request-headers')
         hdr.append('Authorization', 'GoogleLogin auth={0}'.format(auth.key))
         return obj
+
 
 class LoginRequired:
     """Injects ensure_login method which will make sure, that method is
@@ -41,6 +59,7 @@ class LoginRequired:
             return False
         return True
 
+
 def api_method(path, getargs=None):
     if getargs is None:
         getargs = []
@@ -53,3 +72,31 @@ def api_method(path, getargs=None):
     # Will not override earlier output variable
     getargs = getargs + [('output', 'json')]
     return "{0}?{1}".format(parse.urljoin(base, path), parse.urlencode(getargs))
+
+
+def icon_name(origin_url):
+    fname = hashlib.md5(bytes(origin_url, 'utf-8')).hexdigest()
+    return os.path.join(CACHE_DIR, 'favicons', fname)
+
+
+def icon_pixbuf(url):
+    """Load cached icon pixbuf from url. Will try to find a suitable fallback
+    if nothing found
+    """
+    fpath = icon_name(url)
+    if not os.path.isfile(fpath):
+        selections = ['image-loading']
+    elif os.path.getsize(fpath) > 10:
+        return GdkPixbuf.Pixbuf.new_from_file_at_size(fpath, 16, 16)
+    else:
+        selections = ['application-rss+xml', 'application-atom+xml',
+                      'text-html', Gtk.STOCK_FILE]
+
+    icon_theme = Gtk.IconTheme.get_default()
+    icon_flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
+    icon = icon_theme.choose_icon(selections, 16, icon_flag)
+
+    if icon is None:
+        return None
+    else:
+        return icon.load_icon()
