@@ -191,8 +191,8 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             return False
         data = json.loads(message.response_body.data)
         [self.process_item(item) for item in data['items']]
-        utils.connection.commit()
         if self.syncing == 0:
+            utils.connection.commit()
             self.emit('sync-done')
 
     def process_item(self, item):
@@ -200,11 +200,14 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         Returns wether object should continue filling cache
         """
         shrt_id = str(ctypes.c_int64(int(item['id'].split('/')[-1], 16)).value)
-        if shrt_id in self and self[shrt_id].same_date(item['updated']):
-            # It didn't change, no need to change it.
-            return
+        try:
+            if shrt_id in self and self[shrt_id].same_date(item['updated']):
+                # It didn't change, no need to change it.
+                return
+        except ValueError:
+            pass
         self[shrt_id], content = self.normalize_item(item)
-        self[shrt_id].set_content(content)
+        FeedItem.save_content(shrt_id, content)
 
 
     def normalize_item(self, item):
@@ -276,7 +279,10 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         self.clear()
         # Way to make view show filtered items
         for i in ids:
-            self.append((self[i],))
+            try:
+                self.append((self[i],))
+            except ValueError:
+                pass
 
     def compare(self, row1, row2, user_data):
         value1 = self.get_value(row1, 0).time
@@ -293,6 +299,7 @@ class FeedItem(GObject.Object):
     def __init__(self, item_id):
         self.item_id = item_id
         super(FeedItem, self).__init__()
+
         q = '''
         SELECT items.title, items.summary, items.href, items.time,
                 subscriptions.url, subscriptions.title
@@ -300,24 +307,31 @@ class FeedItem(GObject.Object):
                 items.origin_id = subscriptions.strid WHERE items.id=?
         '''
         r = utils.connection.execute(q, (item_id,)).fetchone()
+
         if r is None:
-            logger.error('FeedItem with id {0} doesn\'t exist'.format(item_id))
-            self.time = -1
-            self.title = ''
-            self.summary = ''
-            self.icon = None
-            self.site = None
+            msg = 'FeedItem with id {0} doesn\'t exist'.format(item_id)
+            logger.error(msg)
+            raise ValueError(msg)
         else:
-            self.time = r[3]
             self.title = r[0]
             self.summary = r[1]
+            self.href = r[2]
+            self.time = r[3]
+            self.origin = r[4]
             self.icon = utils.icon_pixbuf(r[4])
             self.site = r[5]
 
-    def set_content(self, content):
-        fpath = os.path.join(content_dir, self.item_id)
+    def same_date(self, timestamp):
+        return self.time == timestamp
+
+    @staticmethod
+    def save_content(item_id, content):
+        fpath = os.path.join(content_dir, str(item_id))
         with open(fpath, 'w') as f:
             f.write(content)
 
-    def same_date(self, timestamp):
-        return self.time == timestamp
+    @staticmethod
+    def read_content(item_id):
+        fpath = os.path.join(content_dir, str(item_id))
+        with open(fpath, 'r') as f:
+            return f.read()

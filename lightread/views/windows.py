@@ -25,21 +25,24 @@ class ApplicationWindow(Gtk.ApplicationWindow):
         base_box = Gtk.VBox()
         self.add(base_box)
 
-        self.toolbar = widgets.Toolbar(self)
-        base_box.pack_start(self.toolbar, False, False, 0)
-        self.toolbar.preferences.connect('clicked', self.show_prefs)
+        toolbar = widgets.Toolbar()
+        base_box.pack_start(toolbar, False, False, 0)
 
         main_view = Gtk.HPaned()
         base_box.pack_start(main_view, True, True, 0)
 
-        side_view = widgets.Sidebar(self)
+        side_view = widgets.Sidebar()
         main_view.pack1(side_view, True, False)
 
         # Webview in the left
-        self.feedview = widgets.FeedView(self)
-        self.feedview.load_uri('http://www.duckduckgo.com/')
-        main_view.pack2(self.feedview.scrollwindow, True, False)
+        feedview = widgets.FeedView()
+        main_view.pack2(feedview.scrollwindow, True, False)
         main_view.set_position(1)
+
+        # Connect signals
+        toolbar.preferences.connect('clicked', self.show_prefs)
+        side_view.items.connect('cursor_changed', feedview.on_change)
+        toolbar.reload.connect('clicked', side_view.on_reload)
 
     def show_prefs(self, data=None):
         dialog = PreferencesDialog(self)

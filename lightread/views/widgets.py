@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk, GObject
 import html
+import os
+import collections
 
 from lightread.views import utils
 from lightread import models
+from lightread.utils import get_data_path
 
 class ToolbarSearch(Gtk.ToolItem):
 
@@ -17,7 +20,7 @@ class ToolbarSearch(Gtk.ToolItem):
 
 class Toolbar(Gtk.Toolbar):
 
-    def __init__(self, application, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(Toolbar, self).__init__(*args, **kwargs)
         Gtk.StyleContext.add_class(self.get_style_context(),
                                    Gtk.STYLE_CLASS_PRIMARY_TOOLBAR)
@@ -57,7 +60,7 @@ class Sidebar(Gtk.HPaned):
         'change-items': (GObject.SignalFlags.ACTION, None, []),
     }
 
-    def __init__(self, application, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(Sidebar, self).__init__(*args, **kwargs)
         # Left side.
         left_box = Gtk.VBox()
@@ -66,21 +69,20 @@ class Sidebar(Gtk.HPaned):
                                    Gtk.STYLE_CLASS_SIDEBAR)
 
         # Upper part
-        self.categories = CategoriesView(application)
+        self.categories = CategoriesView()
         # TODO: Change with custom icons.
         left_box.pack_start(self.categories, False, False, 0)
 
         # Bottom part
-        self.subscriptions = SubscriptionsView(application)
+        self.subscriptions = SubscriptionsView()
         left_box.pack_start(self.subscriptions.scrollwindow, True, True, 0)
         self.pack1(left_box, False, False)
 
         # Make middle sidebar
 
-        self.items = ItemsView(application)
+        self.items = ItemsView()
         self.items.scrollwindow.set_size_request(250, 0)
         self.pack2(self.items.scrollwindow, True, False)
-        application.toolbar.reload.connect('clicked', self.on_reload)
 
         # Connecting signals
 
@@ -89,7 +91,6 @@ class Sidebar(Gtk.HPaned):
         # Need to register manually, because self.categories selects
         # first row in __init__
         self.on_change(self.categories)
-
 
     def on_reload(self, button):
         self.subscriptions.sync()
@@ -102,23 +103,25 @@ class Sidebar(Gtk.HPaned):
             self.subscriptions.selection.unselect_all()
             selection = self.categories.selection.get_selected()
             category = selection[0].get_value(selection[1], 2)
+            self.items.reloading = True
             self.items.store.set_category(category)
+            self.items.reloading = False
         else:
             pass
 
 
 class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
 
-    def __init__(self, application, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(FeedView, self).__init__(*args, **kwargs)
         self.settings = WebKit.WebSettings()
+        stylesheet_path = get_data_path('ui', 'feedview', 'style.css')
         self.settings.set_properties(
             # These three saves us ~25MiB of residental memory
             enable_scripts=False, enable_plugins=False,
             enable_java_applet=False,
             # We already have most files cached and load locally
             enable_page_cache=False, enable_dns_prefetching=False,
-            enable_universal_access_from_file_uris=True,
             # Need this one of usability reasons.
             enable_default_context_menu=False,
             # Not used
@@ -126,14 +129,46 @@ class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
             enable_offline_web_application_cache=False,
             enable_xss_auditor=False, resizable_text_areas=False,
             # Very effectively turns off all types of cache
-            enable_private_browsing=True
+            enable_private_browsing=True,
+            user_stylesheet_uri='file://' + stylesheet_path
         )
         self.set_settings(self.settings)
+        self.connect('navigation-policy-decision-requested', FeedView.navigate)
+        self.load_item()
+
+    def navigate(self, frame, request, action, policy):
+        uri = action.get_original_uri()
+        if frame.get_parent():
+            logger.warning('{0} was not loaded'.format(uri))
+            policy.ignore()
+            return True
+        elif uri.startswith('http'):
+            policy.ignore()
+            return True
+        return False
+
+    def load_item(self, item=None):
+        with open(get_data_path('ui', 'feedview', 'template.html'), 'r') as f:
+            template = f.read()
+        if item is None:
+            string = template.format(title='', content='', href='')
+            return self.load_html_string(string, 'file://')
+        else:
+            content = item.read_content(item.item_id)
+            string = template.format(title=item.title, content=content,
+                                     href=item.href)
+            return self.load_html_string(string, 'file://')
+
+    def on_change(self, treeview):
+        if treeview.in_destruction() or treeview.reloading:
+            return
+        selection = treeview.get_selection().get_selected()
+        self.load_item(selection[0].get_value(selection[1], 0))
 
 
 class CategoriesView(Gtk.TreeView):
 
-    def __init__(self, application, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._store = Gtk.ListStore(str, str, str)
         super(CategoriesView, self).__init__(self._store, *args, **kwargs)
 
@@ -162,7 +197,7 @@ class CategoriesView(Gtk.TreeView):
 
 class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
 
-    def __init__(self, application, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.store = models.Subscriptions()
         super(SubscriptionsView, self).__init__(self.store, *args,
                                                 **kwargs)
@@ -212,7 +247,8 @@ class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
 
 
 class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
-    def __init__(self, application, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        self.reloading = False
         self.store = models.Items()
         super(ItemsView, self).__init__(self.store, *args, **kwargs)
         self.set_headers_visible(False)
@@ -225,7 +261,6 @@ class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
     def sync(self):
         logger.debug('Starting items\' sync')
         self.store.sync()
-
 
 class ItemCellRenderer(Gtk.CellRenderer):
     item = GObject.property(type=models.FeedItem)
