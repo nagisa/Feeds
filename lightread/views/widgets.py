@@ -207,7 +207,7 @@ class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
         self.connect('row-expanded', SubscriptionsView.on_expand)
         self.memory = {'expanded': [], 'selection': None}
         self.set_headers_visible(False)
-        self.set_level_indentation(-16)
+        self.set_level_indentation(-12)
         self.selection = self.get_selection()
         Gtk.StyleContext.add_class(self.get_style_context(),
                                    Gtk.STYLE_CLASS_SIDEBAR)
