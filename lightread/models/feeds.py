@@ -301,8 +301,8 @@ class FeedItem(GObject.Object):
         super(FeedItem, self).__init__()
 
         q = '''
-        SELECT items.title, items.summary, items.href, items.time,
-                subscriptions.url, subscriptions.title
+        SELECT items.title, items.author, items.summary, items.href,
+               items.time, subscriptions.url, subscriptions.title
         FROM items LEFT JOIN subscriptions ON
                 items.origin_id = subscriptions.strid WHERE items.id=?
         '''
@@ -314,12 +314,13 @@ class FeedItem(GObject.Object):
             raise ValueError(msg)
         else:
             self.title = r[0]
-            self.summary = r[1]
-            self.href = r[2]
-            self.time = r[3]
-            self.origin = r[4]
-            self.icon = utils.icon_pixbuf(r[4])
-            self.site = r[5]
+            self.author = r[1]
+            self.summary = r[2]
+            self.href = r[3]
+            self.time = r[4]
+            self.origin = r[5]
+            self.icon = utils.icon_pixbuf(r[5])
+            self.site = r[6]
 
     def same_date(self, timestamp):
         return self.time == timestamp

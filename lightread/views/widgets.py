@@ -3,6 +3,7 @@ from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk, GObjec
 import html
 import os
 import collections
+import datetime
 
 from lightread.views import utils
 from lightread import models
@@ -114,6 +115,9 @@ class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
 
     def __init__(self, *args, **kwargs):
         super(FeedView, self).__init__(*args, **kwargs)
+        self.connect('navigation-policy-decision-requested', self.on_navigate)
+        self.connect('console-message', self.on_console_message)
+
         self.settings = WebKit.WebSettings()
         stylesheet_path = get_data_path('ui', 'feedview', 'style.css')
         self.settings.set_properties(
@@ -133,10 +137,11 @@ class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
             user_stylesheet_uri='file://' + stylesheet_path
         )
         self.set_settings(self.settings)
-        self.connect('navigation-policy-decision-requested', FeedView.navigate)
+
         self.load_item()
 
-    def navigate(self, frame, request, action, policy):
+    @staticmethod
+    def on_navigate(self, frame, request, action, policy):
         uri = action.get_original_uri()
         if frame.get_parent():
             logger.warning('{0} was not loaded'.format(uri))
@@ -147,17 +152,23 @@ class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
             return True
         return False
 
+    @staticmethod
+    def on_console_message(self, message, line, source):
+        logger.debug(message)
+        return True
+
     def load_item(self, item=None):
         with open(get_data_path('ui', 'feedview', 'template.html'), 'r') as f:
             template = f.read()
         if item is None:
-            string = template.format(title='', content='', href='')
-            return self.load_html_string(string, 'file://')
+            return self.load_html_string('', 'file://')
         else:
             content = item.read_content(item.item_id)
-            string = template.format(title=item.title, content=content,
-                                     href=item.href)
-            return self.load_html_string(string, 'file://')
+            dt = datetime.datetime.fromtimestamp(item.time)
+            s = template.format(title=item.title, content=content,
+                                href=item.href, author=item.author,
+                                datetime=dt)
+            return self.load_html_string(s, 'file://')
 
     def on_change(self, treeview):
         if treeview.in_destruction() or treeview.reloading:

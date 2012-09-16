@@ -126,7 +126,7 @@ body {
     line-height: 1.5em;
 }
 
-#lr_title, #lr_content {
+#lr_title, #lr_content, #lr_metadata {
     width: 90%;
     max-width: 600px;
     margin: 0 auto;
@@ -137,6 +137,11 @@ body {
     word-wrap: break-word;
     line-height: 1.25em;
     display: block;
+}
+
+#lr_datetime {
+    display: inline-block;
+    float: right;
 }
 
 a {
@@ -150,4 +155,12 @@ ul, ol {
 
 img {
     max-width: 100%;
+}
+
+hr {
+    width: 100%;
+    border: none;
+    height: 2px;
+    margin: .5em 0;
+    background: #E8E8E8;
 }
