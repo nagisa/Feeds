@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk, GObject
+from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk, \
+                          GObject, Gio
 import html
 import os
 import collections
@@ -148,6 +149,8 @@ class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
             policy.ignore()
             return True
         elif uri.startswith('http'):
+            if not Gio.AppInfo.launch_default_for_uri(uri, None):
+                logger.error('System could not open {0}'.format(uri))
             policy.ignore()
             return True
         return False
