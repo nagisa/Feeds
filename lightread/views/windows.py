@@ -37,6 +37,7 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.itemsview.connect('cursor-changed', feedview.on_change)
         self.subsview.connect('cursor-changed', self.itemsview.on_filter_change)
         categories.connect('cursor-changed', self.itemsview.on_cat_change)
+        categories.connect('cursor-changed', self.subsview.on_cat_change)
         self.itemsview.show()
         self.subsview.show()
         categories.show()
@@ -52,9 +53,6 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
 
         sidebar_tb = self.builder.get_object('sidebar-toolbar')
         sidebar_tb.refresh.connect('clicked', self.on_refresh)
-
-        # side_view.items.connect('cursor_changed', feedview.on_change)
-        # toolbar.reload.connect('clicked', side_view.on_reload)
 
     def on_show_prefs(self, button):
         dialog = PreferencesDialog(transient_for=self, modal=True)

@@ -15,7 +15,8 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
     }
 
     def __init__(self, *args, **kwargs):
-        super().__init__(GdkPixbuf.Pixbuf, str)
+        # Icon pixbuf, name, id
+        super().__init__(GdkPixbuf.Pixbuf, str, str)
         self.favicons = Favicons()
         self.favicons.connect('sync-done', self.on_icon_update)
         self.load_data()
@@ -55,27 +56,25 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         self.load_data()
 
     def _read_data(self):
-        result = collections.defaultdict(list)
-        query = 'SELECT name, subscriptions FROM labels'
-        labels = utils.connection.execute(query).fetchall()
-        added = set()
+        label_query = 'SELECT name, subscriptions FROM labels'
+        s_iquery = 'SELECT url, title, strid FROM subscriptions WHERE {0}'
+        s_xquery = 'SELECT url, title, strid FROM subscriptions WHERE NOT ({0})'
 
-        if len(labels) == 0:
-            return {}, []
+        result = collections.defaultdict(list)
+        labels = utils.connection.execute(label_query).fetchall()
+        added = set()
 
         for label in labels:
             subids = set(label[1].split(','))
             added |= subids
-            w = ' OR '.join(('id={0}'.format(id) for id in subids))
-            query = 'SELECT url, title FROM subscriptions WHERE {0}'.format(w)
-            subs = utils.connection.execute(query).fetchall()
-            for url, title in subs:
-                result[label[0]].append({'url': url, 'title': title})
+            _filter = ' OR '.join('id={0}'.format(id) for id in subids)
+            query = s_iquery.format(_filter)
+            for url, title, i in utils.connection.execute(query).fetchall():
+                result[label[0]].append({'url': url, 'title': title, 'id': i})
 
-        w = ' AND NOT '.join(('id={0}'.format(id) for id in added))
-        query = 'SELECT url, title FROM subscriptions WHERE NOT {0}'.format(w)
-        subs = utils.connection.execute(query).fetchall()
-        return result, [{'url': u, 'title': t} for u, t in subs]
+        _filter = ' OR '.join('id={0}'.format(id) for id in added)
+        subs = utils.connection.execute(s_xquery.format(_filter)).fetchall()
+        return result, [{'url': u, 'title': t, 'id': i} for u, t, i in subs]
 
     def load_data(self, data=None):
         self.emit('pre-clear')
@@ -85,13 +84,13 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
         for label, items in labeled.items():
             favicon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
-            ptr = self.append(None, (favicon, label,))
+            ptr = self.append(None, (favicon, label, label,))
             for item in items:
                 favicon = utils.icon_pixbuf(item['url'])
-                self.append(ptr, (favicon, item['title'],))
+                self.append(ptr, (favicon, item['title'], item['id'],))
         for item in unlabeled:
             favicon = utils.icon_pixbuf(item['url'])
-            self.append(None, (favicon, item['title'],))
+            self.append(None, (favicon, item['title'], item['id'],))
         self.emit('sync-done')
 
     def on_icon_update(self, *args):

@@ -197,6 +197,11 @@ class SubscriptionsView(Gtk.TreeView):
     def on_collapse(self, itr, path):
         self.memory['expanded'].pop(self.memory['expanded'].index(path))
 
+    def on_cat_change(self, treeview):
+        if treeview.in_destruction():
+            return
+        self.selection.unselect_all()
+
     def sync(self):
         logger.debug('Starting subscriptions\' sync')
         self.store.sync()
@@ -227,6 +232,10 @@ class ItemsView(Gtk.TreeView):
     def on_filter_change(self, treeview):
         if treeview.in_destruction():
             return
+        selection = treeview.selection.get_selected()
+        self.reloading = True
+        self.store.set_feed_filter(selection[0].get_value(selection[1], 2))
+        self.reloading = False
 
     def on_cat_change(self, treeview):
         if treeview.in_destruction():

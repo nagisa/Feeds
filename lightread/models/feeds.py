@@ -1,18 +1,6 @@
 """
-Downloads feeds from google reader, caches it, gets respective favicons
+Downloads items from google reader, caches it, gets respective favicons
 et cetera
-
-Sadly we cannot download a lot of pages simultaneously, however, lucky, we
-can process (fe. fetch favicon) them while another page is downloading.
-
-Cache structure in sync. order:
-reading-list # Contains ids of all cached items, binary
-unread # Contains ids of cached either new or kept unread items, binary
-starred # Contains ids of cached starred items
-read # Contains ids of cached read items
-/items # Contains .json files with metadata of each feed.
-/data/content # Content data with embedded images and so on. Compressed
-/data/favicons # Favicons of course
 """
 import json
 import os
@@ -137,6 +125,8 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         self.ids = Ids()
         self.purge_html = re.compile('<.+?>|[\n\t\r]')
         self.syncing = 0
+        self.source_filter = None
+        self.category = None
         super(Items, self).__init__(FeedItem, **kwargs)
 
     def __getitem__(self, key):
@@ -268,12 +258,38 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         return result, content
 
     def set_category(self, category):
+        self.source_filter = None
         try:
             self.set_ids(self.ids[category])
         except KeyError:
-            # We don't have IDs cached, and can do nothing about it before
-            # cache happens.
+           # We don't have IDs cached, and can do nothing about it before
+           # cache happens.
             return
+
+    def set_feed_filter(self, value):
+        if value[:4] == 'feed':
+            self.source_filter = [value]
+            self.set_filtered_ids()
+            return
+        # We have a label
+        q = 'SELECT subscriptions FROM labels WHERE name=?'
+        r = utils.connection.execute(q, (value,)).fetchone()
+        if r is None:
+            self.source_filter = []
+            self.set_filtered_ids()
+            return
+        f = ' OR '.join('id={0}'.format(i) for i in r[0].split(','))
+        q = 'SELECT strid FROM subscriptions WHERE {0}'.format(f)
+        r = utils.connection.execute(q).fetchall()
+        self.source_filter = [i[0] for i in r]
+        self.set_filtered_ids()
+
+    def set_filtered_ids(self):
+        f = ' OR '.join('origin_id=?' for i in self.source_filter)
+        q = 'SELECT id FROM items WHERE {0}'.format(f)
+        r = utils.connection.execute(q, self.source_filter).fetchall()
+        self.set_ids(i[0] for i in r)
+
 
     def set_ids(self, ids):
         self.clear()
