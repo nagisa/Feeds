@@ -13,7 +13,8 @@ class Application(Gtk.Application):
         self.connect('activate', self.on_activate)
 
     def on_activate(self, data=None):
-        self.window = ApplicationWindow(self)
+        self.window = ApplicationWindow()
+        self.window.set_application(self)
         self.window.show_all()
         auth.secrets.connect('ask-password', self.show_login_dialog, None)
 
@@ -24,6 +25,6 @@ class Application(Gtk.Application):
             auth.login()
             delattr(self, 'login')
         if not hasattr(self, 'login'):
-            self.login = LoginDialog(self.window)
+            self.login = LoginDialog(transient_for=self.window, modal=True)
             self.login.show_all()
             self.login.connect('destroy', destroy_login_dialog)

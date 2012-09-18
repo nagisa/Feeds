@@ -10,109 +10,58 @@ from lightread.views import utils
 from lightread import models
 from lightread.utils import get_data_path
 
+
+def add_toolbar_items(toolbar, tb_type):
+    stock_toolbutton = Gtk.ToolButton.new_from_stock
+    if tb_type == 'items-toolbar':
+        toolbar.mark_all = stock_toolbutton(Gtk.STOCK_APPLY)
+        toolbar.insert(toolbar.mark_all, -1)
+
+        toolbar.search = ToolbarSearch(margin_left=5, halign=Gtk.Align.FILL)
+        toolbar.search.set_expand(True)
+        toolbar.insert(toolbar.search, -1)
+
+    elif tb_type == 'sidebar-toolbar':
+        toolbar.refresh = stock_toolbutton(Gtk.STOCK_REFRESH)
+        toolbar.refresh.set_properties(margin_right=5)
+        toolbar.insert(toolbar.refresh, -1)
+
+        toolbar.subscribe = stock_toolbutton(Gtk.STOCK_ADD)
+        toolbar.subscribe.set_expand(True)
+        toolbar.subscribe.set_halign(Gtk.Align.END)
+        toolbar.insert(toolbar.subscribe, -1)
+
+    elif tb_type == 'feedview-toolbar':
+        toolbar.star = stock_toolbutton(Gtk.STOCK_YES)
+        toolbar.star.set_properties(margin_right=5)
+        toolbar.insert(toolbar.star, -1)
+
+        toolbar.share = stock_toolbutton(Gtk.STOCK_REDO)
+        toolbar.share.set_properties(margin_right=5)
+        toolbar.insert(toolbar.share, -1)
+
+        toolbar.preferences = stock_toolbutton(Gtk.STOCK_PREFERENCES)
+        toolbar.preferences.set_halign(Gtk.Align.END)
+        toolbar.preferences.set_expand(True)
+        toolbar.insert(toolbar.preferences, -1)
+    else:
+        raise ValueError('Unknown Toolbar')
+    toolbar.show_all()
+
+
 class ToolbarSearch(Gtk.ToolItem):
 
     def __init__(self, *args, **kwargs):
         super(ToolbarSearch, self).__init__(*args, **kwargs)
-        self.entry = Gtk.Entry()
-        self.entry.set_placeholder_text(_('Search {0} items').format(0))
-        self.entry.set_size_request(200, 0)
+        self.entry = Gtk.Entry(hexpand=True, halign=Gtk.Align.FILL)
+        self.set_unread_count(0)
         self.add(self.entry)
 
-
-class Toolbar(Gtk.Toolbar):
-
-    def __init__(self, *args, **kwargs):
-        super(Toolbar, self).__init__(*args, **kwargs)
-        Gtk.StyleContext.add_class(self.get_style_context(),
-                                   Gtk.STYLE_CLASS_PRIMARY_TOOLBAR)
-
-        # Reload button
-        self.reload = Gtk.ToolButton.new_from_stock(Gtk.STOCK_REFRESH)
-        self.insert(self.reload, -1)
-        # Add button
-        self.add_button = Gtk.ToolButton.new_from_stock(Gtk.STOCK_ADD)
-        self.insert(self.add_button, -1)
-        # Separator
-        sep = Gtk.SeparatorToolItem()
-        self.insert(sep, -1)
-        # All read button
-        self.read_button = Gtk.ToolButton.new_from_stock(Gtk.STOCK_APPLY)
-        self.insert(self.read_button, -1)
-        # Search bar
-        self.search = ToolbarSearch()
-        self.insert(self.search, -1)
-        # Separator
-        sep = Gtk.SeparatorToolItem()
-        self.insert(sep, -1)
-        # Star
-        self.star = Gtk.ToolButton.new_from_stock(Gtk.STOCK_YES)
-        self.insert(self.star, -1)
-        # Share
-        self.share = Gtk.ToolButton.new_from_stock(Gtk.STOCK_REDO)
-        self.insert(self.share, -1)
-        # Preferences
-        self.preferences = Gtk.ToolButton.new_from_stock(Gtk.STOCK_PREFERENCES)
-        self.preferences.set_halign(Gtk.Align.END)
-        self.preferences.set_expand(True)
-        self.insert(self.preferences, -1)
-
-class Sidebar(Gtk.HPaned):
-    __gsignals__ = {
-        'change-items': (GObject.SignalFlags.ACTION, None, []),
-    }
-
-    def __init__(self, *args, **kwargs):
-        super(Sidebar, self).__init__(*args, **kwargs)
-        # Left side.
-        left_box = Gtk.VBox()
-        left_box.set_size_request(150, 0)
-        Gtk.StyleContext.add_class(left_box.get_style_context(),
-                                   Gtk.STYLE_CLASS_SIDEBAR)
-
-        # Upper part
-        self.categories = CategoriesView()
-        # TODO: Change with custom icons.
-        left_box.pack_start(self.categories, False, False, 0)
-
-        # Bottom part
-        self.subscriptions = SubscriptionsView()
-        left_box.pack_start(self.subscriptions.scrollwindow, True, True, 0)
-        self.pack1(left_box, False, False)
-
-        # Make middle sidebar
-
-        self.items = ItemsView()
-        self.items.scrollwindow.set_size_request(250, 0)
-        self.pack2(self.items.scrollwindow, True, False)
-
-        # Connecting signals
-
-        self.subscriptions.connect('cursor-changed', self.on_change)
-        self.categories.connect('cursor-changed', self.on_change)
-        # Need to register manually, because self.categories selects
-        # first row in __init__
-        self.on_change(self.categories)
-
-    def on_reload(self, button):
-        self.subscriptions.sync()
-        self.items.sync()
-
-    def on_change(self, view):
-        if view.in_destruction():
-            return
-        if isinstance(view, CategoriesView):
-            self.subscriptions.selection.unselect_all()
-            selection = self.categories.selection.get_selected()
-            category = selection[0].get_value(selection[1], 2)
-            self.items.reloading = True
-            self.items.store.set_category(category)
-            self.items.reloading = False
-        else:
-            pass
+    def set_unread_count(self, items):
+        self.entry.set_placeholder_text(_('Search {0} items').format(items))
 
 
-class FeedView(WebKit.WebView, utils.ScrollWindowMixin):
+class FeedView(WebKit.WebView):
 
     def __init__(self, *args, **kwargs):
         super(FeedView, self).__init__(*args, **kwargs)
@@ -185,14 +134,11 @@ class CategoriesView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
         self._store = Gtk.ListStore(str, str, str)
         super(CategoriesView, self).__init__(self._store, *args, **kwargs)
+        self.set_properties(headers_visible=False)
 
-        self.set_headers_visible(False)
-        self.set_enable_search(False)
-        self.set_margin_bottom(5)
-
-        column = Gtk.TreeViewColumn("Icon and Title")
+        column = Gtk.TreeViewColumn("Categories")
         icon = Gtk.CellRendererPixbuf()
-        title = Gtk.CellRendererText(scale=1.2)
+        title = Gtk.CellRendererText()
         column.pack_start(icon, False)
         column.pack_start(title, True)
         column.add_attribute(icon, "icon-name", 0)
@@ -209,33 +155,29 @@ class CategoriesView(Gtk.TreeView):
         return self._store.append((icon, title, tp,))
 
 
-class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
+class SubscriptionsView(Gtk.TreeView):
 
     def __init__(self, *args, **kwargs):
         self.store = models.Subscriptions()
-        super(SubscriptionsView, self).__init__(self.store, *args,
-                                                **kwargs)
+        super(SubscriptionsView, self).__init__(self.store, *args, **kwargs)
+        self.set_properties(headers_visible=False)
+        self.set_level_indentation(-12)
+
         self.store.connect('pre-clear', self.on_pre_clear)
         self.store.connect('sync-done', self.on_sync_done)
         self.connect('row-collapsed', SubscriptionsView.on_collapse)
         self.connect('row-expanded', SubscriptionsView.on_expand)
         self.memory = {'expanded': [], 'selection': None}
-        self.set_headers_visible(False)
-        self.set_level_indentation(-12)
         self.selection = self.get_selection()
-        Gtk.StyleContext.add_class(self.get_style_context(),
-                                   Gtk.STYLE_CLASS_SIDEBAR)
 
-        # Make column
         column = Gtk.TreeViewColumn("Subscription")
         icon_renderer = Gtk.CellRendererPixbuf()
-        title_renderer = Gtk.CellRendererText()
+        title_renderer = Gtk.CellRendererText(ellipsize_set=True,
+                                            ellipsize=Pango.EllipsizeMode.END)
         column.pack_start(icon_renderer, False)
         column.pack_start(title_renderer, True)
         column.add_attribute(icon_renderer, "pixbuf", 0)
         column.add_attribute(title_renderer, "text", 1)
-        title_renderer.set_properties(ellipsize=Pango.EllipsizeMode.END,
-                                      ellipsize_set=True)
         self.append_column(column)
 
     def on_pre_clear(self, *args):
@@ -260,21 +202,39 @@ class SubscriptionsView(Gtk.TreeView, utils.ScrollWindowMixin):
         self.store.sync()
 
 
-class ItemsView(Gtk.TreeView, utils.ScrollWindowMixin):
+class ItemsView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
         self.reloading = False
         self.store = models.Items()
         super(ItemsView, self).__init__(self.store, *args, **kwargs)
-        self.set_headers_visible(False)
+        self.set_properties(headers_visible=False)
+
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer, item=0)
         self.append_column(column)
         self.store.set_sort_column_id(0, Gtk.SortType.DESCENDING)
         self.store.set_sort_func(0, models.Items.compare, None)
+        self.connect('realize', self.on_realize)
 
     def sync(self):
         logger.debug('Starting items\' sync')
         self.store.sync()
+
+    @staticmethod
+    def on_realize(self):
+        self.store.set_category('reading-list')
+
+    def on_filter_change(self, treeview):
+        if treeview.in_destruction():
+            return
+
+    def on_cat_change(self, treeview):
+        if treeview.in_destruction():
+            return
+        selection = treeview.selection.get_selected()
+        self.reloading = True
+        self.store.set_category(selection[0].get_value(selection[1], 2))
+        self.reloading = False
 
 class ItemCellRenderer(Gtk.CellRenderer):
     item = GObject.property(type=models.FeedItem)

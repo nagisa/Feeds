@@ -1,19 +1,9 @@
 import time
 import html
+import collections
+import functools
 from gi.repository import Gtk, Pango
 from lightread.utils import get_data_path
-
-
-class ScrollWindowMixin:
-    """ Provides scrollwindow read-only property which contains a ScrollWindow
-    widget with self added to it. """
-
-    @property
-    def scrollwindow(self):
-        if not hasattr(self, '_scrollwindow_widget'):
-            self._scrollwindow_widget = Gtk.ScrolledWindow()
-            self._scrollwindow_widget.add(self)
-        return self._scrollwindow_widget
 
 
 class BuiltMixin:
@@ -25,7 +15,10 @@ class BuiltMixin:
         new_obj = builder.get_object(cls.top_object)
         new_obj.builder = builder
         for attr, value in cls.__dict__.items():
-            setattr(new_obj, attr, value)
+            if isinstance(value, collections.Callable):
+                setattr(new_obj, attr, functools.partial(value, new_obj))
+            else:
+                setattr(new_obj, attr, value)
         # Call __init__, somewhy it doesn't do so automatically.
         new_obj.__init__(new_obj, *args, **kwargs)
         return new_obj

@@ -4,63 +4,78 @@ from lightread.views import widgets, utils
 from lightread.utils import get_data_path
 
 
-class ApplicationWindow(Gtk.ApplicationWindow):
+class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
+    ui_file = 'lightread-window.ui'
+    top_object = 'main-window'
 
-    def __init__(self, application, *args, **kwargs):
-        self.application = application
-        if not kwargs.get('application', None):
-            kwargs['application'] = application
-        super(ApplicationWindow, self).__init__(*args, **kwargs)
-
-        # Metadata.
+    def __init__(self, *args, **kwargs):
         self.set_wmclass('lightread', 'lightread')
-        self.set_title('Lightread')
-        self.set_default_size(1280, 1024)
-        # We probably always want it maximized on start.
+        self.set_title(_('Lightread'))
         self.maximize()
-        # And we don't care about title bar. Very likely.
-        self.set_hide_titlebar_when_maximized(True)
+        self.connect('realize', self.on_show)
 
-        # Adding widgets to window
-        base_box = Gtk.VBox()
-        self.add(base_box)
-
-        toolbar = widgets.Toolbar()
-        base_box.pack_start(toolbar, False, False, 0)
-
-        main_view = Gtk.HPaned()
-        base_box.pack_start(main_view, True, True, 0)
-
-        side_view = widgets.Sidebar()
-        main_view.pack1(side_view, True, False)
-
-        # Webview in the left
+    def on_show(self, window):
+        feedbox = self.builder.get_object('feedview')
         feedview = widgets.FeedView()
-        main_view.pack2(feedview.scrollwindow, True, False)
-        main_view.set_position(1)
+        feedbox.add(feedview)
+        feedview.show()
 
-        # Connect signals
-        toolbar.preferences.connect('clicked', self.show_prefs)
-        side_view.items.connect('cursor_changed', feedview.on_change)
-        toolbar.reload.connect('clicked', side_view.on_reload)
+        leftgrid = self.builder.get_object('left-grid')
+        leftgrid.get_style_context().add_class(Gtk.STYLE_CLASS_SIDEBAR)
+        categories = widgets.CategoriesView()
+        leftgrid.attach(categories, 0, 0, 1, 1)
 
-    def show_prefs(self, data=None):
-        dialog = PreferencesDialog(self)
+        subs = self.builder.get_object('subs')
+        self.subsview = widgets.SubscriptionsView()
+        subs.add(self.subsview)
+        subs.reset_style()
+
+        items = self.builder.get_object('items')
+        self.itemsview = widgets.ItemsView()
+        items.add(self.itemsview)
+
+        self.itemsview.connect('cursor-changed', feedview.on_change)
+        self.subsview.connect('cursor-changed', self.itemsview.on_filter_change)
+        categories.connect('cursor-changed', self.itemsview.on_cat_change)
+        self.itemsview.show()
+        self.subsview.show()
+        categories.show()
+
+        for tb in ('items-toolbar', 'sidebar-toolbar', 'feedview-toolbar',):
+            toolbar = self.builder.get_object(tb)
+            widgets.add_toolbar_items(toolbar, tb)
+            toolbar.get_style_context().add_class(Gtk.STYLE_CLASS_MENUBAR)
+            toolbar.reset_style()
+
+        feedview_tb = self.builder.get_object('feedview-toolbar')
+        feedview_tb.preferences.connect('clicked', self.on_show_prefs)
+
+        sidebar_tb = self.builder.get_object('sidebar-toolbar')
+        sidebar_tb.refresh.connect('clicked', self.on_refresh)
+
+        # side_view.items.connect('cursor_changed', feedview.on_change)
+        # toolbar.reload.connect('clicked', side_view.on_reload)
+
+    def on_show_prefs(self, button):
+        dialog = PreferencesDialog(transient_for=self, modal=True)
         dialog.show_all()
 
-    def show_about(self, data=None):
-        dialog = AboutDialog(self)
+    def on_show_about(self):
+        dialog = AboutDialog(transient_for=self, modal=True)
         dialog.run()
         dialog.destroy()
+
+    def on_refresh(self, button):
+        self.itemsview.sync()
+        self.subsview.sync()
 
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
     ui_file = 'lightread-preferences.ui'
     top_object = 'preferences-dialog'
 
-    def __init__(self, parent, *args, **kwargs):
-        self.set_modal(True)
-        self.set_transient_for(parent)
+    def __init__(self, *args, **kwargs):
+        self.set_properties(**kwargs)
         self.connect('response', self.on_response)
 
         for cb_name in ['notifications', 'start-refresh']:
@@ -80,16 +95,16 @@ class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
         adjustment.set_value(settings['cache-items'])
         adjustment.connect('value-changed', self.on_val_change, 'cache-items')
 
-    def on_change(widget, setting):
+    def on_change(self, widget, setting):
         settings[setting] = int(widget.get_active_id())
 
-    def on_val_change(adj, setting):
+    def on_val_change(self, adj, setting):
         settings[setting] = adj.get_value()
 
-    def on_toggle(widget, setting):
+    def on_toggle(self, widget, setting):
         settings[setting] = widget.get_active()
 
-    def on_response(self, r):
+    def on_response(self, dialog, r):
         if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.OK):
             self.destroy()
 
@@ -98,9 +113,8 @@ class AboutDialog(utils.BuiltMixin, Gtk.AboutDialog):
     ui_file = 'lightread-about.ui'
     top_object = 'about-dialog'
 
-    def __init__(self, parent, *args, **kwargs):
-        self.set_modal(True)
-        self.set_transient_for(parent)
+    def __init__(self, *args, **kwargs):
+        self.set_properties(**kwargs)
 
 
 class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
@@ -110,9 +124,9 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
     ui_file = 'lightread-login.ui'
     top_object = 'login-dialog'
 
-    def __init__(self, parent, *args, **kwargs):
-        self.set_modal(True)
-        self.set_transient_for(parent)
+    def __init__(self, *args, **kwargs):
+        self.set_properties(**kwargs)
+
         self.user_entry = self.builder.get_object('username')
         self.passwd_entry = self.builder.get_object('password')
         self.msg = Gtk.Label()
