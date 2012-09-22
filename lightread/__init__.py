@@ -3,7 +3,7 @@ try:
     import __builtin__
     __builtins__ = __builtin__.__dict__
     __builtins__['PY2'] = True
-except:
+except ImportError:
     __builtins__['PY2'] = False
 
 import gettext
@@ -12,7 +12,7 @@ import os
 
 # Setup logging module
 __builtins__['logger'] = logging.getLogger('lightread')
-fmt_str = "%(levelname)s: %(name)s.%(funcName)s %(message)s"
+fmt_str = "%(levelname)s: %(pathname)s:%(lineno)s %(message)s"
 logging_handler = logging.StreamHandler()
 logging_handler.setFormatter(logging.Formatter(fmt_str))
 logger.addHandler(logging_handler)
