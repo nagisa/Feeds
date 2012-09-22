@@ -52,3 +52,12 @@ def time_ago(timestamp):
     days = (hours / 24).__trunc__()
     day_fmt = N_('{0} day', '{0} days', days)
     return ago_fmt.format(day_fmt.format(days))
+
+
+def connect_once(obj, signal, callback, data=None):
+    def disconnect_and_callback(callback):
+        def handler(*args, **kwargs):
+            obj.disconnect(cnn_id)
+            callback(*args, **kwargs)
+        return handler
+    cnn_id = obj.connect(signal, disconnect_and_callback(callback), data)

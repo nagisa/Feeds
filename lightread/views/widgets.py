@@ -26,6 +26,9 @@ def add_toolbar_items(toolbar, tb_type):
         toolbar.refresh.set_properties(margin_right=5)
         toolbar.insert(toolbar.refresh, -1)
 
+        toolbar.spinner = ToolbarSpinner(no_show_all=True)
+        toolbar.insert(toolbar.spinner, -1)
+
         toolbar.subscribe = stock_toolbutton(Gtk.STOCK_ADD)
         toolbar.subscribe.set_expand(True)
         toolbar.subscribe.set_halign(Gtk.Align.END)
@@ -59,6 +62,18 @@ class ToolbarSearch(Gtk.ToolItem):
 
     def set_unread_count(self, items):
         self.entry.set_placeholder_text(_('Search {0} items').format(items))
+
+
+class ToolbarSpinner(Gtk.ToolItem):
+
+    def __init__(self, *args, **kwargs):
+        super(ToolbarSpinner, self).__init__(*args, **kwargs)
+        self.spinner = Gtk.Spinner(active=True)
+        self.add(self.spinner)
+
+    def show(self):
+        self.spinner.show_all()
+        super(ToolbarSpinner, self).show()
 
 
 class FeedView(WebKit.WebView):
@@ -202,9 +217,11 @@ class SubscriptionsView(Gtk.TreeView):
             return
         self.selection.unselect_all()
 
-    def sync(self):
+    def sync(self, callback=None):
         logger.debug('Starting subscriptions\' sync')
         self.store.sync()
+        if callback is not None:
+            utils.connect_once(self.store, 'sync-done', callback)
 
 
 class ItemsView(Gtk.TreeView):
@@ -221,9 +238,11 @@ class ItemsView(Gtk.TreeView):
         self.store.set_sort_func(0, models.Items.compare, None)
         self.connect('realize', self.on_realize)
 
-    def sync(self):
+    def sync(self, callback=None):
         logger.debug('Starting items\' sync')
         self.store.sync()
+        if callback is not None:
+            utils.connect_once(self.store, 'sync-done', callback)
 
     @staticmethod
     def on_realize(self):

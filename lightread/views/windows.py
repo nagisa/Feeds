@@ -64,8 +64,20 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         dialog.destroy()
 
     def on_refresh(self, button):
-        self.itemsview.sync()
-        self.subsview.sync()
+        sidebar_tb = self.builder.get_object('sidebar-toolbar')
+        sidebar_tb.spinner.show()
+        sidebar_tb.refresh.set_sensitive(False)
+
+        def on_sync_done(*args):
+            on_sync_done.to_finish -= 1
+            if on_sync_done.to_finish == 0:
+                sidebar_tb.spinner.hide()
+                sidebar_tb.refresh.set_sensitive(True)
+        on_sync_done.to_finish = 2
+
+        # Do actual sync
+        self.itemsview.sync(on_sync_done)
+        self.subsview.sync(on_sync_done)
 
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
