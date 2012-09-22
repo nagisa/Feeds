@@ -5,11 +5,9 @@ et cetera
 import json
 import os
 import re
-import struct
 import ctypes
 from urllib.parse import urlencode
-from datetime import datetime
-from gi.repository import Soup, GObject, GLib, Gtk
+from gi.repository import Soup, GObject, Gtk
 
 from lightread.models import auth, utils, settings
 from lightread.views.utils import connect_once

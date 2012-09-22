@@ -3,7 +3,6 @@ import sqlite3
 import os
 import hashlib
 from html.parser import HTMLParser
-import functools
 import itertools
 
 from lightread.utils import get_data_path

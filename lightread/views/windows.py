@@ -1,7 +1,6 @@
-from gi.repository import Gtk, WebKit
+from gi.repository import Gtk
 from lightread.models import settings, auth
 from lightread.views import widgets, utils
-from lightread.utils import get_data_path
 
 
 class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):

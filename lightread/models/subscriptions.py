@@ -1,9 +1,8 @@
 import os
 import json
-import hashlib
 import random
 import collections
-from gi.repository import Gtk, Soup, GdkPixbuf, GObject, GLib
+from gi.repository import Gtk, GdkPixbuf, GObject, GLib
 
 from lightread.models import utils, auth
 

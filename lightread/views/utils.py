@@ -1,8 +1,7 @@
 import time
-import html
 import collections
 import functools
-from gi.repository import Gtk, Pango
+from gi.repository import Gtk
 from lightread.utils import get_data_path
 
 

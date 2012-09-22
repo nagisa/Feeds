@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-from gi.repository import Gtk, WebKit, Pango, PangoCairo, GdkPixbuf, Gdk, \
-                          GObject, Gio
+from gi.repository import Gtk, WebKit, Pango, PangoCairo, Gdk, GObject, Gio
 import html
-import os
-import collections
 import datetime
 
 from lightread.views import utils
