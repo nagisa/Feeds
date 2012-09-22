@@ -182,8 +182,21 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
         self.syncing -= 1
         if self.syncing == 0:
+            self.collect_garbage()
             utils.connection.commit()
             self.emit('sync-done')
+
+    def collect_garbage(self):
+        query = '''SELECT id FROM items WHERE starred=0
+                             ORDER BY time LIMIT 100000 OFFSET ?'''
+        items = settings['cache-items']
+        rows = utils.connection.execute(query, (items,)).fetchall()
+        query = 'DELETE FROM items WHERE ' + ' OR '.join('id=?' for i in rows)
+        if len(rows) > 0:
+            utils.connection.execute(query, rows)
+            for _id, in rows:
+                FeedItem.remove_content(_id)
+
 
     def process_item(self, item, short_id):
         # After a lot of fiddling around I realized one thing. We are IN NO
@@ -337,6 +350,11 @@ class FeedItem(GObject.Object):
         fpath = os.path.join(content_dir, str(item_id))
         with open(fpath, 'w') as f:
             f.write(content)
+
+    @staticmethod
+    def remove_content(item_id):
+        fpath = os.path.join(content_dir, str(item_id))
+        os.remove(fpath)
 
     @staticmethod
     def read_content(item_id):
