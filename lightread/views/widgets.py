@@ -179,7 +179,7 @@ class SubscriptionsView(Gtk.TreeView):
         self.set_level_indentation(-12)
 
         self.store.connect('pre-clear', self.on_pre_clear)
-        self.store.connect('sync-done', self.on_sync_done)
+        self.store.connect('post-clear', self.on_post_clear)
         self.connect('row-collapsed', SubscriptionsView.on_collapse)
         self.connect('row-expanded', SubscriptionsView.on_expand)
         self.memory = {'expanded': [], 'selection': None}
@@ -200,7 +200,7 @@ class SubscriptionsView(Gtk.TreeView):
         if selection is not None:
             self.memory['selection'] = self.store.get_path(selection)
 
-    def on_sync_done(self, *args):
+    def on_post_clear(self, *args):
         for path in self.memory['expanded']:
             self.expand_row(path, False)
         if self.memory['selection'] is not None:
@@ -227,7 +227,7 @@ class SubscriptionsView(Gtk.TreeView):
 class ItemsView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
         self.reloading = False
-        self.store = models.Items()
+        self.store = models.FilteredItems()
         super(ItemsView, self).__init__(self.store, *args, **kwargs)
         self.set_properties(headers_visible=False)
 
@@ -253,7 +253,7 @@ class ItemsView(Gtk.TreeView):
             return
         selection = treeview.selection.get_selected()
         self.reloading = True
-        self.store.set_feed_filter(selection[0].get_value(selection[1], 2))
+        self.store.set_filter(selection[0].get_value(selection[1], 2))
         self.reloading = False
 
     def on_cat_change(self, treeview):

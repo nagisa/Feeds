@@ -2,6 +2,10 @@ from urllib import parse
 import sqlite3
 import os
 import hashlib
+from html.parser import HTMLParser
+import functools
+import itertools
+
 from lightread.utils import get_data_path
 from gi.repository import Soup, Gtk, GdkPixbuf
 
@@ -100,3 +104,9 @@ def icon_pixbuf(url):
         return None
     else:
         return icon.load_icon()
+
+def split_chunks(itr, chunk_size, fillvalue=None):
+    items = [iter(itr)] * chunk_size
+    return itertools.zip_longest(*items, fillvalue=fillvalue)
+
+unescape = HTMLParser().unescape
