@@ -322,6 +322,10 @@ class FilteredItems(Items):
             except ValueError:
                 pass
 
+    @property
+    def unread_count(self):
+        query = 'SELECT COUNT(id) FROM items WHERE unread=1'
+        return utils.connection.execute(query).fetchone()[0]
 
 class FeedItem(GObject.Object):
 

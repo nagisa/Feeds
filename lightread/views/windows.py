@@ -4,6 +4,7 @@ from gi.repository import Gtk
 from lightread.models.auth import auth
 from lightread.models.settings import settings
 from lightread.views import widgets, utils
+from lightread.views.notifications import notification
 
 
 class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
@@ -73,11 +74,20 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         sidebar_tb.spinner.show()
         sidebar_tb.refresh.set_sensitive(False)
 
-        def on_sync_done(*args):
+        def on_sync_done(model, data=None):
             on_sync_done.to_finish -= 1
             if on_sync_done.to_finish == 0:
                 sidebar_tb.spinner.hide()
                 sidebar_tb.refresh.set_sensitive(True)
+            # If we can show notification
+            if hasattr(model, 'unread_count') and not self.is_active():
+                count = model.unread_count
+                summary = N_('You have an unread item',
+                           'You have {0} unread items', count).format(count)
+                if notification.closed or \
+                            notification.get_property('summary') != summary:
+                    notification.update(summary, '')
+                    notification.show()
         on_sync_done.to_finish = 2
 
         # Do actual sync
