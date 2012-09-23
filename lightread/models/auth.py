@@ -1,14 +1,11 @@
 # Problem: https://live.gnome.org/GnomeGoals/LibsecretMigration
 # But libsecret is not yet available in most repositories.
-from collections import namedtuple
 from gi.repository import GnomeKeyring as GK
 from gi.repository import Soup, GObject
 import json
 
 from lightread.models import utils
-
-AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
-
+AuthStatus = utils.AuthStatus
 
 class Auth(GObject.Object):
     __gsignals__ = {
@@ -21,7 +18,7 @@ class Auth(GObject.Object):
         # These variables must filled after login
         self.key = None
         self.info = None
-        self.status = AuthStatus.NET_ERROR
+        self.status = AuthStatus.BAD
 
         self._url = 'https://www.google.com/accounts/ClientLogin'
         self._data = 'service=reader&accountType=GOOGLE&Email={0}&Passwd={1}'
@@ -73,6 +70,8 @@ class Auth(GObject.Object):
             heads.append('Authorization',
                          'GoogleLogin auth={0}'.format(self.key))
             utils.session.queue_message(message, self.on_user_data, None)
+        elif self.status == AuthStatus.BAD:
+            self.secrets.emit('ask-password')
 
     def on_user_data(self, session, message, data=None):
         info = json.loads(message.response_body.data)

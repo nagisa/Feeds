@@ -1,3 +1,4 @@
+from collections import namedtuple
 from gi.repository import Soup, Gtk, GdkPixbuf
 
 if not PY2:
@@ -14,6 +15,8 @@ import os
 import sqlite3
 
 from lightread.utils import get_data_path
+
+AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
 
 if 'cacher_session' not in _globals_cache:
     _globals_cache['models_session'] = Soup.SessionAsync(max_conns=50,
@@ -63,7 +66,10 @@ class LoginRequired:
         if not auth.key:
             logger.debug('auth object has no key, asking to get one')
             def status_change(auth):
-                return func(*args, **kwargs)
+                if auth.status == AuthStatus.OK:
+                    return func(*args, **kwargs)
+                else:
+                    auth.login()
             auth.login()
             auth.connect('status-change', status_change)
             return False

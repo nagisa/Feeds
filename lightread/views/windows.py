@@ -1,6 +1,8 @@
 from gi.repository import Gtk
 
-from lightread.models import settings, auth
+
+from lightread.models.auth import auth
+from lightread.models.settings import settings
 from lightread.views import widgets, utils
 
 
@@ -141,11 +143,11 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
         self.passwd_entry = self.builder.get_object('password')
         self.msg = Gtk.Label()
         self.builder.get_object('message').pack_start(self.msg, False, True, 0)
-        self.user_entry.connect('activate', self.on_activate, self)
-        self.passwd_entry.connect('activate', self.on_activate, self)
+        self.user_entry.connect('activate', self.on_activate)
+        self.passwd_entry.connect('activate', self.on_activate)
         self.connect('response', self.on_response)
 
-    def on_response(self, r):
+    def on_response(self, r, data=None):
         if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.CANCEL):
             # <ESC> or [Cancel] button pressed
             self.destroy()
@@ -160,5 +162,5 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
         auth.secrets.set(user, password)
         self.destroy()
 
-    def on_activate(entry, self):
+    def on_activate(self, entry, data=None):
         self.emit('response', 0)
