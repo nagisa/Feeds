@@ -364,8 +364,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
         color = widget.get_style_context().get_color(self.state)
         text = self.item.title
         layout = widget.create_pango_layout(text)
+        weight = 'bold' if self.item.unread else 'normal'
         layout.set_markup(self.markup['title'].format(text=html.escape(text),
-                          color=utils.hexcolor(color), weight='bold'))
+                          color=utils.hexcolor(color), weight=weight))
         layout.set_wrap(Pango.WrapMode.WORD)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
 
