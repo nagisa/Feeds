@@ -1,10 +1,9 @@
 # Problem: https://live.gnome.org/GnomeGoals/LibsecretMigration
 # But libsecret is not yet available in most repositories.
 from collections import namedtuple
-import json
-
 from gi.repository import GnomeKeyring as GK
 from gi.repository import Soup, GObject
+import json
 
 from lightread.models import utils
 

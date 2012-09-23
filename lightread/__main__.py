@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-from lightread.views import application
 from argparse import ArgumentParser
 import logging
+
+from lightread.views import application
 
 # Flags?
 parser = ArgumentParser(prog='lightread')

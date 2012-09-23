@@ -1,7 +1,8 @@
-import time
+from gi.repository import Gtk
 import collections
 import functools
-from gi.repository import Gtk
+import time
+
 from lightread.utils import get_data_path
 
 

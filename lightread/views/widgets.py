@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from gi.repository import Gtk, WebKit, Pango, PangoCairo, Gdk, GObject, Gio
-import html
 import datetime
+import html
 
-from lightread.views import utils
 from lightread import models
 from lightread.utils import get_data_path
+from lightread.views import utils
 
 
 def add_toolbar_items(toolbar, tb_type):

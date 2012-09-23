@@ -1,5 +1,6 @@
 from gi.repository import Gio, GLib
 
+
 class LightReadSettings(Gio.Settings):
     types = {'notifications': 'boolean', 'start-refresh': 'boolean',
              'refresh-every': 'uint16', 'cache-items': 'int16'}

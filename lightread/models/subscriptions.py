@@ -1,8 +1,8 @@
-import os
-import json
-import random
-import collections
 from gi.repository import Gtk, GdkPixbuf, GObject, GLib
+import collections
+import json
+import os
+import random
 
 from lightread.models import utils, auth
 

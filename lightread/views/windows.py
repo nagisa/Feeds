@@ -1,4 +1,5 @@
 from gi.repository import Gtk
+
 from lightread.models import settings, auth
 from lightread.views import widgets, utils
 

@@ -1,12 +1,12 @@
-from urllib import parse
-import sqlite3
-import os
-import hashlib
+from gi.repository import Soup, Gtk, GdkPixbuf
 from html.parser import HTMLParser
+from urllib import parse
+import hashlib
 import itertools
+import os
+import sqlite3
 
 from lightread.utils import get_data_path
-from gi.repository import Soup, Gtk, GdkPixbuf
 
 if 'cacher_session' not in _globals_cache:
     _globals_cache['models_session'] = Soup.SessionAsync(max_conns=50,

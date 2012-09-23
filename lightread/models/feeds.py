@@ -2,12 +2,12 @@
 Downloads items from google reader, caches it, gets respective favicons
 et cetera
 """
+from gi.repository import Soup, GObject, Gtk
+from urllib.parse import urlencode
+import ctypes
 import json
 import os
 import re
-import ctypes
-from urllib.parse import urlencode
-from gi.repository import Soup, GObject, Gtk
 
 from lightread.models import auth, utils, settings
 from lightread.views.utils import connect_once
