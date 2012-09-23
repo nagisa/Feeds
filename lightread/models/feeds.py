@@ -176,9 +176,11 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             data = json.loads(message.response_body.data)
             for item in data['items']:
                 sid = self.get_short_id(item['id'])
+                metadata, content = self.process_item(item, sid)
                 if sid not in self or self.needs_update(sid, item):
-                    self[sid], content = self.process_item(item, sid)
                     FeedItem.save_content(sid, content)
+                # We need to update metadata no matter what
+                self[sid] = metadata
 
         self.syncing -= 1
         if self.syncing == 0:
@@ -187,16 +189,15 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             self.emit('sync-done')
 
     def collect_garbage(self):
-        query = '''SELECT id FROM items WHERE starred=0
-                             ORDER BY time LIMIT 100000 OFFSET ?'''
+        query = '''SELECT id, title FROM items WHERE starred=0
+                             ORDER BY time DESC LIMIT 100000 OFFSET ?'''
         items = settings['cache-items']
         rows = utils.connection.execute(query, (items,)).fetchall()
         query = 'DELETE FROM items WHERE ' + ' OR '.join('id=?' for i in rows)
         if len(rows) > 0:
-            utils.connection.execute(query, rows)
-            for _id, in rows:
+            utils.connection.execute(query, tuple(_id for _id, t in rows))
+            for _id, title in rows:
                 FeedItem.remove_content(_id)
-
 
     def process_item(self, item, short_id):
         # After a lot of fiddling around I realized one thing. We are IN NO
@@ -244,7 +245,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         else:
             content = result['summary'] = ''
         if len(content) != 0:
-            result['summary'] = self.purge_html.sub('', content)[:1000]
+            result['summary'] = self.purge_html.sub('', content).strip()[:1000]
             result['summary'] = (utils.unescape(result['summary']) + "…")[:140]
 
         return result, content
