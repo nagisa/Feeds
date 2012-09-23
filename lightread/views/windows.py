@@ -56,6 +56,9 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         sidebar_tb = self.builder.get_object('sidebar-toolbar')
         sidebar_tb.refresh.connect('clicked', self.on_refresh)
 
+        if settings['start-refresh']:
+            sidebar_tb.refresh.emit('clicked')
+
     def on_show_prefs(self, button):
         dialog = PreferencesDialog(transient_for=self, modal=True)
         dialog.show_all()
