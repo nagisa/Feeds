@@ -136,6 +136,12 @@ class Flags(GObject.Object, utils.LoginRequired):
 
     def on_response(self, session, message, data):
         self.syncing -= 1
+        if 400 <= message.status_code < 600 or 0 <= message.status_code < 100:
+            logger.error('Flags request returned {0}'
+                                                 .format(message.status_code))
+            if self.syncing == 0:
+                self.emit('sync-done')
+            return False
 
         query = 'DELETE FROM flags WHERE ' + \
                 ' OR '.join('item_id=?' for i in data)
@@ -233,7 +239,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             utils.session.queue_message(message, self.process_response, None)
 
     def process_response(self, session, message, data=None):
-        if 400 <= message.status_code < 600:
+        if 400 <= message.status_code < 600 or 0 <= message.status_code < 100:
             logger.error('Chunk request returned {0}'
                                                  .format(message.status_code))
         else:
