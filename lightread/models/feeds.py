@@ -189,14 +189,14 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             self.emit('sync-done')
 
     def collect_garbage(self):
-        query = '''SELECT id, title FROM items WHERE starred=0
+        query = '''SELECT id FROM items WHERE starred=0
                              ORDER BY time DESC LIMIT 100000 OFFSET ?'''
         items = settings['cache-items']
         rows = utils.connection.execute(query, (items,)).fetchall()
         query = 'DELETE FROM items WHERE ' + ' OR '.join('id=?' for i in rows)
         if len(rows) > 0:
             utils.connection.execute(query, tuple(_id for _id, t in rows))
-            for _id, title in rows:
+            for _id, in rows:
                 FeedItem.remove_content(_id)
 
     def process_item(self, item, short_id):
