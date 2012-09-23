@@ -1,7 +1,7 @@
 # Problem: https://live.gnome.org/GnomeGoals/LibsecretMigration
 # But libsecret is not yet available in most repositories.
 from gi.repository import GnomeKeyring as GK
-from gi.repository import Soup, GObject
+from gi.repository import Soup, GObject, GLib
 import json
 
 from lightread.models import utils
@@ -10,6 +10,7 @@ AuthStatus = utils.AuthStatus
 class Auth(GObject.Object):
     __gsignals__ = {
         'status-change': (GObject.SignalFlags.RUN_FIRST, None, []),
+        'token-available': (GObject.SignalFlags.RUN_FIRST, None, []),
     }
 
     def __init__(self, *args, **kwargs):
@@ -18,6 +19,8 @@ class Auth(GObject.Object):
         # These variables must filled after login
         self.key = None
         self.info = None
+        self._token = None
+        self.token_expires = -1
         self.status = AuthStatus.BAD
 
         self._url = 'https://www.google.com/accounts/ClientLogin'
@@ -46,6 +49,16 @@ class Auth(GObject.Object):
         message.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
         utils.session.queue_message(message, self.on_login, None)
 
+    @property
+    def token(self):
+        current_time = GLib.get_monotonic_time()
+        if current_time > self.token_expires:
+            message = utils.AuthMessage(self, 'GET', utils.api_method('token'))
+            utils.session.queue_message(message, self.on_token, None)
+            return False
+        else:
+            return self._token
+
     def on_login(self, session, message, data=None):
         """
         Should set state of Auth object to show state of login and key
@@ -63,12 +76,11 @@ class Auth(GObject.Object):
                     # Set state of login
                     self.key = line[5:]
                     self.status = AuthStatus.OK
+
         if self.status == AuthStatus.OK:
             # Try to get user information
-            message = Soup.Message.new('GET', utils.api_method('user-info'))
-            heads = message.get_property('request-headers')
-            heads.append('Authorization',
-                         'GoogleLogin auth={0}'.format(self.key))
+            message = utils.AuthMessage(self, 'GET',
+                                        utils.api_method('user-info'))
             utils.session.queue_message(message, self.on_user_data, None)
         elif self.status == AuthStatus.BAD:
             self.secrets.emit('ask-password')
@@ -77,6 +89,16 @@ class Auth(GObject.Object):
         info = json.loads(message.response_body.data)
         self.info = {'id': info['userId']}
         self.emit('status-change')
+
+    def on_token(self, session, message, data=None):
+        if 400 <= message.status_code < 500:
+            logger.debug('Token failed with {0}'.format(message.status_code))
+        elif message.status_code < 100 or 500 <= message.status_code < 600:
+            logger.debug('Token failed with {0}'.format(message.status_code))
+        else:
+            self._token = message.response_body.data
+            self.token_expires = GLib.get_monotonic_time() + 1.5E9 #µs = 25min
+            self.emit('token-available')
 
 
 class SecretStore(GObject.Object):

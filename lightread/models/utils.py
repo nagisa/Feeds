@@ -75,6 +75,17 @@ class LoginRequired:
             return False
         return True
 
+    def ensure_token(self, auth, func, *args, **kwargs):
+        """ You are expected to already have a key, that is to be called
+        ensure_login before calling this function already. """
+        if not auth.token: # Automatically starts request if doesn't have one
+            logger.debug('auth object has no token, asking to get one')
+            def status_change(auth):
+                return func(*args, **kwargs)
+            auth.connect('token-available', status_change)
+            return False
+        return True
+
 
 def api_method(path, getargs=None):
     if getargs is None:

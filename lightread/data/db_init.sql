@@ -15,3 +15,6 @@ CREATE TABLE subscriptions (id VARCHAR(1024),
 CREATE TABLE labels (id INTEGER,
                      name VARCHAR(1024),
                      subscriptions VARCHAR(1024));
+
+CREATE TABLE flags (item_id INTEGER,
+                    flag VARCHAR(1024));

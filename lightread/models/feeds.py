@@ -95,6 +95,58 @@ class Ids(GObject.Object, utils.LoginRequired):
         self.emit('sync-done')
 
 
+class Flags(GObject.Object, utils.LoginRequired):
+    __gsignals__ = {
+        'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
+    }
+    flags = {'read': 'user/-/state/com.google/read'}
+    syncing = 0
+
+    def set_flag(self, item_id, flag):
+        query = 'SELECT COUNT(item_id) FROM flags WHERE item_id=? AND flag=?'
+        if not utils.connection.execute(query, (item_id, flag,)).fetchone()[0]:
+            # We don't have a flag like this one yet!
+            query = 'INSERT INTO flags(item_id, flag) VALUES (?, ?)'
+            utils.connection.execute(query, (item_id, flag,))
+
+    def set_read(self, item_id):
+        """ Will be used mostly for marking items as read """
+        self.set_flag(item_id, self.flags['read'])
+
+    def sync(self):
+        if not self.ensure_login(auth, self.sync) or \
+           not self.ensure_token(auth, self.sync):
+            return False
+
+        uri = utils.api_method('edit-tag')
+        req_type = 'application/x-www-form-urlencoded'
+        for flag in self.flags.values():
+            query = 'SELECT item_id FROM flags WHERE flag=?'
+            result = utils.connection.execute(query, (flag,)).fetchall()
+            if len(result) == 0:
+                continue
+
+            ch = utils.split_chunks((('i', i) for i, in result), 250, ('', ''))
+            for chunk in ch:
+                self.syncing += 1
+                data = urlencode(chunk + (('a', flag), ('T', auth.token),))
+                msg = utils.AuthMessage(auth, 'POST', uri)
+                msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
+                utils.session.queue_message(msg, self.on_response, result)
+
+    def on_response(self, session, message, data):
+        self.syncing -= 1
+
+        query = 'DELETE FROM flags WHERE ' + \
+                ' OR '.join('item_id=?' for i in data)
+        utils.connection.execute(query, tuple(i for i, in data))
+
+        if self.syncing == 0:
+            self.emit('sync-done')
+            utils.connection.commit()
+
+
+
 class Items(Gtk.ListStore, utils.LoginRequired):
     __gsignals__ = {
         'sync-done': (GObject.SignalFlags.RUN_FIRST, None, [])
@@ -102,6 +154,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
     def __init__(self, *args, **kwargs):
         self.ids = Ids()
+        self.flags = Flags()
         self.purge_html = re.compile('<.+?>|[\n\t\r]')
         self.syncing = 0
         self.source_filter = None
@@ -148,14 +201,18 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         if self.syncing > 0:
             logger.warning('Already syncing')
             return
-        self.syncing += 1
+        self.syncing += 2
 
         def callback(ids, self):
-            self.sync2()
             self.syncing -= 1
+            if self.syncing == 1:
+                self.ids.sync()
+            if self.syncing == 0:
+                self.sync2()
 
+        connect_once(self.flags, 'sync-done', callback, self)
         connect_once(self.ids, 'sync-done', callback, self)
-        return self.ids.sync()
+        self.flags.sync()
 
     def sync2(self):
         if not self.ensure_login(auth, self.sync2):
@@ -268,6 +325,13 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         else:
             return -1
 
+    def set_read(self, item):
+        self.flags.set_read(item.item_id)
+        query = 'UPDATE items SET unread=0 WHERE id=?'
+        utils.connection.execute(query, (item.item_id,))
+        utils.connection.commit()
+        item.unread = False
+
 
 class FilteredItems(Items):
 
@@ -326,6 +390,7 @@ class FilteredItems(Items):
     def unread_count(self):
         query = 'SELECT COUNT(id) FROM items WHERE unread=1'
         return utils.connection.execute(query).fetchone()[0]
+
 
 class FeedItem(GObject.Object):
 

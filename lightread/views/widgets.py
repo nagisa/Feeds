@@ -141,7 +141,10 @@ class FeedView(WebKit.WebView):
         if treeview.in_destruction() or treeview.reloading:
             return
         selection = treeview.get_selection().get_selected()
-        self.load_item(selection[0].get_value(selection[1], 0))
+        item = selection[0].get_value(selection[1], 0)
+        if item.unread: # Set it to read
+            treeview.store.set_read(item)
+        self.load_item(item)
 
 
 class CategoriesView(Gtk.TreeView):
