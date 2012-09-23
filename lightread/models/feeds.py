@@ -134,6 +134,9 @@ class Flags(GObject.Object, utils.LoginRequired):
                 msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
                 utils.session.queue_message(msg, self.on_response, result)
 
+        if self.syncing == 0:
+            self.emit('sync-done')
+
     def on_response(self, session, message, data):
         self.syncing -= 1
         if 400 <= message.status_code < 600 or 0 <= message.status_code < 100:
