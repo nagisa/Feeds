@@ -10,6 +10,7 @@ import gettext
 import logging
 import os
 
+
 # Setup logging module
 __builtins__['logger'] = logging.getLogger('lightread')
 fmt_str = "%(levelname)s: %(pathname)s:%(lineno)s %(message)s"
@@ -31,3 +32,12 @@ _CACHE_DIR = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
 __builtins__['CACHE_DIR'] = os.path.join(_CACHE_DIR, 'lightread')
 if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR)
+
+
+# I want my strings unicode!
+def it_is_unicode(item):
+    if not PY2:
+        return item
+    else:
+        return item.decode('utf-8')
+__builtins__['u'] = it_is_unicode

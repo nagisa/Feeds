@@ -4,7 +4,8 @@ import json
 import os
 import random
 
-from lightread.models import utils, auth
+from lightread.models.auth import auth
+from lightread.models import utils
 
 
 class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
@@ -15,7 +16,7 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
     }
 
     def __init__(self, *args, **kwargs):
-        super().__init__(GdkPixbuf.Pixbuf, str, str)
+        super(Subscriptions, self).__init__(GdkPixbuf.Pixbuf, str, str)
         self.favicons = Favicons()
         self.favicons.connect('sync-done', self.on_icon_update)
         self.favicons_sync = 0
@@ -119,7 +120,7 @@ class Favicons(GObject.Object):
     }
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(Favicons, self).__init__(*args, **kwargs)
         favdir = os.path.join(CACHE_DIR, 'favicons')
         if not os.path.exists(favdir):
             os.makedirs(favdir)

@@ -1,15 +1,22 @@
+# -*- coding:utf-8 -*-
 """
 Downloads items from google reader, caches it, gets respective favicons
 et cetera
 """
 from gi.repository import Soup, GObject, Gtk
-from urllib.parse import urlencode
+if not PY2:
+    from urllib.parse import urlencode
+else:
+    from urllib import urlencode
+    import codecs
 import ctypes
 import json
 import os
 import re
 
-from lightread.models import auth, utils, settings
+from lightread.models.auth import auth
+from lightread.models import utils
+from lightread.models.settings import settings
 from lightread.views.utils import connect_once
 
 
@@ -195,7 +202,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         rows = utils.connection.execute(query, (items,)).fetchall()
         query = 'DELETE FROM items WHERE ' + ' OR '.join('id=?' for i in rows)
         if len(rows) > 0:
-            utils.connection.execute(query, tuple(_id for _id, t in rows))
+            utils.connection.execute(query, tuple(_id for _id, in rows))
             for _id, in rows:
                 FeedItem.remove_content(_id)
 
@@ -245,8 +252,9 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         else:
             content = result['summary'] = ''
         if len(content) != 0:
+            td = u("…")
             result['summary'] = self.purge_html.sub('', content).strip()[:1000]
-            result['summary'] = (utils.unescape(result['summary']) + "…")[:140]
+            result['summary'] = (utils.unescape(result['summary']) + td)[:140]
 
         return result, content
 
@@ -349,8 +357,13 @@ class FeedItem(GObject.Object):
     @staticmethod
     def save_content(item_id, content):
         fpath = os.path.join(content_dir, str(item_id))
-        with open(fpath, 'w') as f:
-            f.write(content)
+        if not PY2:
+            with open(fpath, 'w') as f:
+                f.write(content)
+        else:
+            with codecs.open(fpath, 'w', 'utf-8') as f:
+                f.write(content)
+
 
     @staticmethod
     def remove_content(item_id):
@@ -360,5 +373,9 @@ class FeedItem(GObject.Object):
     @staticmethod
     def read_content(item_id):
         fpath = os.path.join(content_dir, str(item_id))
-        with open(fpath, 'r') as f:
-            return f.read()
+        if not PY2:
+            with open(fpath, 'r') as f:
+                return f.read()
+        else:
+            with codecs.open(fpath, 'r', 'utf-8') as f:
+                f.read()

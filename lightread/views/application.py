@@ -1,6 +1,6 @@
 from gi.repository import Gtk, Gio
 
-from lightread.models import auth
+from lightread.models.auth import auth
 from lightread.views.windows import ApplicationWindow, LoginDialog
 
 

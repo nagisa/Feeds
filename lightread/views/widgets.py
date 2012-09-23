@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from gi.repository import Gtk, WebKit, Pango, PangoCairo, Gdk, GObject, Gio
+try: # Cannot use `if not PY2:` because html.escape does not exist in Py <3.2
+    from html import escape as html_escape
+except ImportError:
+    from xml.sax.saxutils import escape as html_escape
 import datetime
-import html
 
 from lightread import models
 from lightread.utils import get_data_path
@@ -170,7 +173,7 @@ class CategoriesView(Gtk.TreeView):
 class SubscriptionsView(Gtk.TreeView):
 
     def __init__(self, *args, **kwargs):
-        self.store = models.Subscriptions()
+        self.store = models.subscriptions.Subscriptions()
         super(SubscriptionsView, self).__init__(self.store, *args, **kwargs)
         self.set_properties(headers_visible=False)
         self.set_level_indentation(-12)
@@ -224,7 +227,7 @@ class SubscriptionsView(Gtk.TreeView):
 class ItemsView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
         self.reloading = False
-        self.store = models.FilteredItems()
+        self.store = models.feeds.FilteredItems()
         super(ItemsView, self).__init__(self.store, *args, **kwargs)
         self.set_properties(headers_visible=False)
 
@@ -232,7 +235,7 @@ class ItemsView(Gtk.TreeView):
         column = Gtk.TreeViewColumn("Item", renderer, item=0)
         self.append_column(column)
         self.store.set_sort_column_id(0, Gtk.SortType.DESCENDING)
-        self.store.set_sort_func(0, models.Items.compare, None)
+        self.store.set_sort_func(0, models.feeds.FilteredItems.compare, None)
         self.connect('realize', self.on_realize)
 
     def sync(self, callback=None):
@@ -262,12 +265,12 @@ class ItemsView(Gtk.TreeView):
         self.reloading = False
 
 class ItemCellRenderer(Gtk.CellRenderer):
-    item = GObject.property(type=models.FeedItem)
-    markup = {'date': '<span color="{color}" size="9216">{text}</span>',
-              'site': '<span color="{color}" size="9216">{text}</span>',
-              'title': '<span color="{color}" size="10240" ' \
-                       'weight="{weight}">{text}</span>',
-              'summary': '<span color="{color}" size="9216">{text}</span>'}
+    item = GObject.property(type=models.feeds.FeedItem)
+    markup = {'date': u('<span color="{color}" size="9216">{text}</span>'),
+              'site': u('<span color="{color}" size="9216">{text}</span>'),
+              'title': u('<span color="{color}" size="10240" '
+                       'weight="{weight}">{text}</span>'),
+              'summary': u('<span color="{color}" size="9216">{text}</span>')}
 
     def __init__(self, *args, **kwargs):
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
@@ -365,7 +368,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         text = self.item.title
         layout = widget.create_pango_layout(text)
         weight = 'bold' if self.item.unread else 'normal'
-        layout.set_markup(self.markup['title'].format(text=html.escape(text),
+        layout.set_markup(self.markup['title'].format(text=html_escape(text),
                           color=utils.hexcolor(color), weight=weight))
         layout.set_wrap(Pango.WrapMode.WORD)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
@@ -381,7 +384,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         color = widget.get_style_context().get_color(self.state)
         text = self.item.summary
         layout = widget.create_pango_layout(text)
-        layout.set_markup(self.markup['summary'].format(text=html.escape(text),
+        layout.set_markup(self.markup['summary'].format(text=html_escape(text),
                           color=utils.hexcolor(color)))
         layout.set_ellipsize(Pango.EllipsizeMode.END)
 

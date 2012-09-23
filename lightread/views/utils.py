@@ -6,7 +6,7 @@ import time
 from lightread.utils import get_data_path
 
 
-class BuiltMixin:
+class BuiltMixin(object):
 
     def __new__(cls, *args, **kwargs):
         builder = Gtk.Builder(translation_domain='lightread')
@@ -25,9 +25,9 @@ class BuiltMixin:
 
 
 def hexcolor(color):
-    return '#{0:02X}{1:02X}{2:02X}'.format(round(color.red * 0xFF),
-                                           round(color.green * 0xFF),
-                                           round(color.blue * 0xFF))
+    return u('#{0:02X}{1:02X}{2:02X}').format((color.red * 0xFF).__trunc__(),
+                                           (color.green * 0xFF).__trunc__(),
+                                           (color.blue * 0xFF).__trunc__())
 
 
 def time_ago(timestamp):

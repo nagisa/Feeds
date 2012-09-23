@@ -1,6 +1,13 @@
 from gi.repository import Soup, Gtk, GdkPixbuf
-from html.parser import HTMLParser
-from urllib import parse
+
+if not PY2:
+    from html.parser import HTMLParser
+    from urllib.parse import urljoin, urlencode
+else:
+    from HTMLParser import HTMLParser
+    from urlparse import urljoin
+    from urllib import urlencode
+
 import hashlib
 import itertools
 import os
@@ -38,7 +45,7 @@ class AuthMessage(Message):
     Creates an Soup.Message object with GoogleLogin headers injected
     """
     def __new__(cls, auth, *args, **kwargs):
-        obj = super().__new__(cls, *args, **kwargs)
+        obj = super(AuthMessage, cls).__new__(cls, *args, **kwargs)
         hdr = obj.get_property('request-headers')
         hdr.append('Authorization', 'GoogleLogin auth={0}'.format(auth.key))
         return obj
@@ -74,11 +81,15 @@ def api_method(path, getargs=None):
         pass
     # Will not override earlier output variable
     getargs = getargs + [('output', 'json')]
-    return "{0}?{1}".format(parse.urljoin(base, path), parse.urlencode(getargs))
+    return "{0}?{1}".format(urljoin(base, path), urlencode(getargs))
 
 
 def icon_name(origin_url):
-    fname = hashlib.md5(bytes(origin_url, 'utf-8')).hexdigest()
+    if not PY2:
+        value = bytes(origin_url, 'utf-8')
+    else:
+        value = origin_url.decode('utf-8')
+    fname = hashlib.md5(value).hexdigest()
     return os.path.join(CACHE_DIR, 'favicons', fname)
 
 
@@ -106,6 +117,9 @@ def icon_pixbuf(url):
 
 def split_chunks(itr, chunk_size, fillvalue=None):
     items = [iter(itr)] * chunk_size
-    return itertools.zip_longest(*items, fillvalue=fillvalue)
+    if not PY2:
+        return itertools.zip_longest(*items, fillvalue=fillvalue)
+    else:
+        return itertools.izip_longest(*items, fillvalue=fillvalue)
 
 unescape = HTMLParser().unescape
