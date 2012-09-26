@@ -19,14 +19,13 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
 
     def on_show(self, window):
         feedbox = self.builder.get_object('feedview')
-        feedview = widgets.FeedView()
-        feedbox.add(feedview)
-        feedview.show()
+        self.feedview = widgets.FeedView()
+        feedbox.add(self.feedview)
 
         leftgrid = self.builder.get_object('left-grid')
         leftgrid.get_style_context().add_class(Gtk.STYLE_CLASS_SIDEBAR)
-        categories = widgets.CategoriesView()
-        leftgrid.attach(categories, 0, 0, 1, 1)
+        self.categories = widgets.CategoriesView()
+        leftgrid.attach(self.categories, 0, 0, 1, 1)
 
         subs = self.builder.get_object('subs')
         self.subsview = widgets.SubscriptionsView()
@@ -37,62 +36,17 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.itemsview = widgets.ItemsView()
         items.add(self.itemsview)
 
-        self.itemsview.connect('cursor-changed', feedview.on_change)
-        self.subsview.connect('cursor-changed', self.itemsview.on_filter_change)
-        categories.connect('cursor-changed', self.itemsview.on_cat_change)
-        categories.connect('cursor-changed', self.subsview.on_cat_change)
         self.itemsview.show()
         self.subsview.show()
-        categories.show()
+        self.categories.show()
+        self.feedview.show()
 
         for tb in ('items-toolbar', 'sidebar-toolbar', 'feedview-toolbar',):
             toolbar = self.builder.get_object(tb)
             widgets.add_toolbar_items(toolbar, tb)
             toolbar.get_style_context().add_class(Gtk.STYLE_CLASS_MENUBAR)
             toolbar.reset_style()
-
-        feedview_tb = self.builder.get_object('feedview-toolbar')
-        feedview_tb.preferences.connect('clicked', self.on_show_prefs)
-
-        sidebar_tb = self.builder.get_object('sidebar-toolbar')
-        sidebar_tb.refresh.connect('clicked', self.on_refresh)
-
-        if settings['start-refresh']:
-            sidebar_tb.refresh.emit('clicked')
-
-    def on_show_prefs(self, button):
-        dialog = PreferencesDialog(transient_for=self, modal=True)
-        dialog.show_all()
-
-    def on_show_about(self):
-        dialog = AboutDialog(transient_for=self, modal=True)
-        dialog.run()
-        dialog.destroy()
-
-    def on_refresh(self, button):
-        sidebar_tb = self.builder.get_object('sidebar-toolbar')
-        sidebar_tb.spinner.show()
-        sidebar_tb.refresh.set_sensitive(False)
-
-        def on_sync_done(model, data=None):
-            on_sync_done.to_finish -= 1
-            if on_sync_done.to_finish == 0:
-                sidebar_tb.spinner.hide()
-                sidebar_tb.refresh.set_sensitive(True)
-            # If we can show notification
-            if hasattr(model, 'unread_count') and not self.is_active():
-                count = model.unread_count
-                summary = N_('You have an unread item',
-                           'You have {0} unread items', count).format(count)
-                if notification.closed or \
-                            notification.get_property('summary') != summary:
-                    notification.update(summary, '')
-                    notification.show()
-        on_sync_done.to_finish = 2
-
-        # Do actual sync
-        self.itemsview.sync(on_sync_done)
-        self.subsview.sync(on_sync_done)
+            setattr(self, tb.replace('-', '_'), toolbar)
 
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
