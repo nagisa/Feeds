@@ -28,5 +28,5 @@ class LightReadSettings(Gio.Settings):
 
 
 if 'settings' not in _globals_cache:
-    _globals_cache['settings'] = LightReadSettings('apps.lightread')
+    _globals_cache['settings'] = LightReadSettings('apps.trifle')
 settings = _globals_cache['settings']

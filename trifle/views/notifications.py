@@ -1,15 +1,15 @@
 from gi.repository import Notify
 import functools
 
-from lightread.views.utils import connect_once
+from views.utils import connect_once
 
 if not Notify.is_initted():
-    Notify.init(_('Lightread'))
+    Notify.init(_('Feeds'))
 
 class Notification(Notify.Notification):
-    icon = 'lightread'
+    icon = 'trifle'
     def __new__(cls, *args, **kw):
-        n = Notify.Notification.new('', '', 'lightread', *args, **kw)
+        n = Notify.Notification.new('', '', '', *args, **kw)
         n._update, n.update = n.update, functools.partial(cls.update, n)
         n._show, n.show = n.show, functools.partial(cls.show, n)
         n.icon = cls.icon

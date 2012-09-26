@@ -1,14 +1,14 @@
 from gi.repository import Gtk, Gio
 
-from lightread.models.auth import auth
-from lightread.views.windows import ApplicationWindow, LoginDialog
+from models.auth import auth
+from views.windows import ApplicationWindow, LoginDialog
 
 
 class Application(Gtk.Application):
 
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(*args,
-                                          application_id='net.launchpad.lightread',
+                                          application_id='apps.trifle',
                                           flags=Gio.ApplicationFlags.FLAGS_NONE,
                                           **kwargs)
         self.connect('activate', self.on_activate)

@@ -6,9 +6,9 @@ except ImportError:
     from xml.sax.saxutils import escape as html_escape
 import datetime
 
-from lightread import models
-from lightread.utils import get_data_path
-from lightread.views import utils
+import models
+from utils import get_data_path
+from views import utils
 
 
 def add_toolbar_items(toolbar, tb_type):

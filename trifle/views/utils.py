@@ -3,13 +3,13 @@ import collections
 import functools
 import time
 
-from lightread.utils import get_data_path
+from utils import get_data_path
 
 
 class BuiltMixin(object):
 
     def __new__(cls, *args, **kwargs):
-        builder = Gtk.Builder(translation_domain='lightread')
+        builder = Gtk.Builder(translation_domain='trifle')
         path = get_data_path('ui', cls.ui_file)
         builder.add_from_file(path)
         new_obj = builder.get_object(cls.top_object)

@@ -4,8 +4,11 @@ from gi.repository import GnomeKeyring as GK
 from gi.repository import Soup, GObject, GLib
 import json
 
-from lightread.models import utils
+from models import utils
+
+
 AuthStatus = utils.AuthStatus
+
 
 class Auth(GObject.Object):
     __gsignals__ = {
@@ -123,11 +126,11 @@ class SecretStore(GObject.Object):
             raise EnvironmentError('Could not load password')
 
         queryset = GK.Attribute.list_new()
-        GK.Attribute.list_append_string(queryset, 'application', 'lightread')
+        GK.Attribute.list_append_string(queryset, 'application', 'trifle')
         status, result = GK.find_items_sync(GK.ItemType.NETWORK_PASSWORD,
                                             queryset)
         if len(result) > 1:
-            logger.warning('>1 lightread specific secrets found')
+            logger.warning('>1 trifle specific secrets found')
 
         if status == GK.Result.OK:
             self._password = result[0].secret
@@ -136,7 +139,7 @@ class SecretStore(GObject.Object):
                     self._user = attribute.get_string()
             return True # All OK!
         elif status == GK.Result.NO_MATCH:
-            logger.debug('No lightread specific secrets found')
+            logger.debug('No trifle specific secrets found')
         else:
             logger.warning('Unexpected keyring error occured')
         raise EnvironmentError('Could not load password')
@@ -164,7 +167,7 @@ class SecretStore(GObject.Object):
             return False
 
         attributes = GK.Attribute.list_new()
-        GK.Attribute.list_append_string(attributes, 'application', 'lightread')
+        GK.Attribute.list_append_string(attributes, 'application', 'trifle')
         GK.Attribute.list_append_string(attributes, 'user', user)
         status, _ = GK.item_create_sync(self._keyring_name,
                                         GK.ItemType.NETWORK_PASSWORD,

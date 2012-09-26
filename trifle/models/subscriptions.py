@@ -4,8 +4,8 @@ import json
 import os
 import random
 
-from lightread.models.auth import auth
-from lightread.models import utils
+from models.auth import auth
+from models import utils
 
 
 class Subscriptions(Gtk.TreeStore, utils.LoginRequired):

@@ -1,9 +1,9 @@
 [Desktop Entry]
-_Name=Lightread
-_Comment=Lightread application
+_Name=Feeds
+_Comment=Google Reader for GNOME
 Categories=GNOME;Utility;Internet;
-Exec=python -m lightread
-Icon=lightread
+Exec=python -m trifle
+Icon=trifle
 Terminal=false
 Type=Application
 Keywords=rss;atom;google;reader;news;feed;

@@ -14,10 +14,10 @@ import json
 import os
 import re
 
-from lightread.models.auth import auth
-from lightread.models import utils
-from lightread.models.settings import settings
-from lightread.views.utils import connect_once
+from models.auth import auth
+from models import utils
+from models.settings import settings
+from views.utils import connect_once
 
 
 content_dir = os.path.join(CACHE_DIR, 'content')

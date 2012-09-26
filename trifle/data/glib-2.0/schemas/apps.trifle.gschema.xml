@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="lightread">
-    <schema id="apps.lightread" path="/apps/lightread/">
+<schemalist gettext-domain="trifle">
+    <schema id="apps.trifle" path="/apps/trifle/">
         <key name="notifications" type="b">
             <default>true</default>
             <summary>Show notifications</summary>
@@ -11,7 +11,7 @@ Show notifications when feeds you're subscribed to are updated
         <key name="start-refresh" type="b">
             <default>true</default>
             <summary>Refresh on start</summary>
-            <description>Refresh feeds when lightread is started</description>
+            <description>Refresh feeds when trifle is started</description>
         </key>
         <key name="refresh-every" type="q">
             <range min="0" max="300"/>

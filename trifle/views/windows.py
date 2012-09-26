@@ -1,19 +1,19 @@
 from gi.repository import Gtk
 
 
-from lightread.models.auth import auth
-from lightread.models.settings import settings
-from lightread.views import widgets, utils
-from lightread.views.notifications import notification
+from models.auth import auth
+from models.settings import settings
+from views import widgets, utils
+from views.notifications import notification
 
 
 class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
-    ui_file = 'lightread-window.ui'
+    ui_file = 'window.ui'
     top_object = 'main-window'
 
     def __init__(self, *args, **kwargs):
-        self.set_wmclass('lightread', 'lightread')
-        self.set_title(_('Lightread'))
+        self.set_wmclass('trifle', 'trifle')
+        self.set_title(_('Feeds'))
         self.maximize()
         self.connect('realize', self.on_show)
 
@@ -96,7 +96,7 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
 
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
-    ui_file = 'lightread-preferences.ui'
+    ui_file = 'preferences-dialog.ui'
     top_object = 'preferences-dialog'
 
     def __init__(self, *args, **kwargs):
@@ -135,7 +135,7 @@ class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
 
 
 class AboutDialog(utils.BuiltMixin, Gtk.AboutDialog):
-    ui_file = 'lightread-about.ui'
+    ui_file = 'about-dialog.ui'
     top_object = 'about-dialog'
 
     def __init__(self, *args, **kwargs):
@@ -146,7 +146,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
     """
     This dialog will ensure, that user becomes logged in by any means
     """
-    ui_file = 'lightread-login.ui'
+    ui_file = 'login-dialog.ui'
     top_object = 'login-dialog'
 
     def __init__(self, *args, **kwargs):

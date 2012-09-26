@@ -14,9 +14,8 @@ import itertools
 import os
 import sqlite3
 
-from lightread.utils import get_data_path
+from utils import get_data_path
 
-AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
 
 if 'cacher_session' not in _globals_cache:
     _globals_cache['models_session'] = Soup.SessionAsync(max_conns=50,
@@ -33,6 +32,9 @@ if 'sqlite_cnn' not in _globals_cache:
         connection = sqlite3.Connection(fpath)
     _globals_cache['sqlite_cnn'] = connection
 connection = _globals_cache['sqlite_cnn']
+
+
+AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
 
 
 class Message(Soup.Message):
