@@ -13,6 +13,7 @@ import hashlib
 import itertools
 import os
 import sqlite3
+from xml.sax.saxutils import escape
 
 from utils import get_data_path
 

@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
 from gi.repository import Gtk, WebKit, Pango, PangoCairo, Gdk, GObject, Gio
-try: # Cannot use `if not PY2:` because html.escape does not exist in Py <3.2
-    from html import escape as html_escape
-except ImportError:
-    from xml.sax.saxutils import escape as html_escape
 import datetime
 
 import models
 from utils import get_data_path
 from views import utils
+from models.utils import escape
 
 
 def add_toolbar_items(toolbar, tb_type):
@@ -354,8 +351,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
     def render_site(self, widget, cell_area, ctx, y, maxx, height):
         color = widget.get_style_context().get_color(self.state)
         layout = widget.create_pango_layout(self.item.site)
-        layout.set_markup(self.markup['site'].format(text=self.item.site,
-                          color=utils.hexcolor(color)))
+        mkp = self.markup['site'].format(text=escape(self.item.site),
+                                         color=utils.hexcolor(color))
+        layout.set_markup(mkp)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         max_width = (maxx - self.left_padding - self.spacing)
         layout.set_width(max_width * Pango.SCALE)
@@ -371,7 +369,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         text = self.item.title
         layout = widget.create_pango_layout(text)
         weight = 'bold' if self.item.unread else 'normal'
-        layout.set_markup(self.markup['title'].format(text=html_escape(text),
+        layout.set_markup(self.markup['title'].format(text=escape(text),
                           color=utils.hexcolor(color), weight=weight))
         layout.set_wrap(Pango.WrapMode.WORD)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
@@ -387,7 +385,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
         color = widget.get_style_context().get_color(self.state)
         text = self.item.summary
         layout = widget.create_pango_layout(text)
-        layout.set_markup(self.markup['summary'].format(text=html_escape(text),
+        layout.set_markup(self.markup['summary'].format(text=escape(text),
                           color=utils.hexcolor(color)))
         layout.set_ellipsize(Pango.EllipsizeMode.END)
 
