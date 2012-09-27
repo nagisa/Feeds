@@ -1,5 +1,6 @@
 [Desktop Entry]
-_Name=Feeds
+_Name=Trifle
+_GenericName=Feeds Reader
 _Comment=Google Reader for GNOME
 Categories=GNOME;Utility;Internet;
 Exec=python -m trifle
