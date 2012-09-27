@@ -160,11 +160,12 @@ class Items(Gtk.ListStore, utils.LoginRequired):
     __gsignals__ = {
         'sync-done': (GObject.SignalFlags.RUN_FIRST, None, [])
     }
+    html_re = re.compile('<.+?>')
+    space_re = re.compile('[\t\n\r]+')
 
     def __init__(self, *args, **kwargs):
         self.ids = Ids()
         self.flags = Flags()
-        self.purge_html = re.compile('<.+?>|[\n\t\r]')
         self.syncing = 0
         self.source_filter = None
         self.category = None
@@ -205,6 +206,52 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         if result is None or time > result[0]:
             return True
         return False
+
+    def process_item(self, item, short_id):
+        """
+        Should return a dictionary, content pair.
+        Dictionary should contain subscription, time, href, author, title and
+        summary fields.
+        If any of values doesn't exist, they'll be replaced with meaningful
+        defaults. For example "Unknown" for author or "Untitled item" for
+        title
+        """
+        # After a lot of fiddling around I realized one thing. We are IN NO
+        # WAY guaranteed that any of these fields exists at all.
+        # This idiocy should make this method bigger than a manpage for
+        # understanding teenage girls' thought processes.
+        def strip_html_nl(text):
+            text = self.html_re.sub('', text).strip()
+            return self.space_re.sub('', text)
+
+        result = {}
+        result['unread'] = int(short_id) in self.ids.sets['unread']
+        result['starred'] = int(short_id) in self.ids.sets['starred']
+        result['subscription'] = item['origin']['streamId']
+        result['author'] = utils.unescape(item.get('author', _('Stranger')))
+        # How could they even think of putting html into feed title?!
+        # L10N Untitled refers to an item without title
+        result['title'] = strip_html_nl(item.get('title', _('Untitled')))
+
+        result['time'] = float(item['crawlTimeMsec']) / 1000
+        if result['time'] >= item.get('updated', -1):
+            result['time'] = item['updated']
+
+        try:
+            result['href'] = item['alternate'][0]['href']
+        except KeyError:
+            result['href'] = item['origin']['htmlUrl']
+
+        content = item['summary']['content'] if 'summary' in item else \
+                  item['content']['content'] if 'content' in item else ''
+        if len(content) != 0:
+            result['summary'] = utils.unescape(strip_html_nl(content)[:1000])
+            if len(result['summary']) > 140:
+                result['summary'] = result['summary'][:139] + u('…')
+        else:
+            result['summary'] = ''
+
+        return result, content
 
     def sync(self):
         if self.syncing > 0:
@@ -271,58 +318,6 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             utils.connection.execute(query, tuple(_id for _id, in rows))
             for _id, in rows:
                 FeedItem.remove_content(_id)
-
-    def process_item(self, item, short_id):
-        # After a lot of fiddling around I realized one thing. We are IN NO
-        # WAY guaranteed that any of these fields exists at all.
-        # This idiocy should make this method bigger than a manpage for
-        # understanding teenage girls' thought processes.
-        """
-        Should return a dictionary, content pair.
-        Dictionary should contain subscription, time, href, author, title and
-        summary fields.
-        If any of values doesn't exist, they'll be replaced with meaningful
-        defaults. For example "Unknown" for author or "Untitled item" for
-        title
-        """
-        result = {}
-        result['unread'] = int(short_id) in self.ids.sets['unread']
-        result['starred'] = int(short_id) in self.ids.sets['starred']
-        result['subscription'] = item['origin']['streamId']
-
-        result['time'] = float(item['crawlTimeMsec']) / 1000
-        if result['time'] >= item['updated']:
-            result['time'] = item['updated']
-
-        try:
-            result['href'] = item['alternate'][0]['href']
-        except KeyError:
-            result['href'] = item['origin']['htmlUrl']
-
-        if 'author' in item:
-            result['author'] = item['author']
-        else:
-            result['author'] = _('Unspecified person')
-
-        # How could they even think of putting html into feed title?!
-        if 'title' in item:
-            result['title'] = utils.unescape(
-                                        self.purge_html.sub('', item['title']))
-        else:
-            result['title'] = _('Untitled item')
-
-        if 'summary' in item:
-            content = item['summary']['content'].strip()
-        elif 'content' in item:
-            content = item['content']['content'].strip()
-        else:
-            content = result['summary'] = ''
-        if len(content) != 0:
-            td = u("…")
-            result['summary'] = self.purge_html.sub('', content).strip()[:1000]
-            result['summary'] = (utils.unescape(result['summary']) + td)[:140]
-
-        return result, content
 
     def compare(self, row1, row2, user_data):
         value1 = self.get_value(row1, 0).time
