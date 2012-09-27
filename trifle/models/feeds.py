@@ -310,14 +310,18 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
     def collect_garbage(self):
         query = '''SELECT id FROM items WHERE starred=0
-                             ORDER BY time DESC LIMIT 100000 OFFSET ?'''
+                             ORDER BY time DESC LIMIT 5000 OFFSET ?'''
         items = settings['cache-items']
         rows = utils.connection.execute(query, (items,)).fetchall()
-        query = 'DELETE FROM items WHERE ' + ' OR '.join('id=?' for i in rows)
+        # SQLite doesn't like working on more than 1000 ORs
+        query = 'DELETE FROM items WHERE {0}'
         if len(rows) > 0:
-            utils.connection.execute(query, tuple(_id for _id, in rows))
-            for _id, in rows:
-                FeedItem.remove_content(_id)
+            for block in utils.split_chunks(rows, 900, (None,)):
+                block = [i for i, in block if i]
+                q = query.format(' OR '.join('id=?' for i in block))
+                utils.connection.execute(q, tuple(i for i in block))
+                for i in block:
+                    FeedItem.remove_content(i)
 
     def compare(self, row1, row2, user_data):
         value1 = self.get_value(row1, 0).time
@@ -441,7 +445,10 @@ class FeedItem(GObject.Object):
     @staticmethod
     def remove_content(item_id):
         fpath = os.path.join(content_dir, str(item_id))
-        os.remove(fpath)
+        try:
+            os.remove(fpath)
+        except OSError:
+            logger.exception('Could not remove content file')
 
     @staticmethod
     def read_content(item_id):
