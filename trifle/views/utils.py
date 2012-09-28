@@ -3,7 +3,7 @@ import collections
 import functools
 import time
 
-from utils import get_data_path
+from trifle.utils import get_data_path
 
 
 class BuiltMixin(object):

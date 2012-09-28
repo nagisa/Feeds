@@ -15,7 +15,7 @@ import os
 import sqlite3
 from xml.sax.saxutils import escape
 
-from utils import get_data_path
+from trifle.utils import get_data_path
 
 
 if 'cacher_session' not in _globals_cache:

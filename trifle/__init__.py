@@ -23,9 +23,9 @@ class Formatter(logging.Formatter):
         return super(Formatter, self).format(record)
 
 __builtins__['logger'] = logging.getLogger('trifle')
-fmt_str = "{levelname:7}\t{lineno:>4}| {relpath} in {funcName:10}\t{msg}"
+fmt = "%(levelname).7s\t%(lineno)4s |%(relpath)s in %(funcName).10s\t%(msg)s"
 logging_handler = logging.StreamHandler()
-logging_handler.setFormatter(Formatter(fmt_str, style='{'))
+logging_handler.setFormatter(Formatter(fmt))
 logger.addHandler(logging_handler)
 
 # Setup localization

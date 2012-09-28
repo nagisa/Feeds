@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 # Problem: https://live.gnome.org/GnomeGoals/LibsecretMigration
 # But libsecret is not yet available in most repositories.
 from gi.repository import GnomeKeyring as GK

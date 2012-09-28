@@ -444,7 +444,6 @@ class FeedItem(GObject.Object):
             with codecs.open(fpath, 'w', 'utf-8') as f:
                 f.write(content)
 
-
     @staticmethod
     def remove_content(item_id):
         fpath = os.path.join(content_dir, str(item_id))
