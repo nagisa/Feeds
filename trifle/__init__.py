@@ -12,13 +12,13 @@ import os
 import sys
 
 # Add module to a path
-__builtins__['MODULE_DIR'] = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(MODULE_DIR)
+__builtins__['MODULE_PATH'] = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(MODULE_PATH)
 
 # Setup logging module
 class Formatter(logging.Formatter):
     def format(self, record):
-        relpath = os.path.relpath(record.pathname, MODULE_DIR)
+        relpath = os.path.relpath(record.pathname, MODULE_PATH)
         record.relpath = relpath
         return super(Formatter, self).format(record)
 
