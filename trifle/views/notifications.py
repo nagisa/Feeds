@@ -2,6 +2,7 @@ from gi.repository import Notify
 import functools
 
 from views.utils import connect_once
+from models.settings import settings
 
 if not Notify.is_initted():
     Notify.init(_('Feeds'))
@@ -21,8 +22,11 @@ class Notification(Notify.Notification):
         self._update(summary, body, self.icon)
 
     def show(self):
-        self.closed = False
-        self._show()
+        if settings['notifications']:
+            self.closed = False
+            self._show()
+        else:
+            logger.warning('Notification was not shown')
 
     def on_close(self, *args):
         self.closed = True

@@ -4,7 +4,6 @@ from gi.repository import Gtk
 from models.auth import auth
 from models.settings import settings
 from views import widgets, utils
-from views.notifications import notification
 
 
 class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
