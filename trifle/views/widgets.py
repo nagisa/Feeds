@@ -263,9 +263,10 @@ class ItemsView(Gtk.TreeView):
     def on_cat_change(self, treeview):
         if treeview.in_destruction():
             return
-        selection = treeview.selection.get_selected()
+        model, selection = treeview.selection.get_selected()
         self.reloading = True
-        self.store.set_category(selection[0].get_value(selection[1], 2))
+        if selection is not None:
+            self.store.set_category(model[selection][2])
         self.reloading = False
 
 class ItemCellRenderer(Gtk.CellRenderer):
