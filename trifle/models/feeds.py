@@ -428,8 +428,11 @@ class FeedItem(GObject.Object):
             self.unread = r[5]
             self.starred = r[6]
             self.origin = r[7]
-            self.icon = utils.icon_pixbuf(self.origin)
             self.site = r[8]
+
+    @property
+    def icon(self):
+        return utils.icon_pixbuf(self.origin)
 
     @staticmethod
     def save_content(item_id, content):
