@@ -132,9 +132,10 @@ class Favicons(GObject.Object):
         return None
 
     def fetch_icon(self, origin_url):
-        # Resync only 5% of icons in order to not stress server
+        # Resync only 0.5% of icons. It's very unlikely that icon changes or
+        # becomes available
         if not origin_url.startswith('http') or self.cached_icon(origin_url) \
-           and not random.randint(0, 20) == 0:
+           and not random.randint(0, 200) == 0:
             return False
         url = 'https://getfavicon.appspot.com/{0}?defaulticon=none'
         msg = utils.Message('GET', url.format(origin_url))
