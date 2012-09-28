@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from argparse import ArgumentParser
 import logging
+import trifle
 
 from views import application
 
