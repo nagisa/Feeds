@@ -12,13 +12,20 @@ import os
 import sys
 
 # Add module to a path
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+__builtins__['MODULE_DIR'] = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(MODULE_DIR)
 
 # Setup logging module
+class Formatter(logging.Formatter):
+    def format(self, record):
+        relpath = os.path.relpath(record.pathname, MODULE_DIR)
+        record.relpath = relpath
+        return super(Formatter, self).format(record)
+
 __builtins__['logger'] = logging.getLogger('trifle')
-fmt_str = "%(levelname)s: %(pathname)s:%(lineno)s %(message)s"
+fmt_str = "{levelname:7}\t{lineno:>4}| {relpath} in {funcName:10}\t{msg}"
 logging_handler = logging.StreamHandler()
-logging_handler.setFormatter(logging.Formatter(fmt_str))
+logging_handler.setFormatter(Formatter(fmt_str, style='{'))
 logger.addHandler(logging_handler)
 
 # Setup localization
