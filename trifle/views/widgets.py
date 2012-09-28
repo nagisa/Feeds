@@ -76,6 +76,11 @@ class ToolbarSpinner(Gtk.ToolItem):
 class FeedView(WebKit.WebView):
 
     def __init__(self, *args, **kwargs):
+        # TODO: Change to DOCUMENT_VIEWER after we start caching remote
+        # resources at item processing stage
+        WebKit.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER)
+        WebKit.get_default_session().set_property('max-conns-per-host', 8)
+
         super(FeedView, self).__init__(*args, **kwargs)
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
@@ -99,7 +104,6 @@ class FeedView(WebKit.WebView):
             user_stylesheet_uri='file://' + stylesheet_path
         )
         self.set_settings(self.settings)
-
         self.load_item()
 
     @staticmethod
