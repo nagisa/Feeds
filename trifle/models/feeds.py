@@ -231,7 +231,8 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         result['author'] = utils.unescape(item.get('author', _('Stranger')))
         # How could they even think of putting html into feed title?!
         # L10N Untitled refers to an item without title
-        result['title'] = strip_html_nl(item.get('title', _('Untitled')))
+        result['title'] = utils.unescape(strip_html_nl(item.get('title',
+                                                               _('Untitled'))))
 
         result['time'] = float(item['crawlTimeMsec']) / 1000
         if result['time'] >= item.get('updated', -1):
