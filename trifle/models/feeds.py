@@ -75,7 +75,7 @@ class Ids(GObject.Object, utils.LoginRequired):
     def mark_to_sync(items):
         query = '''SELECT id, update_time FROM items'''
         cached = dict(utils.connection.execute(query).fetchall())
-        upd = list(filter(lambda x: cached.get(x[0], -1) < x[1], items))
+        upd = filter(lambda x: cached.get(x[0], -1) < x[1], items)
         query = 'UPDATE items SET to_sync=1, update_time=? WHERE id=?'
         utils.connection.executemany(query, ((t, i,) for i ,t in upd))
 
@@ -284,7 +284,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         # Somewhy when streaming items and asking more than 512 returns 400.
         # Asking anything in between 250 and 512 returns exactly 250 items.
         ids = self.ids.needs_update
-        print(ids)
+        logger.debug('{0} items needs update'.format(len(ids)))
         split_ids = utils.split_chunks((('i', i) for i in ids), 250, ('', ''))
 
         for chunk in split_ids:
