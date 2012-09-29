@@ -10,9 +10,11 @@ else:
     from urllib import urlencode
     import codecs
 import ctypes
+import collections
 import json
 import os
 import re
+import itertools
 
 from models.auth import auth
 from models import utils
@@ -44,7 +46,7 @@ class Ids(GObject.Object, utils.LoginRequired):
         if not self.ensure_login(auth, self.sync):
             return False
         if hasattr(self, 'partial_handler'):
-            logger.warning('Sync already in progress')
+            logger.error('IDs are already synchronizing')
             return False
         self.partial_handler = self.connect('partial-sync', self.on_done)
 
@@ -53,45 +55,67 @@ class Ids(GObject.Object, utils.LoginRequired):
             getargs = state + [('n', item_limit)]
             url = utils.api_method('stream/items/ids', getargs)
             msg = utils.AuthMessage(auth, 'GET', url)
-            cb_func = getattr(self, 'on_{0}'.format(name.replace('-', '_')))
-            utils.session.queue_message(msg, cb_func, None)
+            utils.session.queue_message(msg, self.on_response, name)
             logger.debug('{0} queued'.format(name))
+        # Initially mark everything as deletable. Laten in process items
+        # that are still important will be unmarked again (in ensure_ids)
+        utils.connection.execute('UPDATE items SET to_delete=1')
 
-    def on_unread(self, session, msg, data=None):
-        if 'reading-list' not in self.done:
-            # We must filter out items which doesn't exist in reading-list
-            def cb(self, key, data):
-                data[0](*data[1:])
-            args = (self.on_unread, session, msg, data)
-            connect_once(self, 'partial-sync', cb, args)
-            return False
+    @staticmethod
+    def ensure_ids(ids):
+        ids = [(i,) for i in ids]
+        query = 'INSERT OR IGNORE INTO items(id) VALUES(?)'
+        utils.connection.executemany(query, ids)
+        query = 'UPDATE items SET to_delete=0 WHERE id=?'
+        utils.connection.executemany(query, ids)
 
+    @staticmethod
+    def mark_to_sync(items):
+        query = '''SELECT id, update_time FROM items'''
+        cached = dict(utils.connection.execute(query).fetchall())
+        upd = filter(lambda x: cached.get(x[0], -1) < x[1], items)
+        query = 'UPDATE items SET to_sync=1, update_time=? WHERE id=?'
+        utils.connection.executemany(query, ((t, i,) for i ,t in upd))
+
+    @staticmethod
+    def mark_true(ids, field):
+        query = 'UPDATE items SET {0}=1 WHERE id=?'.format(field)
+        utils.connection.executemany(query, ((i,) for i in ids))
+
+    def on_response(self, session, msg, data):
         res = json.loads(msg.response_body.data)['itemRefs']
-        unread = set(int(item['id']) for item in res)
-        self.sets['unread'] = unread & self.sets['reading-list']
-        self.emit('partial-sync', 'unread')
+        tuples = [(int(i['id']), int(i['timestampUsec']),) for i in res]
+        self.ensure_ids(int(i['id']) for i in res)
+        getattr(self, 'on_{0}'.format(data.replace('-', '_')))(tuples)
+        self.emit('partial-sync', data)
 
-    def on_starred(self, session, msg, data=None):
-        res = json.loads(msg.response_body.data)['itemRefs']
-        self.sets['starred'] = set(int(item['id']) for item in res)
-        self.emit('partial-sync', 'starred')
+    def on_unread(self, tuples):
+        self.mark_to_sync(tuples)
+        self.mark_true((i for i, t in tuples), 'unread')
 
-    def on_reading_list(self, session, msg, data=None):
-        res = json.loads(msg.response_body.data)['itemRefs']
-        self.sets['reading-list'] = set(int(item['id']) for item in res)
-        self.emit('partial-sync', 'reading-list')
+    def on_starred(self, tuples):
+        self.mark_to_sync(tuples)
+        self.mark_true((i for i, t in tuples), 'starred')
+
+    def on_reading_list(self, tuples):
+        self.mark_to_sync(tuples)
+
+    @property
+    def needs_update(self):
+        query = 'SELECT id FROM items WHERE to_sync=1'
+        return set(i for i, in utils.connection.execute(query).fetchall())
 
     @staticmethod
     def on_done(self, key, data=None):
         self.done.add(key)
-        for key in self.states.keys():
-            if key not in self.done:
-                return False
+        if not all(key in self.done for key in self.states.keys()):
+            return False
 
-        logger.debug('ID sync was completed successfully')
+        logger.debug('IDs were successfully synchronized')
         self.disconnect(self.partial_handler)
         delattr(self, 'partial_handler')
         self.done = set()
+        utils.connection.commit()
         self.emit('sync-done')
 
 
@@ -151,9 +175,8 @@ class Flags(GObject.Object, utils.LoginRequired):
         utils.connection.execute(query, tuple(i for i, in data))
 
         if self.syncing == 0:
-            self.emit('sync-done')
             utils.connection.commit()
-
+            self.emit('sync-done')
 
 
 class Items(Gtk.ListStore, utils.LoginRequired):
@@ -175,18 +198,11 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         return FeedItem(key)
 
     def __setitem__(self, key, data):
-        q = '''INSERT OR REPLACE INTO items(id, title, author, summary, href,
-                                          time, subscription, unread, starred)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-        values = (key, data['title'], data['author'], data['summary'],
-                  data['href'], data['time'], data['subscription'],
-                  data['unread'], data['starred'])
+        q = '''UPDATE items SET title=?, author=?, summary=?, href=?,
+                                time=?, subscription=?, to_sync=0 WHERE id=?'''
+        values = (data['title'], data['author'], data['summary'],
+                  data['href'], data['time'], data['subscription'], key)
         utils.connection.execute(q, values)
-
-    def __contains__(self, key):
-        q = 'SELECT COUNT(id) FROM items where id=?'
-        r = utils.connection.execute(q, (key,))
-        return False if r.fetchone() is None else True
 
     @staticmethod
     def get_short_id(item_id):
@@ -195,17 +211,6 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             return item_id
         short = ctypes.c_int64(int(item_id.split('/')[-1], 16)).value
         return str(short)
-
-    @staticmethod
-    def needs_update(item_id, item):
-        time = float(item['crawlTimeMsec']) / 1000
-        if time >= item['updated']:
-            time = item['updated']
-        q = 'SELECT time FROM items WHERE id = ?'
-        result = utils.connection.execute(q, (item_id,)).fetchone()
-        if result is None or time > result[0]:
-            return True
-        return False
 
     def process_item(self, item, short_id):
         """
@@ -225,8 +230,6 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             return self.space_re.sub('', text)
 
         result = {}
-        result['unread'] = int(short_id) in self.ids.sets['unread']
-        result['starred'] = int(short_id) in self.ids.sets['starred']
         result['subscription'] = item['origin']['streamId']
         result['author'] = utils.unescape(item.get('author', _('Stranger')))
         # How could they even think of putting html into feed title?!
@@ -234,9 +237,9 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         result['title'] = utils.unescape(strip_html_nl(item.get('title',
                                                                _('Untitled'))))
 
-        result['time'] = float(item['crawlTimeMsec']) / 1000
-        if result['time'] >= item.get('updated', -1):
-            result['time'] = item['updated']
+        result['time'] = int(item['timestampUsec'])
+        if result['time'] >= int(item.get('updated', -1)) * 1E6:
+            result['time'] = item['updated'] * 1E6
 
         try:
             result['href'] = item['alternate'][0]['href']
@@ -279,7 +282,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
         # Somewhy when streaming items and asking more than 512 returns 400.
         # Asking anything in between 250 and 512 returns exactly 250 items.
-        ids = self.ids.sets['reading-list'] | self.ids.sets['starred']
+        ids = self.ids.needs_update
         split_ids = utils.split_chunks((('i', i) for i in ids), 250, ('', ''))
 
         for chunk in split_ids:
@@ -288,6 +291,8 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             message = utils.AuthMessage(auth, 'POST', uri)
             message.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
             utils.session.queue_message(message, self.process_response, None)
+        else:
+            self.post_sync()
 
     def process_response(self, session, message, data=None):
         if 400 <= message.status_code < 600 or 0 <= message.status_code < 100:
@@ -298,31 +303,24 @@ class Items(Gtk.ListStore, utils.LoginRequired):
             for item in data['items']:
                 sid = self.get_short_id(item['id'])
                 metadata, content = self.process_item(item, sid)
-                if sid not in self or self.needs_update(sid, item):
-                    FeedItem.save_content(sid, content)
-                # We need to update metadata no matter what
+                FeedItem.save_content(sid, content)
                 self[sid] = metadata
 
         self.syncing -= 1
         if self.syncing == 0:
-            self.collect_garbage()
-            utils.connection.commit()
-            self.emit('sync-done')
+            self.post_sync()
+
+    def post_sync(self):
+        self.collect_garbage()
+        utils.connection.commit()
+        self.emit('sync-done')
 
     def collect_garbage(self):
-        query = '''SELECT id FROM items WHERE starred=0
-                             ORDER BY time DESC LIMIT 5000 OFFSET ?'''
-        items = settings['cache-items']
-        rows = utils.connection.execute(query, (items,)).fetchall()
-        # SQLite doesn't like working on more than 1000 ORs
-        query = 'DELETE FROM items WHERE {0}'
-        if len(rows) > 0:
-            for block in utils.split_chunks(rows, 900, (None,)):
-                block = [i for i, in block if i]
-                q = query.format(' OR '.join('id=?' for i in block))
-                utils.connection.execute(q, tuple(i for i in block))
-                for i in block:
-                    FeedItem.remove_content(i)
+        query = 'SELECT id FROM items WHERE to_delete=1'
+        res = utils.connection.execute(query).fetchall()
+        utils.connection.execute('DELETE FROM items WHERE to_delete=1')
+        for i, in res:
+            FeedItem.remove_content(i)
 
     def compare(self, row1, row2, user_data):
         value1 = self.get_value(row1, 0).time
@@ -425,7 +423,7 @@ class FeedItem(GObject.Object):
             self.author = r[1]
             self.summary = r[2]
             self.href = r[3]
-            self.time = r[4]
+            self.time = r[4] / 1E6
             self.unread = r[5]
             self.starred = r[6]
             self.origin = r[7]
