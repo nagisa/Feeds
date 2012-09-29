@@ -57,9 +57,11 @@ class Ids(GObject.Object, utils.LoginRequired):
             msg = utils.AuthMessage(auth, 'GET', url)
             utils.session.queue_message(msg, self.on_response, name)
             logger.debug('{0} queued'.format(name))
-        # Initially mark everything as deletable. Laten in process items
-        # that are still important will be unmarked again (in ensure_ids)
-        utils.connection.execute('UPDATE items SET to_delete=1')
+        # Initially mark everything as deletable and unflag all items.
+        # Laten in process items that are still important will be unmarked
+        # and reflagged again (in ensure_ids and mark_true)
+        utils.connection.execute('UPDATE items SET to_delete=1, unread=0,'
+                                                   'starred=0, to_sync=0')
 
     @staticmethod
     def ensure_ids(ids):
@@ -73,7 +75,7 @@ class Ids(GObject.Object, utils.LoginRequired):
     def mark_to_sync(items):
         query = '''SELECT id, update_time FROM items'''
         cached = dict(utils.connection.execute(query).fetchall())
-        upd = filter(lambda x: cached.get(x[0], -1) < x[1], items)
+        upd = list(filter(lambda x: cached.get(x[0], -1) < x[1], items))
         query = 'UPDATE items SET to_sync=1, update_time=? WHERE id=?'
         utils.connection.executemany(query, ((t, i,) for i ,t in upd))
 
@@ -86,19 +88,18 @@ class Ids(GObject.Object, utils.LoginRequired):
         res = json.loads(msg.response_body.data)['itemRefs']
         tuples = [(int(i['id']), int(i['timestampUsec']),) for i in res]
         self.ensure_ids(int(i['id']) for i in res)
+        self.mark_to_sync(tuples)
         getattr(self, 'on_{0}'.format(data.replace('-', '_')))(tuples)
         self.emit('partial-sync', data)
 
     def on_unread(self, tuples):
-        self.mark_to_sync(tuples)
         self.mark_true((i for i, t in tuples), 'unread')
 
     def on_starred(self, tuples):
-        self.mark_to_sync(tuples)
         self.mark_true((i for i, t in tuples), 'starred')
 
     def on_reading_list(self, tuples):
-        self.mark_to_sync(tuples)
+        pass
 
     @property
     def needs_update(self):
@@ -283,6 +284,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         # Somewhy when streaming items and asking more than 512 returns 400.
         # Asking anything in between 250 and 512 returns exactly 250 items.
         ids = self.ids.needs_update
+        print(ids)
         split_ids = utils.split_chunks((('i', i) for i in ids), 250, ('', ''))
 
         for chunk in split_ids:
