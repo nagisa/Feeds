@@ -77,13 +77,15 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
             self.set(self.label_iters[lblid], vals)
 
         for subid, suburl, subtitle, lblid, lblname in result:
-            if subid not in self.sub_iters:
+            lblsubid = subid if lblid is None else lblid + '/' + subid
+            if lblsubid not in self.sub_iters:
                 label_iter = self.label_iters.get(lblid, None)
-                self.sub_iters[subid] = self.append(label_iter)
+                # Some subscriptions can be added to more than one label
+                self.sub_iters[lblsubid] = self.append(label_iter)
             icon = utils.icon_pixbuf(suburl)
             vals = {0: SubscriptionType.SUBSCRIPTION, 1: subid, 2: icon,
                     3: subtitle}
-            self.set(self.sub_iters[subid], vals)
+            self.set(self.sub_iters[lblsubid], vals)
 
         if self.favicons_syncing == 0:
             self.emit('sync-done')
