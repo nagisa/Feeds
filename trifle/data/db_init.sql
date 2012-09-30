@@ -11,13 +11,15 @@ CREATE TABLE items (id INTEGER PRIMARY KEY,
                     to_sync BOOLEAN DEFAULT 0,
                     to_delete BOOLEAN DEFAULT 0);
 
-CREATE TABLE subscriptions (id VARCHAR(1024),
+CREATE TABLE subscriptions (id VARCHAR(1024) PRIMARY KEY,
                             url VARCHAR(1024),
                             title VARCHAR(1024));
 
-CREATE TABLE labels (id INTEGER,
-                     name VARCHAR(1024),
-                     subscriptions VARCHAR(1024));
+CREATE TABLE labels_fk (item_id VARCHAR(1024),
+                        label_id VARCHAR(1024));
 
-CREATE TABLE flags (item_id INTEGER,
+CREATE TABLE labels (id VARCHAR(1024) PRIMARY KEY,
+                     name VARCHAR(1024));
+
+CREATE TABLE flags (item_id INTEGER PRIMARY KEY,
                     flag VARCHAR(1024));

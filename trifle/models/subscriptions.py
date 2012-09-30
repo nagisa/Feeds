@@ -1,5 +1,4 @@
 from gi.repository import Gtk, GdkPixbuf, GObject, GLib
-import collections
 import json
 import os
 import random
@@ -7,21 +6,21 @@ import random
 from models.auth import auth
 from models import utils
 
-
+SubscriptionType = utils.SubscriptionType
 class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
     __gsignals__ = {
-        'pre-clear': (GObject.SignalFlags.RUN_FIRST, None, []),
-        'post-clear': (GObject.SignalFlags.RUN_FIRST, None, []),
-        'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
+        'sync-done': (GObject.SignalFlags.RUN_LAST, None, [])
     }
 
     def __init__(self, *args, **kwargs):
-        super(Subscriptions, self).__init__(GdkPixbuf.Pixbuf, str, str)
+        # SubscriptionType, id for item, icon_fpath, name
+        super(Subscriptions, self).__init__(int, str, GdkPixbuf.Pixbuf, str)
         self.favicons = Favicons()
+        self.favicons_syncing = 0
         self.favicons.connect('sync-done', self.on_icon_update)
-        self.favicons_sync = 0
         self.last_update = GLib.get_monotonic_time()
-        self.load_data()
+        self.label_iters = {}
+        self.sub_iters = {}
 
     def sync(self):
         if not self.ensure_login(auth, self.sync):
@@ -32,87 +31,71 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
 
     def on_response(self, session, msg, data=None):
         res = json.loads(msg.response_body.data)['subscriptions']
-        labels, subs = {}, []
+        subs = []
+        lbl_id = lambda x: x.split('/', 2)[-1]
 
-        for subscription in res:
-            # Add label if it doesn't exist yet
-            for label in subscription['categories']:
-                if label['id'] not in labels:
-                    labels[label['id']] = (label['id'], label['label'], [],)
-                labels[label['id']][2].append(subscription['id'])
+        utils.connection.execute('DELETE FROM labels_fk')
+        for sub in res:
+            # Insert item
+            q = '''INSERT OR REPLACE INTO subscriptions(id, url, title)
+                                   VALUES(?, ?, ?)'''
+            value = (sub['id'], sub['htmlUrl'], sub['title'].strip())
+            utils.connection.execute(q, value)
 
-            subs.append((subscription['id'], subscription['htmlUrl'],
-                         subscription['title'],))
-            if self.favicons.fetch_icon(subscription['htmlUrl']):
-                self.favicons_sync += 1
+            # Add labels
+            values = ((lbl_id(l['id']), l['label']) for l in sub['categories'])
+            q = 'INSERT OR REPLACE INTO labels(id, name) VALUES(?, ?)'
+            utils.connection.executemany(q, values)
 
-        utils.connection.execute('DELETE FROM subscriptions')
-        utils.connection.execute('DELETE FROM labels')
-        q = 'INSERT INTO subscriptions(id, url, title) VALUES (?, ?, ?)'
-        utils.connection.executemany(q, subs)
-        q = 'INSERT INTO labels(id, name, subscriptions) VALUES (?, ?, ?)'
-        itr = ((l[0], l[1], ';'.join(l[2]),) for l in labels.values())
-        utils.connection.executemany(q, itr)
+            # And reestabilish bindings via labels_fk
+            values = ((sub['id'], lbl_id(l['id'])) for l in sub['categories'])
+            q = 'INSERT INTO labels_fk(item_id, label_id) VALUES(?, ?)'
+            utils.connection.executemany(q, values)
+
+            if self.favicons.fetch_icon(sub['htmlUrl']):
+                self.favicons_syncing += 1
+
         utils.connection.commit()
+        self.update()
 
-        self.load_data()
-
-    def _read_data(self):
-        label_query = 'SELECT name, subscriptions FROM labels'
-        incl_query = 'SELECT id, url, title FROM subscriptions WHERE {0}'
-        excl_query = 'SELECT id, url, title FROM subscriptions WHERE NOT ({0})'
-
-        result = collections.defaultdict(list)
-        labels = utils.connection.execute(label_query).fetchall()
-        added = set()
-
-        if len(labels) == 0:
-            return {}, []
-
-        for label in labels:
-            subscr_ids = set(label[1].split(';'))
-            added |= subscr_ids
-            _filter = ' OR '.join('id=?' for item in subscr_ids)
-            query = incl_query.format(_filter)
-            resp = utils.connection.execute(query, tuple(subscr_ids))
-            for i, u, t in resp.fetchall():
-                result[label[0]].append({'url': u, 'title': t, 'id': i})
-
-        _filter = ' OR '.join('id=?' for item in added)
-        query = excl_query.format(_filter)
-        resp = utils.connection.execute(query, tuple(added)).fetchall()
-        return result, [{'url': u, 'title': t, 'id': i} for i, u, t in resp]
-
-    def load_data(self, data=None):
+    def update(self):
         theme = Gtk.IconTheme.get_default()
         flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
+        q = '''SELECT subscriptions.id, subscriptions.url, subscriptions.title,
+                      labels.id, labels.name
+               FROM subscriptions
+               LEFT JOIN labels_fk ON labels_fk.item_id = subscriptions.id
+               LEFT JOIN labels ON labels.id=labels_fk.label_id'''
+        result = utils.connection.execute(q).fetchall()
+        labeled = filter(lambda x: x[3] is not None, result)
 
-        self.emit('pre-clear')
-        self.clear()
+        for subid, suburl, subtitle, lblid, lblname in labeled:
+            if lblid not in self.label_iters:
+                self.label_iters[lblid] = self.append(None)
+            icon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
+            vals = {0: SubscriptionType.LABEL, 1: lblid, 2: icon, 3: lblname}
+            self.set(self.label_iters[lblid], vals)
 
-        labeled, unlabeled = self._read_data()
-        for label, items in labeled.items():
-            favicon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
-            ptr = self.append(None, (favicon, label, label,))
-            for item in items:
-                favicon = utils.icon_pixbuf(item['url'])
-                self.append(ptr, (favicon, item['title'], item['id'],))
+        for subid, suburl, subtitle, lblid, lblname in result:
+            if subid not in self.sub_iters:
+                label_iter = self.label_iters.get(lblid, None)
+                self.sub_iters[subid] = self.append(label_iter)
+            icon = utils.icon_pixbuf(suburl)
+            vals = {0: SubscriptionType.SUBSCRIPTION, 1: subid, 2: icon,
+                    3: subtitle}
+            self.set(self.sub_iters[subid], vals)
 
-        for item in unlabeled:
-            favicon = utils.icon_pixbuf(item['url'])
-            self.append(None, (favicon, item['title'], item['id'],))
-
-        self.emit('post-clear')
-        if self.favicons_sync == 0:
+        if self.favicons_syncing == 0:
             self.emit('sync-done')
 
-    def on_icon_update(self, *args):
-        self.favicons_sync -= 1
+    def on_icon_update(self, favicons, url):
+        self.favicons_syncing -= 1
         current = GLib.get_monotonic_time()
         # Update view at most every quarter a second
-        if current - self.last_update > 0.25E6 or self.favicons_sync == 0:
+        if current - self.last_update > 0.25E6 or self.favicons_syncing == 0:
             self.last_update = current
-            self.load_data()
+            self.update()
+
 
 class Favicons(GObject.Object):
     __gsignals__ = {
@@ -150,4 +133,4 @@ class Favicons(GObject.Object):
         else:
             with open(fpath, 'wb') as f:
                 f.write(msg.response_body.flatten().get_data())
-        self.emit('sync-done', fpath)
+        self.emit('sync-done', url)

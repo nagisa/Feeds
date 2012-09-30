@@ -182,44 +182,26 @@ class SubscriptionsView(Gtk.TreeView):
         self.set_properties(headers_visible=False)
         self.set_level_indentation(-12)
 
-        self.store.connect('pre-clear', self.on_pre_clear)
-        self.store.connect('post-clear', self.on_post_clear)
-        self.connect('row-collapsed', SubscriptionsView.on_collapse)
-        self.connect('row-expanded', SubscriptionsView.on_expand)
-        self.memory = {'expanded': [], 'selection': None}
-        self.selection = self.get_selection()
-
         column = Gtk.TreeViewColumn("Subscription")
         icon_renderer = Gtk.CellRendererPixbuf()
         title_renderer = Gtk.CellRendererText(ellipsize_set=True,
                                             ellipsize=Pango.EllipsizeMode.END)
         column.pack_start(icon_renderer, False)
         column.pack_start(title_renderer, True)
-        column.add_attribute(icon_renderer, "pixbuf", 0)
-        column.add_attribute(title_renderer, "text", 1)
+        column.add_attribute(icon_renderer, 'pixbuf', 2)
+        column.add_attribute(title_renderer, 'text', 3)
         self.append_column(column)
 
-    def on_pre_clear(self, *args):
-        selection = self.selection.get_selected()[1]
-        if selection is not None:
-            self.memory['selection'] = self.store.get_path(selection)
+        self.connect('realize', self.on_realize)
 
-    def on_post_clear(self, *args):
-        for path in self.memory['expanded']:
-            self.expand_row(path, False)
-        if self.memory['selection'] is not None:
-            self.selection.select_path(self.memory['selection'])
-
-    def on_expand(self, itr, path):
-        self.memory['expanded'].append(path.copy())
-
-    def on_collapse(self, itr, path):
-        self.memory['expanded'].pop(self.memory['expanded'].index(path))
+    @staticmethod
+    def on_realize(self):
+        self.store.update()
 
     def on_cat_change(self, treeview):
         if treeview.in_destruction():
             return
-        self.selection.unselect_all()
+        self.get_selection().unselect_all()
 
     def sync(self, callback=None):
         logger.debug('Starting subscriptions\' sync')
@@ -255,15 +237,19 @@ class ItemsView(Gtk.TreeView):
     def on_filter_change(self, treeview):
         if treeview.in_destruction():
             return
-        selection = treeview.selection.get_selected()
+        model, selection = treeview.get_selection().get_selected()
         self.reloading = True
-        self.store.set_filter(selection[0].get_value(selection[1], 2))
+        if selection is not None:
+            row = model[selection]
+            self.store.set_filter(row[0], row[1])
+        else:
+            logger.warning('Cannot set filter, there\'s no selection')
         self.reloading = False
 
     def on_cat_change(self, treeview):
         if treeview.in_destruction():
             return
-        model, selection = treeview.selection.get_selected()
+        model, selection = treeview.get_selection().get_selected()
         self.reloading = True
         if selection is not None:
             self.store.set_category(model[selection][2])

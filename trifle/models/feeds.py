@@ -10,7 +10,6 @@ else:
     from urllib import urlencode
     import codecs
 import ctypes
-import collections
 import json
 import os
 import re
@@ -348,43 +347,27 @@ class FilteredItems(Items):
         super(FilteredItems, self).__init__(*args, **kwargs)
         self.category = None
 
-    def category_query(self):
-        if self.category == 'reading-list':
-            query = 'SELECT id FROM items'
-        elif self.category == 'unread':
-            query = 'SELECT id FROM items WHERE unread=1'
-        elif self.category == 'starred':
-            query = 'SELECT id FROM items WHERE starred=1'
-        else:
-            logger.error('Category {0} doesn\'t exist!'.format(category))
-            return None
-        return query
-
     def set_category(self, category):
         self.category = category
-        query = self.category_query()
+        query = 'SELECT id FROM items'
+        if self.category in ['unread', 'starred']:
+            query += ' WHERE items.{0}=1'.format(self.category)
         ids = (_id[0] for _id in utils.connection.execute(query).fetchall())
         self.load_ids(ids)
 
-    def set_filter(self, value):
-        if value[:4] != 'feed':
-            # We've got a label
-            query = 'SELECT subscriptions FROM labels WHERE name=?'
-            result = utils.connection.execute(query, (value,)).fetchone()
-            subscriptions = result[0].split(';')
+    def set_filter(self, kind, value):
+        if kind == utils.SubscriptionType.LABEL:
+            q = '''SELECT items.id FROM labels
+                   LEFT JOIN labels_fk ON labels_fk.label_id=labels.id
+                   INNER JOIN items ON items.subscription=labels_fk.item_id
+                   WHERE labels.id=?'''
         else:
-            subscriptions = [value]
-
-        cat_query = self.category_query()
-        _filter = ' OR '.join('subscription=?' for i in subscriptions)
-        if 'WHERE' in cat_query:
-            query = cat_query + ' AND ({0})'.format(_filter)
-        else:
-            query = cat_query + ' WHERE {0}'.format(_filter)
-
-        result = utils.connection.execute(query, tuple(subscriptions))
-        ids = (i[0] for i in result.fetchall())
-        self.load_ids(ids)
+            q = '''SELECT items.id FROM items WHERE items.subscription=?'''
+        #Assumes that WHERE statement goes last
+        if self.category in ['unread', 'starred']:
+            q += ' AND items.{0}=1'.format(self.category)
+        ids = utils.connection.execute(q, (value,)).fetchall()
+        self.load_ids(i for i, in ids)
 
     def load_ids(self, ids):
         self.clear()

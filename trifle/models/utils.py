@@ -36,6 +36,7 @@ connection = _globals_cache['sqlite_cnn']
 
 
 AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
+SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
 
 
 class Message(Soup.Message):
