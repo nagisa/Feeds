@@ -39,11 +39,12 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         subs = []
         lbl_id = lambda x: x.split('/', 2)[-1]
 
-        utils.connection.execute('DELETE FROM labels_fk')
+        q = 'DELETE FROM subscriptions; DELETE FROM labels;' \
+            'DELETE FROM labels_fk'
+        utils.connection.executescript(q)
         for sub in res:
             # Insert item
-            q = '''INSERT OR REPLACE INTO subscriptions(id, url, title)
-                                   VALUES(?, ?, ?)'''
+            q = 'INSERT INTO subscriptions(id, url, title) VALUES(?, ?, ?)'
             value = (sub['id'], sub['htmlUrl'], sub['title'].strip())
             utils.connection.execute(q, value)
 
