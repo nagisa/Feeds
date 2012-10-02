@@ -1,4 +1,4 @@
-from gi.repository import Gtk
+from gi.repository import Gtk, GObject
 
 
 from models.auth import auth
@@ -113,7 +113,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
         self.passwd_entry.connect('activate', self.on_activate)
         self.connect('response', self.on_response)
 
-    def on_response(self, r, data=None):
+    def on_response(self, dialog, r, data=None):
         if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.CANCEL):
             # <ESC> or [Cancel] button pressed
             self.destroy()
@@ -126,6 +126,37 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
             self.msg.set_text(_('All fields are required'))
             return False
         auth.secrets.set(user, password)
+        self.destroy()
+
+    def on_activate(self, entry, data=None):
+        self.emit('response', 0)
+
+
+class SubscribeDialog(utils.BuiltMixin, Gtk.Dialog):
+    """
+    This dialog will ensure, that user becomes logged in by any means
+    """
+    ui_file = 'subscribe-dialog.ui'
+    top_object = 'subscribe-dialog'
+
+    def __init__(self, *args, **kwargs):
+        self.set_properties(**kwargs)
+
+        self.url_entry = self.builder.get_object('url')
+        self.url_entry.connect('activate', self.on_activate)
+        self.url = None
+        self.connect('response', self.on_response)
+
+    def on_response(self, dialog, r, data=None):
+        if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.CANCEL):
+            # <ESC> or [Cancel] button pressed
+            self.destroy()
+            return
+        url = self.url_entry.get_text()
+        if len(url) == 0:
+            return
+        logger.debug('Subscribing to {0}'.format(url))
+        self.url = url
         self.destroy()
 
     def on_activate(self, entry, data=None):

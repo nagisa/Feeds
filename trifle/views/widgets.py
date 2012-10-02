@@ -14,9 +14,9 @@ def add_toolbar_items(toolbar, tb_type):
         toolbar.mark_all = stock_toolbutton(Gtk.STOCK_APPLY)
         toolbar.insert(toolbar.mark_all, -1)
 
-        toolbar.search = ToolbarSearch(margin_left=5, halign=Gtk.Align.FILL)
-        toolbar.search.set_expand(True)
-        toolbar.insert(toolbar.search, -1)
+        # toolbar.search = ToolbarSearch(margin_left=5, halign=Gtk.Align.FILL)
+        # toolbar.search.set_expand(True)
+        # toolbar.insert(toolbar.search, -1)
 
     elif tb_type == 'sidebar-toolbar':
         toolbar.refresh = stock_toolbutton(Gtk.STOCK_REFRESH)
@@ -32,13 +32,13 @@ def add_toolbar_items(toolbar, tb_type):
         toolbar.insert(toolbar.subscribe, -1)
 
     elif tb_type == 'feedview-toolbar':
-        toolbar.star = stock_toolbutton(Gtk.STOCK_YES)
-        toolbar.star.set_properties(margin_right=5)
-        toolbar.insert(toolbar.star, -1)
+        # toolbar.star = stock_toolbutton(Gtk.STOCK_YES)
+        # toolbar.star.set_properties(margin_right=5)
+        # toolbar.insert(toolbar.star, -1)
 
-        toolbar.share = stock_toolbutton(Gtk.STOCK_REDO)
-        toolbar.share.set_properties(margin_right=5)
-        toolbar.insert(toolbar.share, -1)
+        # toolbar.share = stock_toolbutton(Gtk.STOCK_REDO)
+        # toolbar.share.set_properties(margin_right=5)
+        # toolbar.insert(toolbar.share, -1)
 
         toolbar.preferences = stock_toolbutton(Gtk.STOCK_PREFERENCES)
         toolbar.preferences.set_halign(Gtk.Align.END)

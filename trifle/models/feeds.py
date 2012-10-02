@@ -4,10 +4,7 @@ Downloads items from google reader, caches it, gets respective favicons
 et cetera
 """
 from gi.repository import Soup, GObject, Gtk
-if not PY2:
-    from urllib.parse import urlencode
-else:
-    from urllib import urlencode
+if PY2:
     import codecs
 import ctypes
 import json
@@ -18,6 +15,7 @@ import itertools
 from models.auth import auth
 from models import utils
 from models.settings import settings
+from models.utils import urlencode
 from views.utils import connect_once
 
 
@@ -84,6 +82,10 @@ class Ids(GObject.Object, utils.LoginRequired):
         utils.connection.executemany(query, ((i,) for i in ids))
 
     def on_response(self, session, msg, data):
+        if 400 <= msg.status_code < 600 or 0 <= msg.status_code < 100:
+            logger.error('IDs request returned {0}'.format(msg.status_code))
+            return False
+
         res = json.loads(msg.response_body.data)['itemRefs']
         tuples = [(int(i['id']), int(i['timestampUsec']),) for i in res]
         self.ensure_ids(int(i['id']) for i in res)

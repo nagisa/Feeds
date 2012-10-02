@@ -21,10 +21,9 @@ class Auth(GObject.Object):
         super(Auth, self).__init__(*args, **kwargs)
         self.secrets = SecretStore()
         # These variables must filled after login
-        self.key = None
-        self.info = None
-        self._token = None
-        self.token_expires = -1
+        self.key, self.sid, self.lsid = None, None, None
+        # And these after request for editing token
+        self.info, self._token, self.token_expires = None, None, -1
         self.status = AuthStatus.BAD
 
         self._url = 'https://www.google.com/accounts/ClientLogin'
@@ -40,8 +39,8 @@ class Auth(GObject.Object):
             logger.debug('Already authentificating')
             return False
         self.status = AuthStatus.PROGRESS
+        self.sid, self.key, self.lsid = None, None, None
 
-        self.key = None
         user, password = self.secrets['user'], self.secrets['password']
         if user is None or password is None:
             logger.debug('Cannot login, because didn\'t get email or password')
@@ -76,9 +75,13 @@ class Auth(GObject.Object):
         else:
             self.status = AuthStatus.BAD
             for line in message.response_body.data.splitlines():
+                if line.startswith('SID='):
+                    self.sid = line[4:]
                 if line.startswith('Auth='):
-                    # Set state of login
                     self.key = line[5:]
+                if line.startswith('LSID='):
+                    self.lsid = line[5:]
+                if self.sid and self.key and self.lsid:
                     self.status = AuthStatus.OK
 
         if self.status == AuthStatus.OK:

@@ -55,6 +55,7 @@ class AuthMessage(Message):
         obj = super(AuthMessage, cls).__new__(cls, *args, **kwargs)
         hdr = obj.get_property('request-headers')
         hdr.append('Authorization', 'GoogleLogin auth={0}'.format(auth.key))
+        hdr.append('Cookie', 'SID={0}'.format(auth.sid))
         return obj
 
 
@@ -144,3 +145,4 @@ def split_chunks(itr, chunk_size, fillvalue=None):
         return itertools.izip_longest(*items, fillvalue=fillvalue)
 
 unescape = HTMLParser().unescape
+urlencode = urlencode

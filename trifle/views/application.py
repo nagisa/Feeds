@@ -3,8 +3,9 @@ from gi.repository import Gtk, Gio
 from models.auth import auth
 from models.settings import settings
 from views.windows import ApplicationWindow, LoginDialog, PreferencesDialog, \
-                          AboutDialog
+                          AboutDialog, SubscribeDialog
 from views.notifications import notification
+from views.utils import connect_once
 
 
 class Application(Gtk.Application):
@@ -34,6 +35,7 @@ class Application(Gtk.Application):
         window.feedview_toolbar.preferences.connect('clicked',
                                                     self.on_show_prefs)
         window.sidebar_toolbar.refresh.connect('clicked', self.on_refresh)
+        window.sidebar_toolbar.subscribe.connect('clicked', self.on_subscribe)
 
         if settings['start-refresh']:
             self.window.sidebar_toolbar.refresh.emit('clicked')
@@ -81,3 +83,21 @@ class Application(Gtk.Application):
         # Do actual sync
         self.window.itemsview.sync(on_sync_done)
         self.window.subsview.sync(on_sync_done)
+
+    def on_subscribe(self, button):
+        def on_subscribe_url(dialog):
+            if dialog.url is None:
+                return
+            subs_model = self.window.subsview.store
+            subs_model.subscribe_to(dialog.url)
+            connect_once(subs_model, 'subscribed',  on_subscribed)
+
+        def on_subscribed(model, success, data=None):
+            if not success:
+                logger.error('Could not subscribe to a feed')
+                return
+            self.on_refresh(None)
+
+        dialog = SubscribeDialog(transient_for=self.window, modal=True)
+        dialog.show_all()
+        dialog.connect('destroy', on_subscribe_url)

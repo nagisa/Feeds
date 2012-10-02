@@ -1,4 +1,4 @@
-from gi.repository import Gtk, GdkPixbuf, GObject, GLib
+from gi.repository import Gtk, GdkPixbuf, GObject, GLib, Soup
 import json
 import os
 import random
@@ -9,7 +9,8 @@ from models import utils
 SubscriptionType = utils.SubscriptionType
 class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
     __gsignals__ = {
-        'sync-done': (GObject.SignalFlags.RUN_LAST, None, [])
+        'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
+        'subscribed': (GObject.SignalFlags.RUN_LAST, None, (bool,))
     }
 
     def __init__(self, *args, **kwargs):
@@ -30,6 +31,10 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         utils.session.queue_message(msg, self.on_response, None)
 
     def on_response(self, session, msg, data=None):
+        if 400 <= msg.status_code < 600 or 0 <= msg.status_code < 100:
+            logger.error('Subs request returned {0}'.format(msg.status_code))
+            return False
+
         res = json.loads(msg.response_body.data)['subscriptions']
         subs = []
         lbl_id = lambda x: x.split('/', 2)[-1]
@@ -97,6 +102,26 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         if current - self.last_update > 0.25E6 or self.favicons_syncing == 0:
             self.last_update = current
             self.update()
+
+    def subscribe_to(self, url):
+        if not self.ensure_login(auth, self.subscribe_to, url) or \
+           not self.ensure_token(auth, self.subscribe_to, url):
+            return False
+
+        uri = utils.api_method('subscription/quickadd')
+        req_type = 'application/x-www-form-urlencoded'
+        data = utils.urlencode({'T': auth.token, 'quickadd': url})
+        msg = utils.AuthMessage(auth, 'POST', uri)
+        msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
+        utils.session.queue_message(msg, self.on_quickadd, None)
+
+    def on_quickadd(self, session, msg, data=None):
+        if 400 <= msg.status_code < 600 or 0 <= msg.status_code < 100:
+            logger.error('Add request returned {0}'.format(msg.status_code))
+            self.emit('subscribed', False)
+        res = json.loads(msg.response_body.data)
+        self.emit('subscribed', 'streamId' in res)
+
 
 
 class Favicons(GObject.Object):
