@@ -435,7 +435,6 @@ class FeedItem(GObject.Object):
     def icon(self):
         return utils.icon_pixbuf(self.origin)
 
-
     @staticmethod
     def save_content(item_id, content):
         fpath = os.path.join(content_dir, str(item_id))

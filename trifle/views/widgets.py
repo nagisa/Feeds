@@ -289,7 +289,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
             layout.set_markup(self.markup['dummy'].format_map(mapping))
             self.heights[2] = layout.get_pixel_extents()[1].height
             self.heights = [h + self.line_spacing for h in self.heights]
-            self.height = self.padding * 2 + sum(self.heights)
+            ItemCellRenderer.height = self.padding * 2 + sum(self.heights)
         return self.height, self.height
 
     # Any of render functions should not modify self.* in any way
@@ -323,6 +323,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
     def render_icon(self, y, x, context=None):
         if self.item is None:
             return 16, 16 # Icons will always be 16x16 (But there may be none)
+
         icon = self.item.icon
         if icon is not None:
             Gdk.cairo_set_source_pixbuf(context, icon, x, y)
@@ -332,13 +333,15 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     def render_date(self, y, icon_h, view, context, cell_area, style):
         if self.item is None:
-            return 0
+            return 0, 0
+
         # We want to use theme colors for time string. So in Adwaita text
         # looks blue, and in Ubuntu default theme – orange.
         if self.state == Gtk.StateFlags.NORMAL:
             color = style.get_background_color(Gtk.StateFlags.SELECTED)
         else:
             color = style.get_color(Gtk.StateFlags.SELECTED)
+
         text = utils.time_ago(self.item.time)
         markup = self.markup['date'].format(text=text,
                                             color=utils.hexcolor(color))
@@ -358,15 +361,15 @@ class ItemCellRenderer(Gtk.CellRenderer):
                     style):
         if self.item is None:
             return 0, 0
+
         color = utils.hexcolor(style.get_color(self.state))
         text = self.item.site
-        markup = self.markup['site'].format(text=text, color=color)
+        markup = self.markup['site'].format(text=escape(text), color=color)
 
         layout = view.create_pango_layout(text)
         layout.set_markup(markup)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         layout.set_width(width * Pango.SCALE)
-
         rect = layout.get_pixel_extents()[1]
         y += (icon_h - rect.height) / 2
         context.move_to(x, y)
@@ -374,6 +377,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
         return rect.width, rect.height
 
     def render_title(self, y, x, width, view, context, style):
+        if self.item is None:
+            return 0, 0
+
         text = self.item.title
         weight = 'bold' if self.item.unread else 'normal'
         color = utils.hexcolor(style.get_color(self.state))
@@ -391,6 +397,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
         return rect.width, rect.height
 
     def render_summary(self, y, x, width, view, context, style):
+        if self.item is None:
+            return 0, 0
+
         text = self.item.summary
         color = utils.hexcolor(style.get_color(self.state))
         markup = self.markup['summary'].format(text=escape(text), color=color)
