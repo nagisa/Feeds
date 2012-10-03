@@ -340,7 +340,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         query = 'UPDATE items SET unread=0 WHERE id=?'
         utils.connection.execute(query, (item.item_id,))
         utils.connection.commit()
-        item.unread = False
+        item['unread'] = False
 
 
 class FilteredItems(Items):
@@ -356,6 +356,7 @@ class FilteredItems(Items):
             query += ' WHERE items.{0}=1'.format(self.category)
         ids = (_id[0] for _id in utils.connection.execute(query).fetchall())
         self.load_ids(ids)
+
 
     def set_filter(self, kind, value):
         if kind == utils.SubscriptionType.LABEL:
@@ -373,12 +374,13 @@ class FilteredItems(Items):
 
     def load_ids(self, ids):
         self.clear()
-        # Way to make view show filtered items
-        for i in ids:
-            try:
-                self.append((self[i],))
-            except ValueError:
-                pass
+        # Use python sorting instead of inner ListStore sorting method,
+        # because ListStore tries sorting everything after every added item,
+        # while now we sort everything in one go
+        sorted_ids = sorted((self[i] for i in ids), key=(lambda x: x.time),
+                            reverse=True)
+        for item in sorted_ids:
+            self.append((item,))
 
     @property
     def unread_count(self):
@@ -390,35 +392,49 @@ class FeedItem(GObject.Object):
 
     def __init__(self, item_id):
         self.item_id = item_id
+        self.fetched = False
+        self.cache = {}
         super(FeedItem, self).__init__()
 
-        q = '''
-        SELECT items.title, items.author, items.summary, items.href,
-               items.time, items.unread, items.starred,
-               subscriptions.url, subscriptions.title
-        FROM items LEFT JOIN subscriptions ON
-             items.subscription = subscriptions.id WHERE items.id=?
-        '''
-        r = utils.connection.execute(q, (item_id,)).fetchone()
 
-        if r is None:
-            msg = 'FeedItem with id {0} doesn\'t exist'.format(item_id)
-            logger.error(msg)
-            raise ValueError(msg)
-        else:
-            self.title = r[0]
-            self.author = r[1]
-            self.summary = r[2]
-            self.href = r[3]
-            self.time = r[4] / 1E6
-            self.unread = r[5]
-            self.starred = r[6]
-            self.origin = r[7]
-            self.site = r[8]
+    def __getitem__(self, key):
+        if not self.fetched:
+            q = '''
+            SELECT items.title, items.author, items.summary, items.href,
+                   items.time, items.unread, items.starred,
+                   subscriptions.url, subscriptions.title
+            FROM items LEFT JOIN subscriptions ON
+                 items.subscription = subscriptions.id WHERE items.id=?
+            '''
+            r = utils.connection.execute(q, (self.item_id,)).fetchone()
+            if r is None:
+                msg = 'FeedItem with id {0} doesn\'t exist'.format(item_id)
+                logger.error(msg)
+                raise ValueError(msg)
+            self.cache = {'title': r[0], 'author': r[1], 'summary': r[2],
+                          'href': r[3], 'time': r[4] / 1E6, 'unread': r[5],
+                          'starred': r[6], 'origin': r[7], 'site': r[8]}
+            self.fetched = True
+
+        return self.cache[key]
+
+    def __setitem__(self, key, val):
+        self.cache[key] = val
+
+    title = property(lambda self: self['title'])
+    author = property(lambda self: self['author'])
+    summary = property(lambda self: self['summary'])
+    href = property(lambda self: self['href'])
+    time = property(lambda self: self['time'])
+    unread = property(lambda self: self['unread'])
+    starred = property(lambda self: self['starred'])
+    origin = property(lambda self: self['origin'])
+    site = property(lambda self: self['site'])
 
     @property
     def icon(self):
         return utils.icon_pixbuf(self.origin)
+
 
     @staticmethod
     def save_content(item_id, content):
