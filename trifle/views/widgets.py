@@ -102,17 +102,19 @@ class FeedView(WebKit.WebView):
             enable_xss_auditor=False, resizable_text_areas=False,
             # Very effectively turns off all types of cache
             enable_private_browsing=True,
-            enable_developer_extras=True,
+            # Enable in case developer tools are needed
+            enable_developer_extras=False,
             user_stylesheet_uri='file://' + stylesheet_path
         )
         self.set_settings(self.settings)
         # Load base template
         with open(get_data_path('ui', 'feedview', 'template.html'), 'r') as f:
             self.load_html_string(f.read(), 'file://')
-        # Inspector
-        insp = self.get_inspector()
-        insp.connect('inspect-web-view', self.on_inspector)
-        insp.inspect_coordinates(0, 0)
+
+        # Launch Inspector at start of application
+        # insp = self.get_inspector()
+        # insp.connect('inspect-web-view', self.on_inspector)
+        # insp.inspect_coordinates(0, 0)
 
     def load_item(self, item):
         dom = self.get_dom_document()
@@ -126,15 +128,13 @@ class FeedView(WebKit.WebView):
         dom.get_element_by_id('lr_content').set_inner_html(content)
 
     def on_inspector(self, insp, view):
-        print('here')
-        inspector_view = WebKit.WebView()
-        inspector_window = Gtk.Window()
-        inspector_window.add(inspector_view)
-        inspector_window.resize(800, 400)
-        inspector_window.show_all()
-        inspector_window.present()
-        return inspector_view
-
+        insp_view = WebKit.WebView()
+        insp_win = Gtk.Window()
+        insp_win.add(inspector_view)
+        insp_win.resize(800, 400)
+        insp_win.show_all()
+        insp_win.present()
+        return insp_view
 
     @staticmethod
     def on_navigate(self, frame, request, action, policy):
