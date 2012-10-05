@@ -82,6 +82,7 @@ class FeedView(WebKit.WebView):
         WebKit.get_default_session().set_property('max-conns-per-host', 8)
 
         super(FeedView, self).__init__(*args, **kwargs)
+
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
 
@@ -101,10 +102,39 @@ class FeedView(WebKit.WebView):
             enable_xss_auditor=False, resizable_text_areas=False,
             # Very effectively turns off all types of cache
             enable_private_browsing=True,
+            enable_developer_extras=True,
             user_stylesheet_uri='file://' + stylesheet_path
         )
         self.set_settings(self.settings)
-        self.load_item()
+        # Load base template
+        with open(get_data_path('ui', 'feedview', 'template.html'), 'r') as f:
+            self.load_html_string(f.read(), 'file://')
+        # Inspector
+        insp = self.get_inspector()
+        insp.connect('inspect-web-view', self.on_inspector)
+        insp.inspect_coordinates(0, 0)
+
+    def load_item(self, item):
+        dom = self.get_dom_document()
+        dom.get_element_by_id('lr_author').set_inner_text(item.author)
+        dt = datetime.datetime.fromtimestamp(item.time).strftime('%c')
+        dom.get_element_by_id('lr_datetime').set_inner_text(dt)
+        link = dom.get_element_by_id('lr_title')
+        link.set_inner_text(item.title)
+        link.set_href(item.href)
+        content = item.read_content(item.item_id)
+        dom.get_element_by_id('lr_content').set_inner_html(content)
+
+    def on_inspector(self, insp, view):
+        print('here')
+        inspector_view = WebKit.WebView()
+        inspector_window = Gtk.Window()
+        inspector_window.add(inspector_view)
+        inspector_window.resize(800, 400)
+        inspector_window.show_all()
+        inspector_window.present()
+        return inspector_view
+
 
     @staticmethod
     def on_navigate(self, frame, request, action, policy):
@@ -124,19 +154,6 @@ class FeedView(WebKit.WebView):
     def on_console_message(self, message, line, source):
         logger.debug(message)
         return True
-
-    def load_item(self, item=None):
-        with open(get_data_path('ui', 'feedview', 'template.html'), 'r') as f:
-            template = f.read()
-        if item is None:
-            return self.load_html_string('', 'file://')
-        else:
-            content = item.read_content(item.item_id)
-            dt = datetime.datetime.fromtimestamp(item.time)
-            s = template.format(title=item.title, content=content,
-                                href=item.href, author=item.author,
-                                datetime=dt)
-            return self.load_html_string(s, 'file://')
 
     def on_change(self, treeview):
         if treeview.in_destruction() or treeview.reloading:
