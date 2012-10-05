@@ -120,23 +120,37 @@ table {
 body {
     font-size: 16px;
     font-family: "Ubuntu Light", "Ubuntu", "Helvetica", "Arial", sans-serif;
-    margin: 2em auto;
-    color: #555555;
-    background: url('background.png');
+    margin: 1em auto;
+    color: #333333;
+    background: #F6F6F6;
     line-height: 1.5em;
 }
 
-#lr_title, #lr_content, #lr_metadata {
-    width: 90%;
-    max-width: 600px;
+header, article {
+    width: 95%;
+    max-width: 1000px;
     margin: 0 auto;
     display: block;
+    padding: 0 2.5%;
+    overflow: hidden;
 }
 
-#lr_title a {
+header h1 {
+    width: 100%;
+    text-align: center;
+    line-height: 1em;
+}
+
+#lr_title {
     word-wrap: break-word;
-    line-height: 1.25em;
+    line-height: 1em;
     display: block;
+    text-decoration: none;
+    color: #627AAD;
+}
+
+#lr_title:hover {
+    text-decoration: underline;
 }
 
 #lr_datetime {
@@ -144,23 +158,41 @@ body {
     float: right;
 }
 
-a {
-    color: #4d1f41;
-}
-
-ul, ol {
-    margin: 0;
-    padding: 0 0 0 2em;
-}
-
-img {
-    max-width: 100%;
-}
-
-hr {
+header hr {
     width: 100%;
     border: none;
     height: 2px;
     margin: .5em 0;
     background: #E8E8E8;
+}
+
+/* Content styles */
+#lr_content * {
+    font: inherit !important;
+}
+
+#lr_content ul, #lr_content ol {
+    margin: 0;
+    padding: 0 0 0 2em;
+}
+
+#lr_content img {
+    max-width: 100%;
+}
+
+#lr_content a {
+    text-decoration: none;
+    color: #627AAD;
+}
+
+#lr_content a:hover {
+    text-decoration: underline;
+}
+
+#lr_content code, #lr_content pre {
+    font-family: monospace !important;
+    word-wrap: normal;
+    white-space: pre;
+    width: 100%;
+    overflow: auto;
 }
