@@ -122,14 +122,24 @@ class FeedView(WebKit.WebView):
 
     def load_item(self, item):
         dom = self.get_dom_document()
-        dom.get_element_by_id('lr_author').set_inner_text(item.author)
+        dom.get_element_by_id('trifle_author').set_inner_text(item.author)
         dt = datetime.datetime.fromtimestamp(item.time).strftime('%c')
-        dom.get_element_by_id('lr_datetime').set_inner_text(dt)
-        link = dom.get_element_by_id('lr_title')
+        dom.get_element_by_id('trifle_datetime').set_inner_text(dt)
+        link = dom.get_element_by_id('trifle_title')
         link.set_inner_text(item.title)
         link.set_href(item.href)
         content = item.read_content(item.item_id)
-        dom.get_element_by_id('lr_content').set_inner_html(content)
+        dom.get_element_by_id('trifle_content').set_inner_html(content)
+        # IFrame repacement
+        iframes = dom.get_elements_by_tag_name('iframe')
+        for iframe in (iframes.item(i) for i in range(iframes.get_length())):
+            iframe_type, uri = utils.get_full_uri(iframe.get_src())
+            if iframe_type is not None:
+                repl_id = 'trifle_{0}_repl'.format(iframe_type)
+                repl = dom.get_element_by_id(repl_id).clone_node(True)
+                repl.set_href(uri)
+                iframe.get_parent_node().replace_child(repl, iframe)
+                logger.debug('{0} iframe was replaced'.format(iframe_type))
         # Set item controls to sensitive and activate them if needed
         self.toolbar.star.set_properties(sensitive=True, active=item.starred)
         self.toolbar.unread.set_properties(sensitive=True, active=item.unread)
@@ -137,7 +147,7 @@ class FeedView(WebKit.WebView):
     def on_inspector(self, insp, view):
         insp_view = WebKit.WebView()
         insp_win = Gtk.Window()
-        insp_win.add(inspector_view)
+        insp_win.add(insp_view)
         insp_win.resize(800, 400)
         insp_win.show_all()
         insp_win.present()

@@ -126,6 +126,10 @@ body {
     line-height: 1.5em;
 }
 
+#trifle_replacements {
+    display: none;
+}
+
 header, article {
     width: 95%;
     max-width: 1000px;
@@ -141,7 +145,7 @@ header h1 {
     line-height: 1em;
 }
 
-#lr_title {
+#trifle_title {
     word-wrap: break-word;
     line-height: 1em;
     display: block;
@@ -149,11 +153,11 @@ header h1 {
     color: #627AAD;
 }
 
-#lr_title:hover {
+#trifle_title:hover {
     text-decoration: underline;
 }
 
-#lr_datetime {
+#trifle_datetime {
     display: inline-block;
     float: right;
 }
@@ -167,32 +171,59 @@ header hr {
 }
 
 /* Content styles */
-#lr_content * {
-    font: inherit !important;
+#trifle_content * {
+    font-family: inherit !important;
+    font-size: inherit !important;
 }
 
-#lr_content ul, #lr_content ol {
+#trifle_content h1, #trifle_content h2 {
+    font-size: 1.5em !important;
+    margin: 0;
+}
+
+#trifle_content h3 {
+    font-size: 1.17em !important;
+    margin: 0;
+}
+
+#trifle_content h4 {
+    font-size: 1em !important;
+    margin: 0;
+}
+
+#trifle_content h5 {
+    font-size: 0.83em !important;
+    margin: 0;
+}
+
+#trifle_content h6 {
+    font-size: 0.75em !important;
+    margin: 0;
+}
+
+#trifle_content ul, #trifle_content ol {
     margin: 0;
     padding: 0 0 0 2em;
 }
 
-#lr_content img {
+#trifle_content img {
     max-width: 100%;
 }
 
-#lr_content a {
+#trifle_content a {
     text-decoration: none;
     color: #627AAD;
 }
 
-#lr_content a:hover {
+#trifle_content a:hover {
     text-decoration: underline;
 }
 
-#lr_content code, #lr_content pre {
+#trifle_content code, #trifle_content pre {
     font-family: monospace !important;
     word-wrap: normal;
     white-space: pre;
     width: 100%;
     overflow: auto;
+    font-size: 0.85em !important;
 }

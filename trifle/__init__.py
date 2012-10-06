@@ -23,7 +23,7 @@ class Formatter(logging.Formatter):
         return super(Formatter, self).format(record)
 
 __builtins__['logger'] = logging.getLogger('trifle')
-fmt = "%(levelname).7s\t%(lineno)4s |%(relpath)s in %(funcName).10s\t%(msg)s"
+fmt = "%(levelname).7s\t%(lineno)4s |%(relpath)20.20s in %(funcName)15.15s %(msg)s"
 logging_handler = logging.StreamHandler()
 logging_handler.setFormatter(Formatter(fmt))
 logger.addHandler(logging_handler)
