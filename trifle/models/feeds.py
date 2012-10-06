@@ -46,6 +46,7 @@ class Ids(GObject.Object, utils.LoginRequired):
             logger.error('IDs are already synchronizing')
             return False
         self.partial_handler = self.connect('partial-sync', self.on_done)
+        logger.debug('Synchronizing ids')
 
         item_limit = settings['cache-items']
         for name, state in self.states.items():
@@ -53,7 +54,6 @@ class Ids(GObject.Object, utils.LoginRequired):
             url = utils.api_method('stream/items/ids', getargs)
             msg = utils.AuthMessage(auth, 'GET', url)
             utils.session.queue_message(msg, self.on_response, name)
-            logger.debug('{0} queued'.format(name))
         # Initially mark everything as deletable and unflag all items.
         # Laten in process items that are still important will be unmarked
         # and reflagged again (in ensure_ids and mark_true)
@@ -82,8 +82,9 @@ class Ids(GObject.Object, utils.LoginRequired):
         utils.connection.executemany(query, ((i,) for i in ids))
 
     def on_response(self, session, msg, data):
-        if 400 <= msg.status_code < 600 or 0 <= msg.status_code < 100:
-            logger.error('IDs request returned {0}'.format(msg.status_code))
+        if not 200 <= msg.status_code < 300:
+            logger.error('IDs synchronization failed: {0}'
+                                                     .format(msg.status_code))
             return False
 
         res = json.loads(msg.response_body.data)['itemRefs']
@@ -113,7 +114,7 @@ class Ids(GObject.Object, utils.LoginRequired):
         if not all(key in self.done for key in self.states.keys()):
             return False
 
-        logger.debug('IDs were successfully synchronized')
+        logger.debug('IDs synchronized')
         self.disconnect(self.partial_handler)
         delattr(self, 'partial_handler')
         self.done = set()
@@ -125,59 +126,76 @@ class Flags(GObject.Object, utils.LoginRequired):
     __gsignals__ = {
         'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
     }
-    flags = {'read': 'user/-/state/com.google/read'}
-    syncing = 0
+    flags = {'read': 'user/-/state/com.google/read',
+             'kept-unread': 'user/-/state/com.google/kept-unread',
+             'starred': 'user/-/state/com.google/starred'}
+    __getitem__ = flags.__getitem__
 
-    def set_flag(self, item_id, flag):
-        query = 'SELECT COUNT(item_id) FROM flags WHERE item_id=? AND flag=?'
-        if not utils.connection.execute(query, (item_id, flag,)).fetchone()[0]:
+    def set_flag(self, item_id, flag, remove=False):
+        query = 'SELECT remove FROM flags WHERE item_id=? AND flag=?'
+        args = (item_id, flag,)
+        result = utils.connection.execute(query, args).fetchone()
+
+        if result is None:
             # We don't have a flag like this one yet!
-            query = 'INSERT INTO flags(item_id, flag) VALUES (?, ?)'
-            utils.connection.execute(query, (item_id, flag,))
-
-    def set_read(self, item_id):
-        """ Will be used mostly for marking items as read """
-        self.set_flag(item_id, self.flags['read'])
+            query = 'INSERT INTO flags(item_id, flag, remove) VALUES (?, ?, ?)'
+            utils.connection.execute(query, args + (remove,))
+        elif result[0] != remove:
+            query = 'UPDATE flags SET remove=? WHERE item_id=? AND flag=?'
+            utils.connection.execute(query, (remove,) + args)
 
     def sync(self):
         if not self.ensure_login(auth, self.sync) or \
            not self.ensure_token(auth, self.sync):
             return False
+        self.syncing = 0
+        logger.debug('Synchronizing flags')
 
         uri = utils.api_method('edit-tag')
         req_type = 'application/x-www-form-urlencoded'
-        for flag in self.flags.values():
-            query = 'SELECT item_id FROM flags WHERE flag=?'
-            result = utils.connection.execute(query, (flag,)).fetchall()
-            if len(result) == 0:
-                continue
+        query = 'SELECT item_id, id FROM flags WHERE flag=? AND remove=?'
 
-            ch = utils.split_chunks((('i', i) for i, in result), 250, ('', ''))
-            for chunk in ch:
-                self.syncing += 1
-                data = urlencode(chunk + (('a', flag), ('T', auth.token),))
-                msg = utils.AuthMessage(auth, 'POST', uri)
-                msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
-                utils.session.queue_message(msg, self.on_response, result)
+        for flag in self.flags.values():
+            for args in [(flag, True,), (flag, False,)]:
+                result = utils.connection.execute(query, args).fetchall()
+                if len(result) == 0:
+                    continue
+
+                post = (('r' if args[1] else 'a', flag,), ('T', auth.token),)
+                chunks = utils.split_chunks(result, 250, None)
+                for chunk in chunks:
+                    self.syncing += 1
+                    iids, ids = zip(*filter(lambda x: x is not None, chunk))
+                    iids = tuple(zip(itertools.repeat('i'), iids))
+                    payload = urlencode(iids + post)
+                    msg = utils.AuthMessage(auth, 'POST', uri)
+                    msg.set_request(req_type, Soup.MemoryUse.COPY, payload,
+                                    len(payload))
+
+                    utils.session.queue_message(msg, self.on_response, ids)
 
         if self.syncing == 0:
+            # In case we didn't have any flags to synchronize
+            logger.debug('There was no flags to synchronize')
             self.emit('sync-done')
 
     def on_response(self, session, message, data):
         self.syncing -= 1
-        if 400 <= message.status_code < 600 or 0 <= message.status_code < 100:
-            logger.error('Flags request returned {0}'
+        if not 200 <= message.status_code < 400:
+            logger.error('Flags synchronizaton failed {0}'
                                                  .format(message.status_code))
             if self.syncing == 0:
                 self.emit('sync-done')
             return False
 
+        data = list(data)
         query = 'DELETE FROM flags WHERE ' + \
-                ' OR '.join('item_id=?' for i in data)
-        utils.connection.execute(query, tuple(i for i, in data))
+                ' OR '.join('id=?' for i in data)
+        utils.connection.execute(query, data)
 
         if self.syncing == 0:
             utils.connection.commit()
+            logger.debug('Flags synchronized')
             self.emit('sync-done')
 
 
@@ -197,9 +215,10 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         super(Items, self).__init__(FeedItem, **kwargs)
 
     def __getitem__(self, key):
-        return FeedItem(key)
+        return FeedItem(self, key)
 
     def __setitem__(self, key, data):
+        # Row creation should be handled by IDs synchronization
         q = '''UPDATE items SET title=?, author=?, summary=?, href=?,
                                 time=?, subscription=?, to_sync=0 WHERE id=?'''
         values = (data['title'], data['author'], data['summary'],
@@ -261,45 +280,49 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
     def sync(self):
         if self.syncing > 0:
-            logger.warning('Already syncing')
+            logger.warning('Items synchronization is already in progress')
             return
-        self.syncing += 2
 
-        def callback(ids, self):
+        self.syncing = 2
+        def flags_callback(flags, self):
             self.syncing -= 1
-            if self.syncing == 1:
-                self.ids.sync()
-            if self.syncing == 0:
-                self.sync2()
+            self.ids.sync()
 
-        connect_once(self.flags, 'sync-done', callback, self)
-        connect_once(self.ids, 'sync-done', callback, self)
+        def ids_callback(ids, self):
+            self.syncing -= 1
+            self.sync_items()
+
+        connect_once(self.flags, 'sync-done', flags_callback, self)
+        connect_once(self.ids, 'sync-done', ids_callback, self)
         self.flags.sync()
 
-    def sync2(self):
-        if not self.ensure_login(auth, self.sync2):
+    def sync_items(self):
+        if not self.ensure_login(auth, self.sync_items):
             return False
+
+        logger.debug('Synchronizing items')
         uri = utils.api_method('stream/items/contents')
         req_type = 'application/x-www-form-urlencoded'
 
         # Somewhy when streaming items and asking more than 512 returns 400.
         # Asking anything in between 250 and 512 returns exactly 250 items.
         ids = self.ids.needs_update
-        logger.debug('{0} items needs update'.format(len(ids)))
-        split_ids = utils.split_chunks((('i', i) for i in ids), 250, ('', ''))
+        if len(ids) == 0:
+            logger.debug('Items doesn\'t need synchronization')
+            self.post_sync()
+            return False
 
-        for chunk in split_ids:
+        chunks = utils.split_chunks((('i', i) for i in ids), 250, ('', ''))
+        for chunk in chunks:
             self.syncing += 1
             data = urlencode(chunk)
             message = utils.AuthMessage(auth, 'POST', uri)
             message.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
             utils.session.queue_message(message, self.process_response, None)
-        else:
-            self.post_sync()
 
     def process_response(self, session, message, data=None):
-        if 400 <= message.status_code < 600 or 0 <= message.status_code < 100:
-            logger.error('Chunk request returned {0}'
+        if not 200 <= message.status_code < 400:
+            logger.error('Items synchronization failed: {0}'
                                                  .format(message.status_code))
         else:
             data = json.loads(message.response_body.data)
@@ -311,6 +334,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
         self.syncing -= 1
         if self.syncing == 0:
+            logger.debug('Items synchronized')
             self.post_sync()
 
     def post_sync(self):
@@ -324,24 +348,6 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         utils.connection.execute('DELETE FROM items WHERE to_delete=1')
         for i, in res:
             FeedItem.remove_content(i)
-
-    def compare(self, row1, row2, user_data):
-        value1 = self.get_value(row1, 0).time
-        value2 = self.get_value(row2, 0).time
-        if value1 > value2:
-            return 1
-        elif value1 == value2:
-            return 0
-        else:
-            return -1
-
-    def set_read(self, item):
-        self.flags.set_read(item.item_id)
-        query = 'UPDATE items SET unread=0 WHERE id=?'
-        utils.connection.execute(query, (item.item_id,))
-        utils.connection.commit()
-        item['unread'] = False
-
 
 class FilteredItems(Items):
 
@@ -390,8 +396,9 @@ class FilteredItems(Items):
 
 class FeedItem(GObject.Object):
 
-    def __init__(self, item_id):
+    def __init__(self, collection, item_id):
         self.item_id = item_id
+        self.flags = collection.flags
         self.fetched = False
         self.cache = {}
         super(FeedItem, self).__init__()
@@ -421,19 +428,16 @@ class FeedItem(GObject.Object):
     def __setitem__(self, key, val):
         self.cache[key] = val
 
-    title = property(lambda self: self['title'])
-    author = property(lambda self: self['author'])
-    summary = property(lambda self: self['summary'])
-    href = property(lambda self: self['href'])
-    time = property(lambda self: self['time'])
-    unread = property(lambda self: self['unread'])
-    starred = property(lambda self: self['starred'])
-    origin = property(lambda self: self['origin'])
-    site = property(lambda self: self['site'])
-
-    @property
-    def icon(self):
-        return utils.icon_pixbuf(self.origin)
+    title = GObject.property(lambda self: self['title'])
+    author = GObject.property(lambda self: self['author'])
+    summary = GObject.property(lambda self: self['summary'])
+    href = GObject.property(lambda self: self['href'])
+    time = GObject.property(lambda self: self['time'])
+    unread = GObject.property(lambda self: self['unread'])
+    starred = GObject.property(lambda self: self['starred'])
+    origin = GObject.property(lambda self: self['origin'])
+    site = GObject.property(lambda self: self['site'])
+    icon = GObject.property(lambda self: utils.icon_pixbuf(self.origin))
 
     @staticmethod
     def save_content(item_id, content):
@@ -462,3 +466,30 @@ class FeedItem(GObject.Object):
         else:
             with codecs.open(fpath, 'r', 'utf-8') as f:
                 f.read()
+
+    def set_read(self):
+        self.flags.set_flag(self.item_id, self.flags['read'])
+        query = 'UPDATE items SET unread=0 WHERE id=?'
+        utils.connection.execute(query, (self.item_id,))
+        utils.connection.commit()
+        self['unread'] = False
+        self.notify('unread')
+
+    def set_keep_unread(self, value):
+        self.flags.set_flag(self.item_id, self.flags['read'], remove=value)
+        self.flags.set_flag(self.item_id, self.flags['kept-unread'])
+        query = 'UPDATE items SET unread=? WHERE id=?'
+        utils.connection.execute(query, (value, self.item_id,))
+        utils.connection.commit()
+        self['unread'] = value
+        self.notify('unread')
+
+    def set_star(self, value):
+        self.flags.set_flag(self.item_id, self.flags['starred'],
+                            remove=not value)
+        query = 'UPDATE items SET starred=? WHERE id=?'
+        utils.connection.execute(query, (value, self.item_id,))
+        utils.connection.commit()
+        self['starred'] = value
+        self.notify('starred')
+

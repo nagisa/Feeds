@@ -21,5 +21,7 @@ CREATE TABLE labels_fk (item_id VARCHAR(1024),
 CREATE TABLE labels (id VARCHAR(1024) PRIMARY KEY,
                      name VARCHAR(1024));
 
-CREATE TABLE flags (item_id INTEGER PRIMARY KEY,
-                    flag VARCHAR(1024));
+CREATE TABLE flags (id INTEGER PRIMARY KEY,
+                    item_id INTEGER,
+                    flag VARCHAR(1024),
+                    remove BOOLEAN);

@@ -17,10 +17,6 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.connect('realize', self.on_show)
 
     def on_show(self, window):
-        feedbox = self.builder.get_object('feedview')
-        self.feedview = widgets.FeedView()
-        feedbox.add(self.feedview)
-
         leftgrid = self.builder.get_object('left-grid')
         leftgrid.get_style_context().add_class(Gtk.STYLE_CLASS_SIDEBAR)
         self.categories = widgets.CategoriesView()
@@ -35,17 +31,22 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.itemsview = widgets.ItemsView()
         items.add(self.itemsview)
 
-        self.itemsview.show()
-        self.subsview.show()
-        self.categories.show()
-        self.feedview.show()
-
         for tb in ('items-toolbar', 'sidebar-toolbar', 'feedview-toolbar',):
             toolbar = self.builder.get_object(tb)
             widgets.add_toolbar_items(toolbar, tb)
             toolbar.get_style_context().add_class(Gtk.STYLE_CLASS_MENUBAR)
             toolbar.reset_style()
             setattr(self, tb.replace('-', '_'), toolbar)
+
+        feedbox = self.builder.get_object('feedview')
+        self.feedview = widgets.FeedView(toolbar=self.feedview_toolbar)
+        feedbox.add(self.feedview)
+
+        self.itemsview.show()
+        self.subsview.show()
+        self.categories.show()
+        self.feedview.show()
+
 
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):

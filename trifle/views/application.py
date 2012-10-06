@@ -25,17 +25,22 @@ class Application(Gtk.Application):
         # Connect and emit all important signals
         auth.secrets.connect('ask-password', self.on_login_dialog)
 
-        window.itemsview.connect('cursor-changed', window.feedview.on_change)
-        window.subsview.connect('cursor-changed',
-                                window.itemsview.on_filter_change)
         window.categories.connect('cursor-changed',
                                   window.itemsview.on_cat_change)
         window.categories.connect('cursor-changed',
                                   window.subsview.on_cat_change)
-        window.feedview_toolbar.preferences.connect('clicked',
-                                                    self.on_show_prefs)
         window.sidebar_toolbar.refresh.connect('clicked', self.on_refresh)
         window.sidebar_toolbar.subscribe.connect('clicked', self.on_subscribe)
+        window.subsview.connect('cursor-changed',
+                                window.itemsview.on_filter_change)
+        window.itemsview.connect('cursor-changed',
+                                 window.feedview.on_change)
+        window.feedview_toolbar.preferences.connect('clicked',
+                                                    self.on_show_prefs)
+        window.feedview_toolbar.star.connect('toggled',
+                                             window.feedview.on_star)
+        window.feedview_toolbar.unread.connect('toggled',
+                                               window.feedview.on_keep_unread)
 
         if settings['start-refresh']:
             self.window.sidebar_toolbar.refresh.emit('clicked')

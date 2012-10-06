@@ -32,13 +32,15 @@ def add_toolbar_items(toolbar, tb_type):
         toolbar.insert(toolbar.subscribe, -1)
 
     elif tb_type == 'feedview-toolbar':
-        # toolbar.star = stock_toolbutton(Gtk.STOCK_YES)
-        # toolbar.star.set_properties(margin_right=5)
-        # toolbar.insert(toolbar.star, -1)
+        toolbar.star = Gtk.ToggleToolButton(label=_('Star'),
+                                            is_important=True, sensitive=False)
+        toolbar.insert(toolbar.star, -1)
 
-        # toolbar.share = stock_toolbutton(Gtk.STOCK_REDO)
-        # toolbar.share.set_properties(margin_right=5)
-        # toolbar.insert(toolbar.share, -1)
+        toolbar.unread = Gtk.ToggleToolButton(label=_('Keep unread'),
+                                              is_important=True,
+                                              sensitive=False,
+                                              margin_left=5)
+        toolbar.insert(toolbar.unread, -1)
 
         toolbar.preferences = stock_toolbutton(Gtk.STOCK_PREFERENCES)
         toolbar.preferences.set_halign(Gtk.Align.END)
@@ -75,7 +77,9 @@ class ToolbarSpinner(Gtk.ToolItem):
 
 class FeedView(WebKit.WebView):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, toolbar=None, **kwargs):
+        self.toolbar = toolbar
+        self.item = None
         # TODO: Change to DOCUMENT_VIEWER after we start caching remote
         # resources at item processing stage
         WebKit.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER)
@@ -126,6 +130,9 @@ class FeedView(WebKit.WebView):
         link.set_href(item.href)
         content = item.read_content(item.item_id)
         dom.get_element_by_id('lr_content').set_inner_html(content)
+        # Set item controls to sensitive and activate them if needed
+        self.toolbar.star.set_properties(sensitive=True, active=item.starred)
+        self.toolbar.unread.set_properties(sensitive=True, active=item.unread)
 
     def on_inspector(self, insp, view):
         insp_view = WebKit.WebView()
@@ -159,10 +166,22 @@ class FeedView(WebKit.WebView):
         if treeview.in_destruction() or treeview.reloading:
             return
         selection = treeview.get_selection().get_selected()
-        item = selection[0].get_value(selection[1], 0)
-        if item.unread: # Set it to read
-            treeview.store.set_read(item)
-        self.load_item(item)
+        self.item = selection[0].get_value(selection[1], 0)
+        if self.item.unread: # Set it to read
+            self.item.set_read()
+        self.load_item(self.item)
+
+    def on_star(self, button):
+        if button.get_active():
+            self.item.set_star(True)
+        else:
+            self.item.set_star(False)
+
+    def on_keep_unread(self, button):
+        if button.get_active():
+            self.item.set_keep_unread(True)
+        else:
+            self.item.set_keep_unread(False)
 
 
 class CategoriesView(Gtk.TreeView):
