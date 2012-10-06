@@ -116,9 +116,9 @@ class FeedView(WebKit.WebView):
             self.load_html_string(f.read(), 'file://')
 
         # Launch Inspector at start of application
-        # insp = self.get_inspector()
-        # insp.connect('inspect-web-view', self.on_inspector)
-        # insp.inspect_coordinates(0, 0)
+        insp = self.get_inspector()
+        insp.connect('inspect-web-view', self.on_inspector)
+        insp.inspect_coordinates(0, 0)
 
     def load_item(self, item):
         dom = self.get_dom_document()
