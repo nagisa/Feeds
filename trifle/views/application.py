@@ -45,6 +45,10 @@ class Application(Gtk.Application):
         if settings['start-refresh']:
             self.window.sidebar_toolbar.refresh.emit('clicked')
 
+        self.last_refresh = GLib.get_monotonic_time()
+        # Check every 60 seconds.
+        GLib.timeout_add_seconds(60, self.on_refresh_timeout)
+
     def on_login_dialog(self, *args):
         # Should not show login dialog when internet is not available
         # Could not login, because credentials were incorrect
@@ -74,6 +78,7 @@ class Application(Gtk.Application):
             if on_sync_done.to_finish == 0:
                 self.window.sidebar_toolbar.spinner.hide()
                 self.window.sidebar_toolbar.refresh.set_sensitive(True)
+                self.last_reefresh = GLib.get_monotonic_time()
             # If we can show notification
             if hasattr(model, 'unread_count') and model.unread_count > 0:
                 count = model.unread_count
@@ -116,3 +121,14 @@ class Application(Gtk.Application):
                                    Gtk.ButtonsType.OK, error)
         dialog.run()
         dialog.destroy()
+
+    def on_refresh_timeout(self):
+        current = GLib.get_monotonic_time()
+        refresh_every = settings['refresh-every']
+        # Setting 'refresh-every' value 0 stands for Never
+        if refresh_every == 0:
+            self.last_refresh = current
+            return True
+        if current - self.last_refresh > refresh_every * 6E7:
+            self.on_refresh(None)
+        return True
