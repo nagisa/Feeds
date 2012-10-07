@@ -1,4 +1,4 @@
-from gi.repository import Gtk, Gio
+from gi.repository import Gtk, Gio, GLib
 
 from models.auth import auth
 from models.settings import settings
@@ -93,16 +93,26 @@ class Application(Gtk.Application):
         def on_subscribe_url(dialog):
             if dialog.url is None:
                 return
+            self.window.sidebar_toolbar.spinner.show()
             subs_model = self.window.subsview.store
             subs_model.subscribe_to(dialog.url)
             connect_once(subs_model, 'subscribed',  on_subscribed)
 
         def on_subscribed(model, success, data=None):
+            self.window.sidebar_toolbar.spinner.hide()
             if not success:
                 logger.error('Could not subscribe to a feed')
+                self.report_error(_('Could not subscribe to a feed'))
                 return
             self.on_refresh(None)
 
         dialog = SubscribeDialog(transient_for=self.window, modal=True)
         dialog.show_all()
         dialog.connect('destroy', on_subscribe_url)
+
+    def report_error(self, error):
+        dfl = Gtk.DialogFlags.MODAL & Gtk.DialogFlags.DESTROY_WITH_PARENT
+        dialog = Gtk.MessageDialog(self.window, dfl, Gtk.MessageType.ERROR,
+                                   Gtk.ButtonsType.OK, error)
+        dialog.run()
+        dialog.destroy()
