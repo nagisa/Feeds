@@ -245,6 +245,8 @@ class SubscriptionsView(Gtk.TreeView):
         self.append_column(column)
 
         self.connect('realize', self.on_realize)
+        self.connect('popup-menu', SubscriptionsView.on_popup_menu)
+        self.connect('button-press-event', SubscriptionsView.on_button_press)
 
     @staticmethod
     def on_realize(self):
@@ -254,6 +256,38 @@ class SubscriptionsView(Gtk.TreeView):
         if treeview.in_destruction():
             return
         self.get_selection().unselect_all()
+
+    def on_popup_menu(self, event=None):
+        if event is not None:
+            btn = event.button
+            time = event.time
+            path = self.get_path_at_pos(*event.get_coords())[0]
+            itr = self.store.get_iter(path)
+        else:
+            btn = 0
+            time = Gtk.get_current_event_time()
+            itr = self.get_selection().get_selected()[1]
+            path = self.store.get_path(itr)
+
+        menu = Gtk.Menu()
+        labels = self.store.get_item_labels(itr)
+        if labels is not None:
+            for _id, label in labels.items():
+                item = Gtk.CheckMenuItem(label=label[0], active=label[1])
+                item.connect('toggled', self.on_label_change, (itr, _id))
+                menu.append(item)
+        menu.attach_to_widget(self, None)
+        menu.show_all()
+        menu.popup(None, None, None, None, btn, time);
+        return True
+
+    def on_button_press(self, event):
+        if event.button == Gdk.BUTTON_SECONDARY \
+           and event.type == Gdk.EventType.BUTTON_PRESS:
+               return self.on_popup_menu(event)
+
+    def on_label_change(self, item, data):
+        self.store.set_item_label(data[0], data[1], item.get_active())
 
     def sync(self, callback=None):
         logger.debug('Starting subscriptions\' sync')

@@ -7,6 +7,8 @@ from models.auth import auth
 from models import utils
 
 SubscriptionType = utils.SubscriptionType
+
+
 class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
     __gsignals__ = {
         'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
@@ -117,12 +119,53 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         utils.session.queue_message(msg, self.on_quickadd, None)
 
     def on_quickadd(self, session, msg, data=None):
-        if 400 <= msg.status_code < 600 or 0 <= msg.status_code < 100:
+        if not 200 <= msg.status_code < 400:
             logger.error('Add request returned {0}'.format(msg.status_code))
             self.emit('subscribed', False)
         res = json.loads(msg.response_body.data)
         self.emit('subscribed', 'streamId' in res)
 
+    def get_item_labels(self, itr):
+        if self[itr][0] == SubscriptionType.LABEL:
+            return None
+        else:
+            result = {}
+            query = '''SELECT labels_fk.label_id FROM subscriptions
+                       LEFT JOIN labels_fk
+                       ON labels_fk.item_id = subscriptions.id
+                       WHERE subscriptions.id=?'''
+            r = utils.connection.execute(query, (self[itr][1],)).fetchall()
+            for key, itr in self.label_iters.items():
+                if key is not None:
+                    result[key] = (self[itr][3], key in [i for i, in r])
+            return result
+
+    def set_item_label(self, itr, label_id, value):
+        if self[itr][0] != SubscriptionType.SUBSCRIPTION:
+            logger.error('Adding label to non-subscription!')
+            return False
+
+        args = (itr, label_id, value)
+        if not self.ensure_login(auth, self.set_item_label, *args) or \
+           not self.ensure_token(auth, self.set_item_label, *args):
+            return False
+
+        uri = utils.api_method('subscription/edit')
+        req_type = 'application/x-www-form-urlencoded'
+        _id = self[itr][1]
+        label_id = 'user/-/{0}'.format(label_id)
+        key = 'a' if value else 'r'
+        data = utils.urlencode({'T': auth.token, 's': _id, 'ac': 'edit',
+                                key: label_id})
+        msg = utils.AuthMessage(auth, 'POST', uri)
+        msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
+        utils.session.queue_message(msg, self.on_sub_edit, None)
+
+    def on_sub_edit(self, session, msg, data=None):
+        if not 200 <= msg.status_code < 400:
+            logger.error('Edit request returned {0}'.format(msg.status_code))
+            return False
+        self.sync()
 
 
 class Favicons(GObject.Object):
