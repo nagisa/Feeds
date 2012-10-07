@@ -121,6 +121,10 @@ class FeedView(WebKit.WebView):
         insp.inspect_coordinates(0, 0)
 
     def load_item(self, item):
+        # Scroll to (0, 0)
+        self.get_hadjustment().set_value(0)
+        self.get_vadjustment().set_value(0)
+        # Set new data
         dom = self.get_dom_document()
         dom.get_element_by_id('trifle_author').set_inner_text(item.author)
         dt = datetime.datetime.fromtimestamp(item.time).strftime('%c')
