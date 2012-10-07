@@ -180,7 +180,11 @@ class FeedView(WebKit.WebView):
         if treeview.in_destruction() or treeview.reloading:
             return
         selection = treeview.get_selection().get_selected()
-        self.item = selection[0].get_value(selection[1], 0)
+        item = selection[0].get_value(selection[1], 0)
+        # We don't have anything to do if same item is being loaded
+        if item is self.item:
+            return None
+        self.item = item
         if self.item.unread: # Set it to read
             self.item.set_read()
         self.load_item(self.item)
