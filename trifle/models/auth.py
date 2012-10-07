@@ -55,6 +55,8 @@ class Auth(GObject.Object):
     @property
     def token(self):
         current_time = GLib.get_monotonic_time()
+        msg = 'Token expires in {0} µs'
+        logger.debug(msg.format(self.token_expires - current_time))
         if current_time > self.token_expires:
             message = utils.AuthMessage(self, 'GET', utils.api_method('token'))
             utils.session.queue_message(message, self.on_token, None)
@@ -98,10 +100,8 @@ class Auth(GObject.Object):
         self.emit('status-change')
 
     def on_token(self, session, message, data=None):
-        if 400 <= message.status_code < 500:
-            logger.debug('Token failed with {0}'.format(message.status_code))
-        elif message.status_code < 100 or 500 <= message.status_code < 600:
-            logger.debug('Token failed with {0}'.format(message.status_code))
+        if not 200 <= message.status_code < 400:
+            logger.error('Token failed with {0}'.format(message.status_code))
         else:
             self._token = message.response_body.data
             self.token_expires = GLib.get_monotonic_time() + 1.5E9 #µs = 25min

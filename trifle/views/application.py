@@ -78,7 +78,7 @@ class Application(Gtk.Application):
             if on_sync_done.to_finish == 0:
                 self.window.sidebar_toolbar.spinner.hide()
                 self.window.sidebar_toolbar.refresh.set_sensitive(True)
-                self.last_reefresh = GLib.get_monotonic_time()
+                self.last_refresh = GLib.get_monotonic_time()
             # If we can show notification
             if hasattr(model, 'unread_count') and model.unread_count > 0:
                 count = model.unread_count
