@@ -76,6 +76,22 @@ class ToolbarSpinner(Gtk.ToolItem):
 
 
 class FeedView(WebKit.WebView):
+    settings_props = {
+        # These three saves us ~25MiB of residental memory
+        'enable_scripts': False, 'enable_plugins': False,
+        'enable_java_applet': False,
+        # We already have most files cached and load locally
+        'enable_page_cache': False, 'enable_dns_prefetching': False,
+        'enable_private_browsing': True,
+        # We don't use any of these features
+        'enable_html5_database': False, 'enable_html5_local_storage': False,
+        'enable_offline_web_application_cache': False,
+        'enable_xss_auditor': False, 'resizable_text_areas': False,
+        # Need this one of usability reasons.
+        'enable_default_context_menu': False,
+        # Enable in case developer tools are needed
+        'enable_developer_extras': True,
+    }
 
     def __init__(self, *args, toolbar=None, **kwargs):
         self.toolbar = toolbar
@@ -86,39 +102,21 @@ class FeedView(WebKit.WebView):
         WebKit.get_default_session().set_property('max-conns-per-host', 8)
 
         super(FeedView, self).__init__(*args, **kwargs)
-
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
 
         self.settings = WebKit.WebSettings()
-        stylesheet_path = get_data_path('ui', 'feedview', 'style.css')
-        self.settings.set_properties(
-            # These three saves us ~25MiB of residental memory
-            enable_scripts=False, enable_plugins=False,
-            enable_java_applet=False,
-            # We already have most files cached and load locally
-            enable_page_cache=False, enable_dns_prefetching=False,
-            # Need this one of usability reasons.
-            enable_default_context_menu=False,
-            # Not used
-            enable_html5_database=False, enable_html5_local_storage=False,
-            enable_offline_web_application_cache=False,
-            enable_xss_auditor=False, resizable_text_areas=False,
-            # Very effectively turns off all types of cache
-            enable_private_browsing=True,
-            # Enable in case developer tools are needed
-            enable_developer_extras=False,
-            user_stylesheet_uri='file://' + stylesheet_path
-        )
+        self.settings.set_properties(**self.settings_props)
         self.set_settings(self.settings)
-        # Load base template
-        with open(get_data_path('ui', 'feedview', 'template.html'), 'r') as f:
-            self.load_html_string(f.read(), 'file://')
-
-        # Launch Inspector at start of application
+        # Launch Inspector at start of application, don't forget to set
+        # self.settings_props['enable_developer_extras'] to True.
         insp = self.get_inspector()
         insp.connect('inspect-web-view', self.on_inspector)
         insp.inspect_coordinates(0, 0)
+
+        # Load base template
+        template_path = get_data_path('ui', 'feedview', 'template.html')
+        self.load_uri('file://' + template_path)
 
     def load_item(self, item):
         # Scroll to (0, 0)
