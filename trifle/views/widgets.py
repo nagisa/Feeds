@@ -288,7 +288,12 @@ class SubscriptionsView(Gtk.TreeView):
                return self.on_popup_menu(event)
 
     def on_label_change(self, item, data):
+        from views import app
+        app.window.display_spinner(True)
         self.store.set_item_label(data[0], data[1], item.get_active())
+        def sync_done(*args):
+            app.window.display_spinner(False)
+        utils.connect_once(self.store, 'sync-done', sync_done)
 
     def sync(self, callback=None):
         logger.debug('Starting subscriptions\' sync')

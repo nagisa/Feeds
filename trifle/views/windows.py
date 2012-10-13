@@ -15,6 +15,7 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.set_title(_('Feeds'))
         self.maximize()
         self.connect('realize', self.on_show)
+        self.spinner = 0
 
     def on_show(self, window):
         leftgrid = self.builder.get_object('left-grid')
@@ -47,7 +48,12 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.categories.show()
         self.feedview.show()
 
-
+    def display_spinner(self, value):
+        self.spinner += 1 if value else -1
+        if value:
+            self.sidebar_toolbar.spinner.show()
+        elif self.spinner == 0:
+            self.sidebar_toolbar.spinner.hide()
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
     ui_file = 'preferences-dialog.ui'

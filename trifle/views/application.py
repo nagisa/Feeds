@@ -70,13 +70,13 @@ class Application(Gtk.Application):
         dialog.destroy()
 
     def on_refresh(self, button):
-        self.window.sidebar_toolbar.spinner.show()
+        self.window.display_spinner(True)
         self.window.sidebar_toolbar.refresh.set_sensitive(False)
 
         def on_sync_done(model, data=None):
             on_sync_done.to_finish -= 1
             if on_sync_done.to_finish == 0:
-                self.window.sidebar_toolbar.spinner.hide()
+                self.window.display_spinner(False)
                 self.window.sidebar_toolbar.refresh.set_sensitive(True)
                 self.last_refresh = GLib.get_monotonic_time()
             # If we can show notification
@@ -98,13 +98,13 @@ class Application(Gtk.Application):
         def on_subscribe_url(dialog):
             if dialog.url is None:
                 return
-            self.window.sidebar_toolbar.spinner.show()
+            self.window.display_spinner(True)
             subs_model = self.window.subsview.store
             subs_model.subscribe_to(dialog.url)
             connect_once(subs_model, 'subscribed',  on_subscribed)
 
         def on_subscribed(model, success, data=None):
-            self.window.sidebar_toolbar.spinner.hide()
+            self.window.display_spinner(False)
             if not success:
                 logger.error('Could not subscribe to a feed')
                 self.report_error(_('Could not subscribe to a feed'))
@@ -132,3 +132,4 @@ class Application(Gtk.Application):
         if current - self.last_refresh > refresh_every * 6E7:
             self.on_refresh(None)
         return True
+
