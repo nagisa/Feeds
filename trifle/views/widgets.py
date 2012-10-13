@@ -276,9 +276,10 @@ class SubscriptionsView(Gtk.TreeView):
                 item = Gtk.CheckMenuItem(label=label[0], active=label[1])
                 item.connect('toggled', self.on_label_change, (itr, _id))
                 menu.append(item)
-        menu.attach_to_widget(self, None)
-        menu.show_all()
-        menu.popup(None, None, None, None, btn, time);
+            # Now we won't show menu if there's no labels added into it.
+            menu.attach_to_widget(self, None)
+            menu.show_all()
+            menu.popup(None, None, None, None, btn, time);
         return True
 
     def on_button_press(self, event):

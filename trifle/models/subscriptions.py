@@ -22,8 +22,36 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         self.favicons_syncing = 0
         self.favicons.connect('sync-done', self.on_icon_update)
         self.last_update = GLib.get_monotonic_time()
-        self.label_iters = {}
-        self.sub_iters = {}
+
+    @property
+    def labels(self):
+        return filter(lambda x: x[0] == SubscriptionType.LABEL, self)
+
+    @property
+    def subscriptions(self):
+        def subs():
+            """ Yields all subscriptions in model, including those under
+            labels"""
+            for item in list(self):
+                if item[0] == SubscriptionType.SUBSCRIPTION:
+                    yield item
+                else:
+                    for sub in item.iterchildren():
+                        yield sub
+
+        return filter(lambda x: x[0] == SubscriptionType.SUBSCRIPTION, subs())
+
+    @staticmethod
+    def combine_ids(label_id, sub_id):
+        return sub_id if not label_id else label_id + '/' + sub_id
+
+    @staticmethod
+    def split_id(combined_id):
+        if combined_id[:4] == 'feed':
+            return (None, combined_id)
+        else:
+            split = combined_id.split('/', 2)
+            return '/'.join(split[:2]), split[-1]
 
     def sync(self):
         if not self.ensure_login(auth, self.sync):
@@ -74,27 +102,39 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
                FROM subscriptions
                LEFT JOIN labels_fk ON labels_fk.item_id = subscriptions.id
                LEFT JOIN labels ON labels.id=labels_fk.label_id'''
-        result = utils.connection.execute(q).fetchall()
-        labeled = filter(lambda x: x[3] is not None, result)
+        result = set(utils.connection.execute(q).fetchall())
 
-        for subid, suburl, subtitle, lblid, lblname in labeled:
-            if lblid not in self.label_iters:
-                self.label_iters[lblid] = self.append(None)
-            icon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
-            vals = {0: SubscriptionType.LABEL, 1: lblid, 2: icon, 3: lblname}
-            self.set(self.label_iters[lblid], vals)
+        # Add and update labels, will not show labels without subscriptions
+        old_labels = dict((item[1], item) for item in self.labels)
+        removed_labels = old_labels.copy()
+        new_labels = set((item[3], item[4],) for item in result if item[3])
+        label_icon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
+        for label_id, label_title in new_labels:
+            if label_id not in old_labels:
+                old_labels[label_id] = self[self.append(None)]
+            values = {0: SubscriptionType.LABEL, 1: label_id, 2: label_icon,
+                      3: label_title}
+            self.set(old_labels[label_id].iter, values)
+            removed_labels[label_id] = False
+        for removed in (row for key, row in removed_labels.items() if row):
+            self.remove(removed.iter)
 
-        for subid, suburl, subtitle, lblid, lblname in result:
-            lblsubid = subid if lblid is None else lblid + '/' + subid
-            if lblsubid not in self.sub_iters:
-                label_iter = self.label_iters.get(lblid, None)
-                # Some subscriptions can be added to more than one label
-                self.sub_iters[lblsubid] = self.append(label_iter)
-            icon = utils.icon_pixbuf(suburl)
-            vals = {0: SubscriptionType.SUBSCRIPTION, 1: subid, 2: icon,
-                    3: subtitle}
-            self.set(self.sub_iters[lblsubid], vals)
+        # Add and update subscriptions
+        old_s = dict((item[1], item) for item in self.subscriptions)
+        removed_s = old_s.copy()
+        for subid, suburl, subtitle, lblid, lbltitle in result:
+            label_sub_id = self.combine_ids(lblid, subid)
+            if label_sub_id not in old_s:
+                iter = old_labels[lblid].iter if lblid in old_labels else None
+                old_s[label_sub_id] = self[self.append(iter)]
+            values = {0: SubscriptionType.SUBSCRIPTION, 1: label_sub_id,
+                      2: utils.icon_pixbuf(suburl), 3: subtitle}
+            self.set(old_s[label_sub_id].iter, values)
+            removed_s[label_sub_id] = False
+        for removed in (row for key, row in removed_s.items() if row):
+            self.remove(removed.iter)
 
+        # We've finished
         if self.favicons_syncing == 0:
             self.emit('sync-done')
 
@@ -126,7 +166,8 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
         self.emit('subscribed', 'streamId' in res)
 
     def get_item_labels(self, itr):
-        if self[itr][0] == SubscriptionType.LABEL:
+        row = self[itr]
+        if row[0] == SubscriptionType.LABEL:
             return None
         else:
             result = {}
@@ -134,10 +175,10 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
                        LEFT JOIN labels_fk
                        ON labels_fk.item_id = subscriptions.id
                        WHERE subscriptions.id=?'''
-            r = utils.connection.execute(query, (self[itr][1],)).fetchall()
-            for key, itr in self.label_iters.items():
-                if key is not None:
-                    result[key] = (self[itr][3], key in [i for i, in r])
+            label_id, sub_id = self.split_id(row[1])
+            r = utils.connection.execute(query, (sub_id,)).fetchall()
+            for label in self.labels:
+                result[label[1]] = (label[3], label[1] in (i for i, in r))
             return result
 
     def set_item_label(self, itr, label_id, value):
@@ -152,11 +193,13 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
 
         uri = utils.api_method('subscription/edit')
         req_type = 'application/x-www-form-urlencoded'
-        _id = self[itr][1]
+
         label_id = 'user/-/{0}'.format(label_id)
-        key = 'a' if value else 'r'
-        data = utils.urlencode({'T': auth.token, 's': _id, 'ac': 'edit',
-                                key: label_id})
+        action = 'a' if value else 'r'
+        item_id = self.split_id(self[itr][1])[1]
+        data = utils.urlencode({'T': auth.token, 's': item_id, 'ac': 'edit',
+                                action: label_id})
+
         msg = utils.AuthMessage(auth, 'POST', uri)
         msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
         utils.session.queue_message(msg, self.on_sub_edit, None)
