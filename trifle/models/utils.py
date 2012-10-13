@@ -40,7 +40,6 @@ class SQLite(sqlite3.Connection):
 
         if self.last_commit_id is not None:
             GLib.source_remove(self.last_commit_id)
-        logger.debug('New database commit scheduled')
         self.last_commit_id = GLib.timeout_add(self.commit_interval, commit_cb)
         return True
 
