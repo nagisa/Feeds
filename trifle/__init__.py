@@ -31,7 +31,7 @@ logger.addHandler(logging_handler)
 # Setup localization
 localedir = gettext.bindtextdomain('trifle')
 __builtins__['_'] = gettext.gettext
-__builtins__['N_'] = gettext.ngettext
+__builtins__['ngettext'] = gettext.ngettext
 
 # Cache for application global variables
 __builtins__['_globals_cache'] = {}

@@ -41,17 +41,17 @@ def time_ago(timestamp):
         return _('Just now')
 
     minutes = (seconds / 60).__trunc__()
-    min_fmt = N_('{0} minute', '{0} minutes', minutes)
+    min_fmt = ngettext('{0} minute', '{0} minutes', minutes)
     if minutes < 60:
         return ago_fmt.format(min_fmt.format(minutes))
 
     hours = (minutes / 60).__trunc__()
-    hour_fmt = N_('{0} hour', '{0} hours', hours)
+    hour_fmt = ngettext('{0} hour', '{0} hours', hours)
     if hours < 24:
         return ago_fmt.format(hour_fmt.format(hours))
 
     days = (hours / 24).__trunc__()
-    day_fmt = N_('{0} day', '{0} days', days)
+    day_fmt = ngettext('{0} day', '{0} days', days)
     return ago_fmt.format(day_fmt.format(days))
 
 

@@ -1,16 +1,16 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# Lithuanian Trifle translation files
+# Copyright (C) 2012 Simonas Kazlauskas
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Simonas Kazlauskas <simonas+trans kazlauskas.me>, 2012.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-10-13 19:32+0300\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"POT-Creation-Date: 2012-10-13 21:33+0300\n"
+"PO-Revision-Date: 2012-10-13 21:36+0300\n"
+"Last-Translator: Simonas Kazlauskas <simonas+trans kazlauskas.me>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -111,15 +111,21 @@ msgstr "Ką tik"
 
 #: ../trifle/views/utils.py:44
 msgid "{0} minute"
-msgstr "{0} minutę"
+msgid_plural "{0} minutes"
+msgstr[0] "{0} minutę"
+msgstr[1] "{0} minutes"
 
 #: ../trifle/views/utils.py:49
 msgid "{0} hour"
-msgstr "{0} valandą"
+msgid_plural "{0} hours"
+msgstr[0] "{0} valandą"
+msgstr[1] "{0} valandas"
 
 #: ../trifle/views/utils.py:54
 msgid "{0} day"
-msgstr "{0} dieną"
+msgid_plural "{0} days"
+msgstr[0] "{0} dieną"
+msgstr[1] "{0} dienas"
 
 #: ../trifle/views/widgets.py:36
 msgid "Star"
