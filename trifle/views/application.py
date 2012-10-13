@@ -41,12 +41,15 @@ class Application(Gtk.Application):
                                              window.feedview.on_star)
         window.feedview_toolbar.unread.connect('toggled',
                                                window.feedview.on_keep_unread)
+        window.items_toolbar.mark_all.connect('clicked',
+                                               window.itemsview.on_all_read)
+        self.connect('shutdown', self.on_shutdown)
 
         if settings['start-refresh']:
             self.window.sidebar_toolbar.refresh.emit('clicked')
 
         self.last_refresh = GLib.get_monotonic_time()
-        # Check every 60 seconds.
+        # Check for need to refresh every 60 seconds.
         GLib.timeout_add_seconds(60, self.on_refresh_timeout)
 
     def on_login_dialog(self, *args):
@@ -132,4 +135,9 @@ class Application(Gtk.Application):
         if current - self.last_refresh > refresh_every * 6E7:
             self.on_refresh(None)
         return True
+
+    @staticmethod
+    def on_shutdown(self):
+        from models.utils import sqlite
+        sqlite.force_commit()
 

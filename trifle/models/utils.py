@@ -1,5 +1,5 @@
 from collections import namedtuple
-from gi.repository import Soup, Gtk, GdkPixbuf
+from gi.repository import Soup, Gtk, GdkPixbuf, GLib
 
 if not PY2:
     from html.parser import HTMLParser
@@ -18,25 +18,33 @@ from xml.sax.saxutils import escape
 from trifle.utils import get_data_path
 
 
-if 'cacher_session' not in _globals_cache:
-    _globals_cache['models_session'] = Soup.SessionAsync(max_conns=50,
-                                                         max_conns_per_host=8)
-session = _globals_cache['models_session']
-
-if 'sqlite_cnn' not in _globals_cache:
-    fpath = os.path.join(CACHE_DIR, 'metadata')
-    if not os.path.exists(fpath):
-        connection = sqlite3.Connection(fpath)
-        with open(get_data_path('db_init.sql'), 'r') as script:
-            connection.executescript(script.read())
-    else:
-        connection = sqlite3.Connection(fpath)
-    _globals_cache['sqlite_cnn'] = connection
-connection = _globals_cache['sqlite_cnn']
-
-
 AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
 SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
+
+
+class SQLite(sqlite3.Connection):
+    def __init__(self, *args, **kwargs):
+        self.last_commit_id = None
+        self.commit_interval = 2000
+        super(SQLite, self).__init__(*args, **kwargs)
+
+    def commit(self, *args, **kwargs):
+        """ Will wait about a second after last call to commit to actually
+        commit everything scheduled.
+        Use force_commit to have original behaviour.
+        """
+        def commit_cb(*args, **kwargs):
+            super(SQLite, self).commit(*args, **kwargs)
+            logger.debug('Database commit was completed')
+            return False
+
+        if self.last_commit_id is not None:
+            GLib.source_remove(self.last_commit_id)
+        logger.debug('New database commit scheduled')
+        self.last_commit_id = GLib.timeout_add(self.commit_interval, commit_cb)
+        return True
+
+    force_commit = sqlite3.Connection.commit
 
 
 class Message(Soup.Message):
@@ -146,3 +154,20 @@ def split_chunks(itr, chunk_size, fillvalue=None):
 
 unescape = HTMLParser().unescape
 urlencode = urlencode
+
+if 'soup_session' not in _globals_cache:
+    _globals_cache['soup_session'] = Soup.SessionAsync(max_conns=50,
+                                                         max_conns_per_host=8)
+session = _globals_cache['soup_session']
+
+if 'sqlite_connection' not in _globals_cache:
+    fpath = os.path.join(CACHE_DIR, 'metadata')
+    if not os.path.exists(fpath):
+        connection = SQLite(fpath)
+        with open(get_data_path('db_init.sql'), 'r') as script:
+            connection.executescript(script.read())
+            connection.commit()
+    else:
+        connection = SQLite(fpath)
+    _globals_cache['sqlite_connection'] = connection
+sqlite = _globals_cache['sqlite_connection']

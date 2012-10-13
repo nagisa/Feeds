@@ -57,29 +57,29 @@ class Ids(GObject.Object, utils.LoginRequired):
         # Initially mark everything as deletable and unflag all items.
         # Laten in process items that are still important will be unmarked
         # and reflagged again (in ensure_ids and mark_true)
-        utils.connection.execute('UPDATE items SET to_delete=1, unread=0,'
+        utils.sqlite.execute('UPDATE items SET to_delete=1, unread=0,'
                                                    'starred=0, to_sync=0')
 
     @staticmethod
     def ensure_ids(ids):
         ids = [(i,) for i in ids]
         query = 'INSERT OR IGNORE INTO items(id) VALUES(?)'
-        utils.connection.executemany(query, ids)
+        utils.sqlite.executemany(query, ids)
         query = 'UPDATE items SET to_delete=0 WHERE id=?'
-        utils.connection.executemany(query, ids)
+        utils.sqlite.executemany(query, ids)
 
     @staticmethod
     def mark_to_sync(items):
         query = '''SELECT id, update_time FROM items'''
-        cached = dict(utils.connection.execute(query).fetchall())
+        cached = dict(utils.sqlite.execute(query).fetchall())
         upd = filter(lambda x: cached.get(x[0], -1) < x[1], items)
         query = 'UPDATE items SET to_sync=1, update_time=? WHERE id=?'
-        utils.connection.executemany(query, ((t, i,) for i ,t in upd))
+        utils.sqlite.executemany(query, ((t, i,) for i ,t in upd))
 
     @staticmethod
     def mark_true(ids, field):
         query = 'UPDATE items SET {0}=1 WHERE id=?'.format(field)
-        utils.connection.executemany(query, ((i,) for i in ids))
+        utils.sqlite.executemany(query, ((i,) for i in ids))
 
     def on_response(self, session, msg, data):
         if not 200 <= msg.status_code < 300:
@@ -106,7 +106,7 @@ class Ids(GObject.Object, utils.LoginRequired):
     @property
     def needs_update(self):
         query = 'SELECT id FROM items WHERE to_sync=1'
-        return set(i for i, in utils.connection.execute(query).fetchall())
+        return set(i for i, in utils.sqlite.execute(query).fetchall())
 
     @staticmethod
     def on_done(self, key, data=None):
@@ -118,7 +118,7 @@ class Ids(GObject.Object, utils.LoginRequired):
         self.disconnect(self.partial_handler)
         delattr(self, 'partial_handler')
         self.done = set()
-        utils.connection.commit()
+        utils.sqlite.commit()
         self.emit('sync-done')
 
 
@@ -134,15 +134,15 @@ class Flags(GObject.Object, utils.LoginRequired):
     def set_flag(self, item_id, flag, remove=False):
         query = 'SELECT remove FROM flags WHERE item_id=? AND flag=?'
         args = (item_id, flag,)
-        result = utils.connection.execute(query, args).fetchone()
+        result = utils.sqlite.execute(query, args).fetchone()
 
         if result is None:
             # We don't have a flag like this one yet!
             query = 'INSERT INTO flags(item_id, flag, remove) VALUES (?, ?, ?)'
-            utils.connection.execute(query, args + (remove,))
+            utils.sqlite.execute(query, args + (remove,))
         elif result[0] != remove:
             query = 'UPDATE flags SET remove=? WHERE item_id=? AND flag=?'
-            utils.connection.execute(query, (remove,) + args)
+            utils.sqlite.execute(query, (remove,) + args)
 
     def sync(self):
         if not self.ensure_login(auth, self.sync) or \
@@ -157,7 +157,7 @@ class Flags(GObject.Object, utils.LoginRequired):
 
         for flag in self.flags.values():
             for args in [(flag, True,), (flag, False,)]:
-                result = utils.connection.execute(query, args).fetchall()
+                result = utils.sqlite.execute(query, args).fetchall()
                 if len(result) == 0:
                     continue
 
@@ -191,10 +191,10 @@ class Flags(GObject.Object, utils.LoginRequired):
         data = list(data)
         query = 'DELETE FROM flags WHERE ' + \
                 ' OR '.join('id=?' for i in data)
-        utils.connection.execute(query, data)
+        utils.sqlite.execute(query, data)
 
         if self.syncing == 0:
-            utils.connection.commit()
+            utils.sqlite.commit()
             logger.debug('Flags synchronized')
             self.emit('sync-done')
 
@@ -223,7 +223,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
                                 time=?, subscription=?, to_sync=0 WHERE id=?'''
         values = (data['title'], data['author'], data['summary'],
                   data['href'], data['time'], data['subscription'], key)
-        utils.connection.execute(q, values)
+        utils.sqlite.execute(q, values)
 
     @staticmethod
     def get_short_id(item_id):
@@ -339,13 +339,13 @@ class Items(Gtk.ListStore, utils.LoginRequired):
 
     def post_sync(self):
         self.collect_garbage()
-        utils.connection.commit()
+        utils.sqlite.commit()
         self.emit('sync-done')
 
     def collect_garbage(self):
         query = 'SELECT id FROM items WHERE to_delete=1'
-        res = utils.connection.execute(query).fetchall()
-        utils.connection.execute('DELETE FROM items WHERE to_delete=1')
+        res = utils.sqlite.execute(query).fetchall()
+        utils.sqlite.execute('DELETE FROM items WHERE to_delete=1')
         for i, in res:
             FeedItem.remove_content(i)
 
@@ -360,7 +360,7 @@ class FilteredItems(Items):
         query = 'SELECT id FROM items'
         if self.category in ['unread', 'starred']:
             query += ' WHERE items.{0}=1'.format(self.category)
-        ids = (_id[0] for _id in utils.connection.execute(query).fetchall())
+        ids = (_id[0] for _id in utils.sqlite.execute(query).fetchall())
         self.load_ids(ids)
 
 
@@ -375,7 +375,7 @@ class FilteredItems(Items):
         #Assumes that WHERE statement goes last
         if self.category in ['unread', 'starred']:
             q += ' AND items.{0}=1'.format(self.category)
-        ids = utils.connection.execute(q, (value,)).fetchall()
+        ids = utils.sqlite.execute(q, (value,)).fetchall()
         self.load_ids(i for i, in ids)
 
     def load_ids(self, ids):
@@ -391,7 +391,7 @@ class FilteredItems(Items):
     @property
     def unread_count(self):
         query = 'SELECT COUNT(id) FROM items WHERE unread=1'
-        return utils.connection.execute(query).fetchone()[0]
+        return utils.sqlite.execute(query).fetchone()[0]
 
 
 class FeedItem(GObject.Object):
@@ -413,7 +413,7 @@ class FeedItem(GObject.Object):
             FROM items LEFT JOIN subscriptions ON
                  items.subscription = subscriptions.id WHERE items.id=?
             '''
-            r = utils.connection.execute(q, (self.item_id,)).fetchone()
+            r = utils.sqlite.execute(q, (self.item_id,)).fetchone()
             if r is None:
                 msg = 'FeedItem with id {0} doesn\'t exist'.format(item_id)
                 logger.error(msg)
@@ -470,8 +470,8 @@ class FeedItem(GObject.Object):
     def set_read(self):
         self.flags.set_flag(self.item_id, self.flags['read'])
         query = 'UPDATE items SET unread=0 WHERE id=?'
-        utils.connection.execute(query, (self.item_id,))
-        utils.connection.commit()
+        utils.sqlite.execute(query, (self.item_id,))
+        utils.sqlite.commit()
         self['unread'] = False
         self.notify('unread')
 
@@ -479,8 +479,8 @@ class FeedItem(GObject.Object):
         self.flags.set_flag(self.item_id, self.flags['read'], remove=value)
         self.flags.set_flag(self.item_id, self.flags['kept-unread'])
         query = 'UPDATE items SET unread=? WHERE id=?'
-        utils.connection.execute(query, (value, self.item_id,))
-        utils.connection.commit()
+        utils.sqlite.execute(query, (value, self.item_id,))
+        utils.sqlite.commit()
         self['unread'] = value
         self.notify('unread')
 
@@ -488,8 +488,8 @@ class FeedItem(GObject.Object):
         self.flags.set_flag(self.item_id, self.flags['starred'],
                             remove=not value)
         query = 'UPDATE items SET starred=? WHERE id=?'
-        utils.connection.execute(query, (value, self.item_id,))
-        utils.connection.commit()
+        utils.sqlite.execute(query, (value, self.item_id,))
+        utils.sqlite.commit()
         self['starred'] = value
         self.notify('starred')
 

@@ -71,27 +71,27 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
 
         q = 'DELETE FROM subscriptions; DELETE FROM labels;' \
             'DELETE FROM labels_fk'
-        utils.connection.executescript(q)
+        utils.sqlite.executescript(q)
         for sub in res:
             # Insert item
             q = 'INSERT INTO subscriptions(id, url, title) VALUES(?, ?, ?)'
             value = (sub['id'], sub['htmlUrl'], sub['title'].strip())
-            utils.connection.execute(q, value)
+            utils.sqlite.execute(q, value)
 
             # Add labels
             values = ((lbl_id(l['id']), l['label']) for l in sub['categories'])
             q = 'INSERT OR REPLACE INTO labels(id, name) VALUES(?, ?)'
-            utils.connection.executemany(q, values)
+            utils.sqlite.executemany(q, values)
 
             # And reestabilish bindings via labels_fk
             values = ((sub['id'], lbl_id(l['id'])) for l in sub['categories'])
             q = 'INSERT INTO labels_fk(item_id, label_id) VALUES(?, ?)'
-            utils.connection.executemany(q, values)
+            utils.sqlite.executemany(q, values)
 
             if self.favicons.fetch_icon(sub['htmlUrl']):
                 self.favicons_syncing += 1
 
-        utils.connection.commit()
+        utils.sqlite.commit()
         self.update()
 
     def update(self):
@@ -102,7 +102,7 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
                FROM subscriptions
                LEFT JOIN labels_fk ON labels_fk.item_id = subscriptions.id
                LEFT JOIN labels ON labels.id=labels_fk.label_id'''
-        result = set(utils.connection.execute(q).fetchall())
+        result = set(utils.sqlite.execute(q).fetchall())
 
         # Add and update labels, will not show labels without subscriptions
         old_labels = dict((item[1], item) for item in self.labels)
@@ -176,7 +176,7 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
                        ON labels_fk.item_id = subscriptions.id
                        WHERE subscriptions.id=?'''
             label_id, sub_id = self.split_id(row[1])
-            r = utils.connection.execute(query, (sub_id,)).fetchall()
+            r = utils.sqlite.execute(query, (sub_id,)).fetchall()
             for label in self.labels:
                 result[label[1]] = (label[3], label[1] in (i for i, in r))
             return result
