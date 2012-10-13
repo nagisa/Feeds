@@ -346,8 +346,9 @@ class ItemsView(Gtk.TreeView):
         self.reloading = False
 
     def on_all_read(self, button):
-        for unread_id in self.store.category_ids('unread'):
-            self.store[unread_id].set_read()
+        for item in self.store:
+            if item[0].unread:
+                item[0].set_read()
 
 
 class ItemCellRenderer(Gtk.CellRenderer):
