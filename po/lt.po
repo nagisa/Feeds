@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-10-13 21:33+0300\n"
+"POT-Creation-Date: 2012-10-13 23:27+0300\n"
 "PO-Revision-Date: 2012-10-13 21:36+0300\n"
 "Last-Translator: Simonas Kazlauskas <simonas+trans kazlauskas.me>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,7 +87,9 @@ msgstr "Nepavadintas"
 
 #: ../trifle/views/application.py:88
 msgid "You have an unread item"
-msgstr "Turi neperskaitytą naujieną"
+msgid_plural "You have {0} unread items"
+msgstr[0] "Turi neperskaitytą naujieną"
+msgstr[1] "Turi {0} neperskaitytų naujienų"
 
 #: ../trifle/views/application.py:113
 msgid "Could not subscribe to a feed"

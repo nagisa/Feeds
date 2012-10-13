@@ -85,7 +85,7 @@ class Application(Gtk.Application):
             # If we can show notification
             if hasattr(model, 'unread_count') and model.unread_count > 0:
                 count = model.unread_count
-                summary = N_('You have an unread item',
+                summary = ngettext('You have an unread item',
                            'You have {0} unread items', count).format(count)
                 if notification.closed or \
                             notification.get_property('summary') != summary:
