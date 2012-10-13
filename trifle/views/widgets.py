@@ -322,7 +322,7 @@ class ItemsView(Gtk.TreeView):
 
     @staticmethod
     def on_realize(self):
-        self.store.set_category('reading-list')
+        self.store.load_ids(self.store.category_ids('reading-list'))
 
     def on_filter_change(self, treeview):
         if treeview.in_destruction():
@@ -331,7 +331,7 @@ class ItemsView(Gtk.TreeView):
         self.reloading = True
         if selection is not None:
             row = model[selection]
-            self.store.set_filter(row[0], row[1])
+            self.store.load_ids(self.store.filter_ids(row[0], row[1]))
         else:
             logger.warning('Cannot set filter, there\'s no selection')
         self.reloading = False
@@ -342,8 +342,12 @@ class ItemsView(Gtk.TreeView):
         model, selection = treeview.get_selection().get_selected()
         self.reloading = True
         if selection is not None:
-            self.store.set_category(model[selection][2])
+            self.store.load_ids(self.store.category_ids(model[selection][2]))
         self.reloading = False
+
+    def on_all_read(self, button):
+        for unread_id in self.store.category_ids('unread'):
+            self.store[unread_id].set_read()
 
 
 class ItemCellRenderer(Gtk.CellRenderer):

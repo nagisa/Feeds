@@ -355,16 +355,14 @@ class FilteredItems(Items):
         super(FilteredItems, self).__init__(*args, **kwargs)
         self.category = None
 
-    def set_category(self, category):
+    def category_ids(self, category):
         self.category = category
         query = 'SELECT id FROM items'
         if self.category in ['unread', 'starred']:
             query += ' WHERE items.{0}=1'.format(self.category)
-        ids = (_id[0] for _id in utils.sqlite.execute(query).fetchall())
-        self.load_ids(ids)
+        return (_id[0] for _id in utils.sqlite.execute(query).fetchall())
 
-
-    def set_filter(self, kind, value):
+    def filter_ids(self, kind, value):
         if kind == utils.SubscriptionType.LABEL:
             q = '''SELECT items.id FROM labels
                    LEFT JOIN labels_fk ON labels_fk.label_id=labels.id
@@ -376,7 +374,7 @@ class FilteredItems(Items):
         if self.category in ['unread', 'starred']:
             q += ' AND items.{0}=1'.format(self.category)
         ids = utils.sqlite.execute(q, (value,)).fetchall()
-        self.load_ids(i for i, in ids)
+        return (i for i, in ids)
 
     def load_ids(self, ids):
         self.clear()
