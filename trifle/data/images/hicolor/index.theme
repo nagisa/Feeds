@@ -1,0 +1,9 @@
+[Icon Theme]
+Name=trifle
+Comment=trifletheme
+Hidden=true
+Directories=scalable/apps
+
+[scalable/apps]
+Size=96
+Type=Scalable
