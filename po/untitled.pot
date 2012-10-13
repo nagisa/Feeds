@@ -1,0 +1,170 @@
+# Trifle translation files
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2012-10-13 19:29+0300\n"
+"PO-Revision-Date: 2012-10-13 19:30+0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../trifle.desktop.in.h:1
+msgid "Trifle"
+msgstr ""
+
+#: ../trifle.desktop.in.h:2
+msgid "Feeds Reader"
+msgstr ""
+
+#: ../trifle.desktop.in.h:3 ../trifle/data/ui/about-dialog.ui.h:2
+msgid "Google Reader for GNOME"
+msgstr ""
+
+#: ../trifle/data/ui/about-dialog.ui.h:1
+msgid "Copyright © 2012 Simonas Kazlauskas"
+msgstr ""
+
+#: ../trifle/data/ui/login-dialog.ui.h:1
+msgid "Login with your Google account"
+msgstr ""
+
+#: ../trifle/data/ui/login-dialog.ui.h:2
+msgid "Username"
+msgstr ""
+
+#: ../trifle/data/ui/login-dialog.ui.h:3
+msgid "Password"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:1
+msgid "Show notifications"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:2
+msgid "Refresh on startup"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:3
+msgid "Refresh every"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:4
+msgid "Cache up to"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:5
+msgid "items"
+msgstr ""
+
+#: ../trifle/data/ui/subscribe-dialog.ui.h:1
+msgid "Subscribe to URL"
+msgstr ""
+
+#: ../trifle/arguments.py:6
+msgid "Show debug messages"
+msgstr ""
+
+#: ../trifle/arguments.py:8
+msgid "Display WebKit developers tool upon start"
+msgstr ""
+
+#: ../trifle/models/feeds.py:255
+msgid "Stranger"
+msgstr ""
+
+#: ../trifle/models/feeds.py:259
+msgid "Untitled"
+msgstr ""
+
+#: ../trifle/views/application.py:88
+msgid "You have an unread item"
+msgstr ""
+
+#: ../trifle/views/application.py:113
+msgid "Could not subscribe to a feed"
+msgstr ""
+
+#: ../trifle/views/notifications.py:8 ../trifle/views/windows.py:15
+msgid "Feeds"
+msgstr ""
+
+#: ../trifle/views/utils.py:35
+msgid "{0} ago"
+msgstr ""
+
+#: ../trifle/views/utils.py:39
+msgid "From the future"
+msgstr ""
+
+#: ../trifle/views/utils.py:41
+msgid "Just now"
+msgstr ""
+
+#: ../trifle/views/utils.py:44
+msgid "{0} minute"
+msgstr ""
+
+#: ../trifle/views/utils.py:49
+msgid "{0} hour"
+msgstr ""
+
+#: ../trifle/views/utils.py:54
+msgid "{0} day"
+msgstr ""
+
+#: ../trifle/views/widgets.py:36
+msgid "Star"
+msgstr ""
+
+#: ../trifle/views/widgets.py:40
+msgid "Keep unread"
+msgstr ""
+
+#: ../trifle/views/widgets.py:64
+msgid "Search {0} items"
+msgstr ""
+
+#: ../trifle/views/widgets.py:220
+msgid "All items"
+msgstr ""
+
+#: ../trifle/views/widgets.py:221
+msgid "Unread"
+msgstr ""
+
+#: ../trifle/views/widgets.py:222
+msgid "Starred"
+msgstr ""
+
+#: ../trifle/views/windows.py:72
+msgid "Never"
+msgstr ""
+
+#: ../trifle/views/windows.py:72
+msgid "5 minutes"
+msgstr ""
+
+#: ../trifle/views/windows.py:73
+msgid "10 minutes"
+msgstr ""
+
+#: ../trifle/views/windows.py:73
+msgid "30 minutes"
+msgstr ""
+
+#: ../trifle/views/windows.py:74
+msgid "1 hour"
+msgstr ""
+
+#: ../trifle/views/windows.py:133
+msgid "All fields are required"
+msgstr ""
