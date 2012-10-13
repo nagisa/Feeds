@@ -2,10 +2,11 @@
 from gi.repository import Gtk, WebKit, Pango, PangoCairo, Gdk, GObject, Gio
 import datetime
 
-import models
+from arguments import arguments
+from models.utils import escape
 from utils import get_data_path
 from views import utils
-from models.utils import escape
+import models
 
 
 def add_toolbar_items(toolbar, tb_type):
@@ -90,7 +91,7 @@ class FeedView(WebKit.WebView):
         # Need this one of usability reasons.
         'enable_default_context_menu': False,
         # Enable in case developer tools are needed
-        'enable_developer_extras': True,
+        'enable_developer_extras': arguments.devtools
     }
 
     def __init__(self, *args, toolbar=None, **kwargs):
@@ -108,11 +109,10 @@ class FeedView(WebKit.WebView):
         self.settings = WebKit.WebSettings()
         self.settings.set_properties(**self.settings_props)
         self.set_settings(self.settings)
-        # Launch Inspector at start of application, don't forget to set
-        # self.settings_props['enable_developer_extras'] to True.
-        insp = self.get_inspector()
-        insp.connect('inspect-web-view', self.on_inspector)
-        insp.inspect_coordinates(0, 0)
+        if arguments.devtools:
+            insp = self.get_inspector()
+            insp.connect('inspect-web-view', self.on_inspector)
+            insp.inspect_coordinates(0, 0)
 
         # Load base template
         template_path = get_data_path('ui', 'feedview', 'template.html')

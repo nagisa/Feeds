@@ -1,15 +1,11 @@
 #!/usr/bin/env python
-from argparse import ArgumentParser
 import logging
-import trifle
 
+import trifle
 from views import application
+from arguments import arguments
 
 # Flags?
-parser = ArgumentParser(prog='trifle')
-parser.add_argument('--debug', action='store_true',
-                    help=_('Show debug messages'))
-arguments = parser.parse_args()
 if arguments.debug:
     logger.setLevel(logging.DEBUG)
     logger.debug('Logging debug messages')
