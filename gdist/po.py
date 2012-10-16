@@ -13,6 +13,7 @@ gettext message catalogs.
 
 import os
 import glob
+import re
 from subprocess import Popen, PIPE
 
 from distutils.dep_util import newer
@@ -117,6 +118,7 @@ class build_mo(Command):
             self.po_directory, self.po_package + ".pot")
 
         for filename in infiles:
+            filename = re.sub('^\s*\[type:.*\]', '', filename, 1)
             if newer(filename, pot_name):
                 oldpath = os.getcwd()
                 os.chdir(self.po_directory)
