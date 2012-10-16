@@ -12,8 +12,8 @@ import os
 import re
 import itertools
 
-from models.auth import auth
 from models import utils
+from models.auth import auth
 from models.settings import settings
 from models.utils import urlencode
 from views.utils import connect_once

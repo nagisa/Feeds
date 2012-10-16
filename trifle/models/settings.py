@@ -27,6 +27,4 @@ class LightReadSettings(Gio.Settings):
         self.set_value(key, value)
 
 
-if 'settings' not in _globals_cache:
-    _globals_cache['settings'] = LightReadSettings('apps.trifle')
-settings = _globals_cache['settings']
+settings = LightReadSettings('apps.trifle')

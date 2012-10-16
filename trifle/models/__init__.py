@@ -1,1 +1,1 @@
-from models import feeds, auth, subscriptions, utils, settings
+from models import auth, feeds, subscriptions, utils, settings

@@ -31,6 +31,5 @@ class Notification(Notify.Notification):
     def on_close(self, *args):
         self.closed = True
 
-if 'notification' not in _globals_cache:
-    _globals_cache['notification'] = Notification()
-notification = _globals_cache['notification']
+
+notification = Notification()

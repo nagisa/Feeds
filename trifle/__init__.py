@@ -33,9 +33,6 @@ localedir = gettext.bindtextdomain('trifle')
 __builtins__['_'] = gettext.gettext
 __builtins__['ngettext'] = gettext.ngettext
 
-# Cache for application global variables
-__builtins__['_globals_cache'] = {}
-
 # Directories
 # Spec: http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 _CACHE_DIR = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))

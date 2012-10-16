@@ -6,9 +6,7 @@ from gi.repository import Soup, GObject, GLib
 import json
 
 from models import utils
-
-
-AuthStatus = utils.AuthStatus
+from models.utils import AuthStatus
 
 
 class Auth(GObject.Object):
@@ -180,6 +178,5 @@ class SecretStore(GObject.Object):
         return status == GK.Result.OK
 
 
-if 'auth' not in _globals_cache:
-    _globals_cache['auth'] = Auth()
-auth = _globals_cache['auth']
+# Model level instances
+auth = Auth()

@@ -153,20 +153,12 @@ def split_chunks(itr, chunk_size, fillvalue=None):
 
 unescape = HTMLParser().unescape
 urlencode = urlencode
+session = Soup.SessionAsync(max_conns=50, max_conns_per_host=8)
 
-if 'soup_session' not in _globals_cache:
-    _globals_cache['soup_session'] = Soup.SessionAsync(max_conns=50,
-                                                         max_conns_per_host=8)
-session = _globals_cache['soup_session']
-
-if 'sqlite_connection' not in _globals_cache:
-    fpath = os.path.join(CACHE_DIR, 'metadata')
-    if not os.path.exists(fpath):
-        connection = SQLite(fpath)
-        with open(get_data_path('db_init.sql'), 'r') as script:
-            connection.executescript(script.read())
-            connection.commit()
-    else:
-        connection = SQLite(fpath)
-    _globals_cache['sqlite_connection'] = connection
-sqlite = _globals_cache['sqlite_connection']
+_sqlite_path = os.path.join(CACHE_DIR, 'metadata')
+_init_sqlite = not os.path.exists(_sqlite_path)
+sqlite = SQLite(_sqlite_path)
+if _init_sqlite:
+    with open(get_data_path('db_init.sql'), 'r') as script:
+        sqlite.executescript(script.read())
+        sqlite.commit()
