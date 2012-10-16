@@ -50,7 +50,7 @@ class Message(Soup.Message):
     def __new__(cls, *args, **kwargs):
         obj = Soup.Message.new(*args, **kwargs)
         hdr = obj.get_property('request-headers')
-        hdr.append('User-Agent', 'LightRead/dev')
+        hdr.append('User-Agent', 'Trifle/1.0')
         return obj
 
 

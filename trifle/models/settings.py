@@ -1,12 +1,12 @@
 from gi.repository import Gio, GLib
 
 
-class LightReadSettings(Gio.Settings):
+class Settings(Gio.Settings):
     types = {'notifications': 'boolean', 'start-refresh': 'boolean',
              'refresh-every': 'uint16', 'cache-items': 'int16'}
 
     def __init__(self, *args, **kwargs):
-        super(LightReadSettings, self).__init__(*args, **kwargs)
+        super(Settings, self).__init__(*args, **kwargs)
 
     def __getitem__(self, key):
         logger.debug(key)
@@ -27,4 +27,4 @@ class LightReadSettings(Gio.Settings):
         self.set_value(key, value)
 
 
-settings = LightReadSettings('apps.trifle')
+settings = Settings('apps.trifle')

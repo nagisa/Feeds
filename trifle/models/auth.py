@@ -173,7 +173,7 @@ class SecretStore(GObject.Object):
         GK.Attribute.list_append_string(attributes, 'user', user)
         status, _ = GK.item_create_sync(self._keyring_name,
                                         GK.ItemType.NETWORK_PASSWORD,
-                                        'LightRead Password',
+                                        'Trifle Password',
                                         attributes, password, True)
         return status == GK.Result.OK
 
