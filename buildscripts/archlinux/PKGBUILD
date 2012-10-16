@@ -7,7 +7,8 @@ license=('GPL2')
 arch=('any')
 depends=('python' 'libgnome-keyring' 'gtk3' 'libwebkit3' 'libnotify')
 #optdepends=('')
-short_hash='a0ac004'
+hash='80ececa410c3fe895ee3100a7fa2c7451458a9d8'
+short_hash=$(echo $hash | head -c7)
 source=("$url/zipball/$short_hash")
 #md5sums=('')
 
