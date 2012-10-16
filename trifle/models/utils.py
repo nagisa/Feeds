@@ -25,12 +25,12 @@ SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
 class SQLite(sqlite3.Connection):
     def __init__(self, *args, **kwargs):
         self.last_commit_id = None
-        self.commit_interval = 2000
+        self.commit_interval = 2000 #ms
         super(SQLite, self).__init__(*args, **kwargs)
 
     def commit(self, *args, **kwargs):
-        """ Will wait about a second after last call to commit to actually
-        commit everything scheduled.
+        """ Will wait self.commit_interval after last call to commit to
+        actually commit everything scheduled.
         Use force_commit to have original behaviour.
         """
         def commit_cb(*args, **kwargs):
