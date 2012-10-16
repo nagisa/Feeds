@@ -15,7 +15,7 @@ import os
 import sqlite3
 from xml.sax.saxutils import escape
 
-from trifle.utils import get_data_path
+from trifle.utils import get_data_path, VERSION
 
 
 AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
@@ -50,7 +50,7 @@ class Message(Soup.Message):
     def __new__(cls, *args, **kwargs):
         obj = Soup.Message.new(*args, **kwargs)
         hdr = obj.get_property('request-headers')
-        hdr.append('User-Agent', 'Trifle/1.0')
+        hdr.append('User-Agent', 'Trifle/{0}'.format(VERSION))
         return obj
 
 

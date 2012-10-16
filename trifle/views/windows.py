@@ -1,6 +1,7 @@
 from gi.repository import Gtk, GObject
 
 
+from trifle.utils import VERSION
 from models.auth import auth
 from models.settings import settings
 from views import widgets, utils
@@ -99,7 +100,7 @@ class AboutDialog(utils.BuiltMixin, Gtk.AboutDialog):
     top_object = 'about-dialog'
 
     def __init__(self, *args, **kwargs):
-        self.set_properties(**kwargs)
+        self.set_properties(version=VERSION, **kwargs)
 
 
 class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
