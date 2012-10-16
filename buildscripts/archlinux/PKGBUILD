@@ -1,0 +1,19 @@
+pkgname='trifle'
+pkgver='1.0'
+pkgrel=1
+pkgdesc='Google Reader for GNOME'
+url='https://github.com/simukis/Feeds'
+license=('GPL2')
+arch=('any')
+depends=('python')
+#optdepends=('')
+short_hash='a0ac004'
+source=("$url/zipball/$short_hash")
+#md5sums=('')
+
+package() {
+    cd $srcdir/simukis-Feeds-$short_hash/
+    python setup.py install --prefix=$pkgdir/usr/
+    rm $pkgdir/usr/share/glib-2.0/schemas/gschemas.compiled
+}
+
