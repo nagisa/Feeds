@@ -37,8 +37,6 @@ __builtins__['ngettext'] = gettext.ngettext
 # Spec: http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 _CACHE_DIR = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
 __builtins__['CACHE_DIR'] = os.path.join(_CACHE_DIR, 'trifle')
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
 
 
 # I want my strings unicode!
