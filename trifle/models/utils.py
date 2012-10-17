@@ -154,6 +154,8 @@ def split_chunks(itr, chunk_size, fillvalue=None):
 unescape = HTMLParser().unescape
 urlencode = urlencode
 session = Soup.SessionAsync(max_conns=50, max_conns_per_host=8)
+content_dir = os.path.join(CACHE_DIR, 'content')
+favicon_dir = os.path.join(CACHE_DIR, 'favicons')
 
 _sqlite_path = os.path.join(CACHE_DIR, 'metadata')
 _init_sqlite = not os.path.exists(_sqlite_path)

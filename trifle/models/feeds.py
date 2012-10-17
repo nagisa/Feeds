@@ -19,9 +19,6 @@ from models.utils import urlencode
 from views.utils import connect_once
 
 
-content_dir = os.path.join(CACHE_DIR, 'content')
-if not os.path.exists(content_dir):
-    os.makedirs(content_dir)
 
 
 class Ids(GObject.Object, utils.LoginRequired):
@@ -207,6 +204,9 @@ class Items(Gtk.ListStore, utils.LoginRequired):
     space_re = re.compile('[\t\n\r]+')
 
     def __init__(self, *args, **kwargs):
+        if not os.path.exists(utils.content_dir):
+            os.makedirs(utils.content_dir)
+
         self.ids = Ids()
         self.flags = Flags()
         self.syncing = 0
@@ -439,7 +439,7 @@ class FeedItem(GObject.Object):
 
     @staticmethod
     def save_content(item_id, content):
-        fpath = os.path.join(content_dir, str(item_id))
+        fpath = os.path.join(utils.content_dir, str(item_id))
         if not PY2:
             with open(fpath, 'w') as f:
                 f.write(content)
@@ -449,7 +449,7 @@ class FeedItem(GObject.Object):
 
     @staticmethod
     def remove_content(item_id):
-        fpath = os.path.join(content_dir, str(item_id))
+        fpath = os.path.join(utils.content_dir, str(item_id))
         try:
             os.remove(fpath)
         except OSError:
@@ -457,7 +457,7 @@ class FeedItem(GObject.Object):
 
     @staticmethod
     def read_content(item_id):
-        fpath = os.path.join(content_dir, str(item_id))
+        fpath = os.path.join(utils.content_dir, str(item_id))
         if not PY2:
             with open(fpath, 'r') as f:
                 return f.read()

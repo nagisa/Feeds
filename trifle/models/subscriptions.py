@@ -5,8 +5,7 @@ import random
 
 from models.auth import auth
 from models import utils
-
-SubscriptionType = utils.SubscriptionType
+from models.utils import SubscriptionType
 
 
 class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
@@ -218,9 +217,8 @@ class Favicons(GObject.Object):
 
     def __init__(self, *args, **kwargs):
         super(Favicons, self).__init__(*args, **kwargs)
-        favdir = os.path.join(CACHE_DIR, 'favicons')
-        if not os.path.exists(favdir):
-            os.makedirs(favdir)
+        if not os.path.exists(utils.favicon_dir):
+            os.makedirs(utils.favicon_dir)
 
     def cached_icon(self, origin_url):
         fpath = utils.icon_name(origin_url)
