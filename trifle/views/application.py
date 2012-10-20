@@ -23,10 +23,6 @@ class Application(Gtk.Application):
         self.window.set_application(self)
         self.window.show_all()
 
-        # Create a cache dir if it doesn't exist yet
-        if not os.path.exists(CACHE_DIR):
-            os.makedirs(CACHE_DIR)
-
         # Connect and emit all important signals
         auth.secrets.connect('ask-password', self.on_login_dialog)
 
