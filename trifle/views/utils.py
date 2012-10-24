@@ -26,7 +26,7 @@ class BuiltMixin(object):
 
 
 def hexcolor(color):
-    return u('#{0:02X}{1:02X}{2:02X}').format((color.red * 0xFF).__trunc__(),
+    return '#{0:02X}{1:02X}{2:02X}'.format((color.red * 0xFF).__trunc__(),
                                            (color.green * 0xFF).__trunc__(),
                                            (color.blue * 0xFF).__trunc__())
 

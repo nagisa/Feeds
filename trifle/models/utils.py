@@ -1,19 +1,12 @@
 from collections import namedtuple
 from gi.repository import Soup, Gtk, GdkPixbuf, GLib
-
-if not PY2:
-    from html.parser import HTMLParser
-    from urllib.parse import urljoin, urlencode
-else:
-    from HTMLParser import HTMLParser
-    from urlparse import urljoin
-    from urllib import urlencode
-
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlencode
+from xml.sax.saxutils import escape
 import hashlib
 import itertools
 import os
 import sqlite3
-from xml.sax.saxutils import escape
 
 from trifle.utils import get_data_path, VERSION
 
@@ -114,10 +107,7 @@ def api_method(path, getargs=None):
 
 
 def icon_name(origin_url):
-    if not PY2:
-        value = bytes(origin_url, 'utf-8')
-    else:
-        value = origin_url.decode('utf-8')
+    value = bytes(origin_url, 'utf-8')
     fname = hashlib.md5(value).hexdigest()
     return os.path.join(CACHE_DIR, 'favicons', fname)
 
@@ -146,10 +136,7 @@ def icon_pixbuf(url):
 
 def split_chunks(itr, chunk_size, fillvalue=None):
     items = [iter(itr)] * chunk_size
-    if not PY2:
-        return itertools.zip_longest(*items, fillvalue=fillvalue)
-    else:
-        return itertools.izip_longest(*items, fillvalue=fillvalue)
+    return itertools.zip_longest(*items, fillvalue=fillvalue)
 
 unescape = HTMLParser().unescape
 urlencode = urlencode

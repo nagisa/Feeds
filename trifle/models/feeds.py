@@ -4,13 +4,11 @@ Downloads items from google reader, caches it, gets respective favicons
 et cetera
 """
 from gi.repository import Soup, GObject, Gtk
-if PY2:
-    import codecs
 import ctypes
+import itertools
 import json
 import os
 import re
-import itertools
 
 from models import utils
 from models.auth import auth
@@ -272,7 +270,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         if len(content) != 0:
             result['summary'] = utils.unescape(strip_html_nl(content)[:1000])
             if len(result['summary']) > 140:
-                result['summary'] = result['summary'][:139] + u('…')
+                result['summary'] = result['summary'][:139] + '…'
         else:
             result['summary'] = ''
 
@@ -440,12 +438,8 @@ class FeedItem(GObject.Object):
     @staticmethod
     def save_content(item_id, content):
         fpath = os.path.join(utils.content_dir, str(item_id))
-        if not PY2:
-            with open(fpath, 'w') as f:
-                f.write(content)
-        else:
-            with codecs.open(fpath, 'w', 'utf-8') as f:
-                f.write(content)
+        with open(fpath, 'w') as f:
+            f.write(content)
 
     @staticmethod
     def remove_content(item_id):
@@ -458,12 +452,8 @@ class FeedItem(GObject.Object):
     @staticmethod
     def read_content(item_id):
         fpath = os.path.join(utils.content_dir, str(item_id))
-        if not PY2:
-            with open(fpath, 'r') as f:
-                return f.read()
-        else:
-            with codecs.open(fpath, 'r', 'utf-8') as f:
-                f.read()
+        with open(fpath, 'r') as f:
+            return f.read()
 
     def set_read(self):
         self.flags.set_flag(self.item_id, self.flags['read'])

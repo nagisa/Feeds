@@ -353,12 +353,12 @@ class ItemsView(Gtk.TreeView):
 
 class ItemCellRenderer(Gtk.CellRenderer):
     item = GObject.property(type=models.feeds.FeedItem)
-    markup = {'date': u('<span color="{color}" size="9216">{text}</span>'),
-              'site': u('<span color="{color}" size="9216">{text}</span>'),
-              'title': u('<span color="{color}" size="10240" '
-                       'weight="{weight}">{text}</span>'),
-              'summary': u('<span color="{color}" size="9216">{text}</span>'),
-              'dummy': u('<span size="{size}">{text}</span>')}
+    markup = {'date': '<span color="{color}" size="9216">{text}</span>',
+              'site': '<span color="{color}" size="9216">{text}</span>',
+              'title': '<span color="{color}" size="10240" '
+                       'weight="{weight}">{text}</span>',
+              'summary': '<span color="{color}" size="9216">{text}</span>',
+              'dummy': '<span size="{size}">{text}</span>'}
     height = None
     padding = 2
     line_spacing = 2
