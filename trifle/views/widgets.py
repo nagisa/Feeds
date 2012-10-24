@@ -105,6 +105,7 @@ class FeedView(WebKit.WebView):
         super(FeedView, self).__init__(*args, **kwargs)
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
+        self.connect('hovering-over-link', self.on_hovering_over_link)
 
         self.settings = WebKit.WebSettings()
         self.settings.set_properties(**self.settings_props)
@@ -154,6 +155,16 @@ class FeedView(WebKit.WebView):
         insp_win.show_all()
         insp_win.present()
         return insp_view
+
+    @staticmethod
+    def on_hovering_over_link(self, title, uri, data=None):
+        dom = self.get_dom_document()
+        statusbar = dom.get_element_by_id('trifle_statusbar')
+        if uri is None:
+            statusbar.get_class_list().remove('visible')
+        else:
+            statusbar.get_class_list().add('visible')
+            statusbar.set_inner_text(uri)
 
     @staticmethod
     def on_navigate(self, frame, request, action, policy):

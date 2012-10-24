@@ -45,7 +45,7 @@ body {
                  "IPAGothic",
                  "VL Gothic",
                  sans-serif;
-    margin: 1em auto;
+    margin: 1em auto 1.5em;
     color: #333333;
     background: #F6F6F6;
     line-height: 1.5em;
@@ -221,4 +221,30 @@ header hr {
     border: 1px solid #c0c0c0;
     margin: 0 2px;
     padding: 0.35em 0.625em 0.75em;
+}
+
+#trifle_statusbar {
+    background-image: -webkit-linear-gradient(bottom,
+                                              rgba(255, 255, 255, .8) 0%,
+                                              rgba(238, 238, 238, .8) 100%);
+    font-size: .75em;
+    line-height: 1em;
+    border-radius: 0 5px 0 0;
+    border: #c0c0c0 solid;
+    border-width: 1px 1px 0 0;
+    position:fixed;
+    bottom: 0px;
+    left: 0px;
+    padding: .25em .5em;
+    opacity: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 80%;
+    overflow: hidden;
+    -webkit-transition: all 50ms 0.2s;
+}
+
+#trifle_statusbar.visible {
+    -webkit-transition: all 0 0;
+    opacity: 1;
 }
