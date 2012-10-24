@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 3.0 -->
-  <object class="GtkWindow" id="main-window">
+  <object class="GtkApplicationWindow" id="main-window">
     <property name="can_focus">False</property>
     <property name="default_width">1366</property>
     <property name="default_height">768</property>

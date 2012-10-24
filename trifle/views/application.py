@@ -6,7 +6,7 @@ from models.settings import settings
 from views.windows import ApplicationWindow, LoginDialog, PreferencesDialog, \
                           AboutDialog, SubscribeDialog
 from views.notifications import notification
-from views.utils import connect_once
+from views.utils import connect_once, get_data_path
 
 
 class Application(Gtk.Application):
@@ -18,8 +18,22 @@ class Application(Gtk.Application):
                                           **kwargs)
         self.connect('activate', self.on_activate)
 
+    def init_app_menu(self):
+        actions = [('about', self.on_show_about),
+                   ('preferences', self.on_show_prefs),
+                   ('quit', lambda *x: self.quit())]
+        for action, cb in actions:
+            action = Gio.SimpleAction.new(action, None)
+            action.connect('activate', cb)
+            self.add_action(action)
+        builder = Gtk.Builder(translation_domain='trifle')
+        builder.add_from_file(get_data_path('ui', 'app-menu.ui'))
+        self.set_app_menu(builder.get_object('app-menu'))
+
     def on_activate(self, data=None):
-        window = self.window = ApplicationWindow()
+        self.init_app_menu()
+
+        window = self.window = ApplicationWindow(show_menubar=True)
         self.window.set_application(self)
         self.window.show_all()
 
@@ -64,11 +78,11 @@ class Application(Gtk.Application):
             self.login.show_all()
             self.login.connect('destroy', destroy_login_dialog)
 
-    def on_show_prefs(self, button):
+    def on_show_prefs(self, *args):
         dialog = PreferencesDialog(transient_for=self.window, modal=True)
         dialog.show_all()
 
-    def on_show_about(self):
+    def on_show_about(self, *args):
         dialog = AboutDialog(transient_for=self.window, modal=True)
         dialog.run()
         dialog.destroy()
@@ -141,4 +155,3 @@ class Application(Gtk.Application):
     def on_shutdown(self):
         from models.utils import sqlite
         sqlite.force_commit()
-
