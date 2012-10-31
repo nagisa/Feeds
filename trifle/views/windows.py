@@ -12,7 +12,6 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
     top_object = 'main-window'
 
     def __init__(self, *args, **kwargs):
-        self.set_properties(title=_('Feeds'))
         self.set_wmclass('Trifle', 'Trifle')
         self.maximize()
         self.connect('realize', self.on_show)
