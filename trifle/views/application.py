@@ -31,7 +31,7 @@ class Application(Gtk.Application):
         self.set_app_menu(builder.get_object('app-menu'))
 
     def on_activate(self, data=None):
-        # self.init_app_menu()
+        self.init_app_menu()
         window = self.window = ApplicationWindow(show_menubar=True)
         window.set_application(self)
         window.show_all()
