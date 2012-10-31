@@ -39,6 +39,9 @@
                 <property name="toolbar_style">text</property>
                 <property name="show_arrow">False</property>
                 <property name="icon_size">2</property>
+                <style>
+                  <class name="menubar"/>
+                </style>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -78,7 +81,6 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="padding">1</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
@@ -104,7 +106,6 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="padding">1</property>
                     <property name="position">3</property>
                   </packing>
                 </child>
