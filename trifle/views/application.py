@@ -31,37 +31,36 @@ class Application(Gtk.Application):
         self.set_app_menu(builder.get_object('app-menu'))
 
     def on_activate(self, data=None):
-        self.init_app_menu()
-
+        # self.init_app_menu()
         window = self.window = ApplicationWindow(show_menubar=True)
-        self.window.set_application(self)
-        self.window.show_all()
+        window.set_application(self)
+        window.show_all()
 
         # Connect and emit all important signals
         auth.secrets.connect('ask-password', self.on_login_dialog)
 
-        window.categories.connect('cursor-changed',
-                                  window.itemsview.on_cat_change)
-        window.categories.connect('cursor-changed',
-                                  window.subsview.on_cat_change)
-        window.sidebar_toolbar.refresh.connect('clicked', self.on_refresh)
-        window.sidebar_toolbar.subscribe.connect('clicked', self.on_subscribe)
-        window.subsview.connect('cursor-changed',
-                                window.itemsview.on_filter_change)
-        window.itemsview.connect('cursor-changed',
-                                 window.feedview.on_change)
-        window.feedview_toolbar.preferences.connect('clicked',
-                                                    self.on_show_prefs)
-        window.feedview_toolbar.star.connect('toggled',
-                                             window.feedview.on_star)
-        window.feedview_toolbar.unread.connect('toggled',
-                                               window.feedview.on_keep_unread)
-        window.items_toolbar.mark_all.connect('clicked',
-                                               window.itemsview.on_all_read)
+        window.side_toolbar.combobox.child.connect('changed',
+                                             window.items.on_cat_change)
+        window.side_toolbar.combobox.child.connect('changed',
+                                         window.subscriptions.on_cat_change)
+        window.side_toolbar.refresh.connect('clicked', self.on_refresh)
+        window.side_toolbar.subscribe.connect('clicked', self.on_subscribe)
+        window.subscriptions.connect('cursor-changed',
+                                     window.items.on_filter_change)
+        window.items.connect('cursor-changed',
+                             window.item_view.on_change)
+        window.main_toolbar.star.connect('toggled',
+                                         window.item_view.on_star)
+        window.main_toolbar.unread.connect('toggled',
+                                           window.item_view.on_keep_unread)
+        window.side_toolbar.mark_all.connect('clicked',
+                                             window.items.on_all_read)
         self.connect('shutdown', self.on_shutdown)
 
+        # Initial application state, default values, saved values, actions etc.
+        window.side_toolbar.combobox.child.set_active_id('reading-list')
         if settings['start-refresh']:
-            self.window.sidebar_toolbar.refresh.emit('clicked')
+            self.window.side_toolbar.refresh.emit('clicked')
 
         self.last_refresh = GLib.get_monotonic_time()
         # Check for need to refresh every 60 seconds.
@@ -88,14 +87,14 @@ class Application(Gtk.Application):
         dialog.destroy()
 
     def on_refresh(self, button):
-        self.window.display_spinner(True)
-        self.window.sidebar_toolbar.refresh.set_sensitive(False)
+        self.window.side_toolbar.spinner.show()
+        self.window.side_toolbar.refresh.set_sensitive(False)
 
         def on_sync_done(model, data=None):
             on_sync_done.to_finish -= 1
             if on_sync_done.to_finish == 0:
-                self.window.display_spinner(False)
-                self.window.sidebar_toolbar.refresh.set_sensitive(True)
+                self.window.side_toolbar.spinner.hide()
+                self.window.side_toolbar.refresh.set_sensitive(True)
                 self.last_refresh = GLib.get_monotonic_time()
             # If we can show notification
             if hasattr(model, 'unread_count') and model.unread_count > 0:
@@ -109,20 +108,20 @@ class Application(Gtk.Application):
         on_sync_done.to_finish = 2
 
         # Do actual sync
-        self.window.itemsview.sync(on_sync_done)
-        self.window.subsview.sync(on_sync_done)
+        self.window.items.sync(on_sync_done)
+        self.window.subscriptions.sync(on_sync_done)
 
     def on_subscribe(self, button):
         def on_subscribe_url(dialog):
             if dialog.url is None:
                 return
-            self.window.display_spinner(True)
-            subs_model = self.window.subsview.store
+            self.window.side_toolbar.spinner.show()
+            subs_model = self.window.subscriptions.store
             subs_model.subscribe_to(dialog.url)
             connect_once(subs_model, 'subscribed',  on_subscribed)
 
         def on_subscribed(model, success, data=None):
-            self.window.display_spinner(False)
+            self.window.side_toolbar.spinner.hide()
             if not success:
                 logger.error('Could not subscribe to a feed')
                 self.report_error(_('Could not subscribe to a feed'))

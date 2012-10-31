@@ -12,49 +12,48 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
     top_object = 'main-window'
 
     def __init__(self, *args, **kwargs):
-        self.set_wmclass('trifle', 'trifle')
-        self.set_title(_('Feeds'))
+        self.set_properties(title=_('Feeds'))
+        self.set_wmclass('Trifle', 'Trifle')
         self.maximize()
         self.connect('realize', self.on_show)
-        self.spinner = 0
+
+        self.side_toolbar = self.builder.get_object('sidetoolbar')
+        self.main_toolbar = self.builder.get_object('maintoolbar')
+        self.subscriptions = widgets.SubscriptionsView()
+        self.items = widgets.ItemsView()
+        self.item_view = widgets.ItemView()
+        self.sizegroup = self.builder.get_object('side-sizegroup')
+        self.paned = self.builder.get_object('paned')
+        self.header = Gtk.Label('This is header')
 
     def on_show(self, window):
-        leftgrid = self.builder.get_object('left-grid')
-        leftgrid.get_style_context().add_class(Gtk.STYLE_CLASS_SIDEBAR)
-        self.categories = widgets.CategoriesView()
-        leftgrid.attach(self.categories, 0, 0, 1, 1)
+        widgets.populate_side_menubar(self.side_toolbar)
+        self.side_toolbar.show_all()
+        widgets.populate_main_menubar(self.main_toolbar)
+        self.main_toolbar.show_all()
+        self.side_toolbar.spinner.set_visible(False)
+        self.paned.connect('notify::position', self.on_pos_change)
 
-        subs = self.builder.get_object('subs')
-        self.subsview = widgets.SubscriptionsView()
-        subs.add(self.subsview)
-        subs.reset_style()
+        self.item_view.set_controls(star=self.main_toolbar.star,
+                                    unread=self.main_toolbar.unread)
 
-        items = self.builder.get_object('items')
-        self.itemsview = widgets.ItemsView()
-        items.add(self.itemsview)
+        #main_box = self.builder.get_object('mainview-box')
+        #main_box.pack_start(self.header, False, True, 0)
+        #main_box.reorder_child(self.header, 0)
+        #self.header.show()
 
-        for tb in ('items-toolbar', 'sidebar-toolbar', 'feedview-toolbar',):
-            toolbar = self.builder.get_object(tb)
-            widgets.add_toolbar_items(toolbar, tb)
-            toolbar.get_style_context().add_class(Gtk.STYLE_CLASS_MENUBAR)
-            toolbar.reset_style()
-            setattr(self, tb.replace('-', '_'), toolbar)
+        self.builder.get_object('subscriptions').add(self.subscriptions)
+        self.subscriptions.show()
 
-        feedbox = self.builder.get_object('feedview')
-        self.feedview = widgets.FeedView(toolbar=self.feedview_toolbar)
-        feedbox.add(self.feedview)
+        self.builder.get_object('items').add(self.items)
+        self.items.show()
 
-        self.itemsview.show()
-        self.subsview.show()
-        self.categories.show()
-        self.feedview.show()
+        self.builder.get_object('item').add(self.item_view)
+        self.item_view.show()
 
-    def display_spinner(self, value):
-        self.spinner += 1 if value else -1
-        if value:
-            self.sidebar_toolbar.spinner.show()
-        elif self.spinner == 0:
-            self.sidebar_toolbar.spinner.hide()
+    def on_pos_change(self, paned, pos):
+        self.side_toolbar.props.width_request = self.paned.props.position
+
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
     ui_file = 'preferences-dialog.ui'

@@ -9,59 +9,51 @@ from views import utils
 import models
 
 
-def add_toolbar_items(toolbar, tb_type):
+def populate_side_menubar(toolbar):
     stock_toolbutton = Gtk.ToolButton.new_from_stock
-    if tb_type == 'items-toolbar':
-        toolbar.mark_all = stock_toolbutton(Gtk.STOCK_APPLY)
-        toolbar.insert(toolbar.mark_all, -1)
 
-        # toolbar.search = ToolbarSearch(margin_left=5, halign=Gtk.Align.FILL)
-        # toolbar.search.set_expand(True)
-        # toolbar.insert(toolbar.search, -1)
+    toolbar.spinner = ToolbarSpinner(margin_right=5)
+    toolbar.insert(toolbar.spinner, -1)
 
-    elif tb_type == 'sidebar-toolbar':
-        toolbar.refresh = stock_toolbutton(Gtk.STOCK_REFRESH)
-        toolbar.refresh.set_properties(margin_right=5)
-        toolbar.insert(toolbar.refresh, -1)
+    toolbar.combobox = ToolbarCategories(margin_right=5)
+    toolbar.insert(toolbar.combobox, -1)
 
-        toolbar.spinner = ToolbarSpinner(no_show_all=True)
-        toolbar.insert(toolbar.spinner, -1)
+    toolbar.refresh = stock_toolbutton(Gtk.STOCK_REFRESH)
+    toolbar.insert(toolbar.refresh, -1)
 
-        toolbar.subscribe = stock_toolbutton(Gtk.STOCK_ADD)
-        toolbar.subscribe.set_expand(True)
-        toolbar.subscribe.set_halign(Gtk.Align.END)
-        toolbar.insert(toolbar.subscribe, -1)
+    toolbar.subscribe = stock_toolbutton(Gtk.STOCK_ADD)
+    # toolbar.subscribe.set_expand(True)
+    # toolbar.subscribe.set_halign(Gtk.Align.END)
+    toolbar.insert(toolbar.subscribe, -1)
 
-    elif tb_type == 'feedview-toolbar':
-        toolbar.star = Gtk.ToggleToolButton(label=_('Star'),
-                                            is_important=True, sensitive=False)
-        toolbar.insert(toolbar.star, -1)
+    toolbar.mark_all = stock_toolbutton(Gtk.STOCK_APPLY)
+    toolbar.insert(toolbar.mark_all, -1)
 
-        toolbar.unread = Gtk.ToggleToolButton(label=_('Keep unread'),
-                                              is_important=True,
-                                              sensitive=False,
-                                              margin_left=5)
-        toolbar.insert(toolbar.unread, -1)
-
-        toolbar.preferences = stock_toolbutton(Gtk.STOCK_PREFERENCES)
-        toolbar.preferences.set_halign(Gtk.Align.END)
-        toolbar.preferences.set_expand(True)
-        toolbar.insert(toolbar.preferences, -1)
-    else:
-        raise ValueError('Unknown Toolbar')
-    toolbar.show_all()
+    for item in (toolbar.refresh, toolbar.subscribe, toolbar.mark_all):
+        item.set_property('margin-right', 5)
 
 
-class ToolbarSearch(Gtk.ToolItem):
+def populate_main_menubar(toolbar):
+    toolbar.star = Gtk.ToggleToolButton(label=_('Star'), margin_right=5,
+                                        is_important=True, sensitive=False)
+    toolbar.insert(toolbar.star, -1)
+    toolbar.unread = Gtk.ToggleToolButton(label=_('Keep unread'),
+                                          is_important=True, sensitive=False)
+    toolbar.insert(toolbar.unread, -1)
 
-    def __init__(self, *args, **kwargs):
-        super(ToolbarSearch, self).__init__(*args, **kwargs)
-        self.entry = Gtk.Entry(hexpand=True, halign=Gtk.Align.FILL)
-        self.set_unread_count(0)
-        self.add(self.entry)
 
-    def set_unread_count(self, items):
-        self.entry.set_placeholder_text(_('Search {0} items').format(items))
+# NOTE: When we'll use it, port to Gtk.SearchEntry. Will also raise version
+# of GTK we depend on to 3.6.
+# class ToolbarSearch(Gtk.ToolItem):
+#
+#     def __init__(self, *args, **kwargs):
+#         super(ToolbarSearch, self).__init__(*args, **kwargs)
+#         self.entry = Gtk.Entry(hexpand=True, halign=Gtk.Align.FILL)
+#         self.set_unread_count(0)
+#         self.add(self.entry)
+#
+#     def set_unread_count(self, items):
+#         self.entry.set_placeholder_text(_('Search {0} items').format(items))
 
 
 class ToolbarSpinner(Gtk.ToolItem):
@@ -70,13 +62,35 @@ class ToolbarSpinner(Gtk.ToolItem):
         super(ToolbarSpinner, self).__init__(*args, **kwargs)
         self.spinner = Gtk.Spinner(active=True)
         self.add(self.spinner)
+        self.show_count = 0
 
     def show(self):
+        self.show_count += 1
         self.spinner.show_all()
         super(ToolbarSpinner, self).show()
 
+    def hide(self):
+        self.show_count -= 1
+        if self.show_count == 0:
+            super(ToolbarSpinner, self).hide()
 
-class FeedView(WebKit.WebView):
+
+class ToolbarComboBoxText(Gtk.ToolItem):
+    def __init__(self, *args, **kwargs):
+        super(ToolbarComboBoxText, self).__init__(*args, **kwargs)
+        self.child = Gtk.ComboBoxText()
+        self.add(self.child)
+
+
+class ToolbarCategories(ToolbarComboBoxText):
+    def __init__(self, *args, **kwargs):
+        super(ToolbarCategories, self).__init__(*args, **kwargs)
+        self.child.append('reading-list', _('All items'))
+        self.child.append('unread', _('Unread items'))
+        self.child.append('starred', _('Starred items'))
+
+
+class ItemView(WebKit.WebView):
     settings_props = {
         # These three saves us ~25MiB of residental memory
         'enable_scripts': False, 'enable_plugins': False,
@@ -94,15 +108,15 @@ class FeedView(WebKit.WebView):
         'enable_developer_extras': arguments.devtools
     }
 
-    def __init__(self, *args, toolbar=None, **kwargs):
-        self.toolbar = toolbar
+    def __init__(self, *args, **kwargs):
+        self.controls = None
         self.item = None
         # TODO: Change to DOCUMENT_VIEWER after we start caching remote
         # resources at item processing stage
         WebKit.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER)
         WebKit.get_default_session().set_property('max-conns-per-host', 8)
 
-        super(FeedView, self).__init__(*args, **kwargs)
+        super(ItemView, self).__init__(*args, **kwargs)
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
         self.connect('hovering-over-link', self.on_hovering_over_link)
@@ -143,9 +157,21 @@ class FeedView(WebKit.WebView):
                 repl.set_href(uri)
                 iframe.get_parent_node().replace_child(repl, iframe)
                 logger.debug('{0} iframe was replaced'.format(iframe_type))
+
         # Set item controls to sensitive and activate them if needed
-        self.toolbar.star.set_properties(sensitive=True, active=item.starred)
-        self.toolbar.unread.set_properties(sensitive=True, active=item.unread)
+        if self.controls is not None:
+            try:
+                self.controls['star'].set_properties(sensitive=True,
+                                                     active=item.starred)
+                self.controls['unread'].set_properties(sensitive=True,
+                                                       active=item.unread)
+            except KeyError:
+                logger.exception('Couldn\'t set state of controls')
+        else:
+            logger.warning('No controls to enable')
+
+    def set_controls(self, **controls):
+        self.controls = controls
 
     def on_inspector(self, insp, view):
         insp_view = WebKit.WebView()
@@ -264,8 +290,6 @@ class SubscriptionsView(Gtk.TreeView):
         self.store.update()
 
     def on_cat_change(self, treeview):
-        if treeview.in_destruction():
-            return
         self.get_selection().unselect_all()
 
     def on_popup_menu(self, event=None):
@@ -347,13 +371,11 @@ class ItemsView(Gtk.TreeView):
             logger.warning('Cannot set filter, there\'s no selection')
         self.reloading = False
 
-    def on_cat_change(self, treeview):
-        if treeview.in_destruction():
-            return
-        model, selection = treeview.get_selection().get_selected()
+    def on_cat_change(self, combobox):
+        category = combobox.get_active_id()
         self.reloading = True
-        if selection is not None:
-            self.store.load_ids(self.store.category_ids(model[selection][2]))
+        if category is not None:
+            self.store.load_ids(self.store.category_ids(category))
         self.reloading = False
 
     def on_all_read(self, button):
