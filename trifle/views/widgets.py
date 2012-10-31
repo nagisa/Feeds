@@ -469,8 +469,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
         # looks blue, and in Ubuntu default theme – orange.
         if self.state == Gtk.StateFlags.NORMAL:
             color = style.get_background_color(Gtk.StateFlags.SELECTED)
+            normal = style.get_background_color(self.state)
             # In Ambiance and handful other themes we get a trasparent color
-            if color.alpha < 0.01:
+            if color.alpha < 0.01 or color == normal:
                 color = style.get_color(self.state)
         else:
             color = style.get_color(Gtk.StateFlags.SELECTED)
