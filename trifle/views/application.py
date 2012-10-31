@@ -17,6 +17,7 @@ class Application(Gtk.Application):
                                           flags=Gio.ApplicationFlags.FLAGS_NONE,
                                           **kwargs)
         self.connect('activate', self.on_activate)
+        self.window = None
 
     def init_app_menu(self):
         actions = [('about', self.on_show_about),
@@ -31,6 +32,10 @@ class Application(Gtk.Application):
         self.set_app_menu(builder.get_object('app-menu'))
 
     def on_activate(self, data=None):
+        if self.window is not None:
+            logger.critical('Window already exists')
+            return
+
         self.init_app_menu()
         window = self.window = ApplicationWindow(show_menubar=True)
         window.set_application(self)
