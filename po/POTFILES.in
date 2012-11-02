@@ -4,6 +4,7 @@ trifle.desktop.in
 [type: gettext/glade]trifle/data/ui/preferences-dialog.ui
 [type: gettext/glade]trifle/data/ui/subscribe-dialog.ui
 [type: gettext/glade]trifle/data/ui/window.ui
+[type: gettext/glade]trifle/data/ui/app-menu.ui
 trifle/__init__.py
 trifle/__main__.py
 trifle/arguments.py
