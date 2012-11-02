@@ -134,6 +134,7 @@ header hr {
 
 #trifle_content img {
     max-width: 100%;
+    height: auto;
 }
 
 #trifle_content a:link {
