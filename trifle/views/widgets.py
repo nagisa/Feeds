@@ -342,7 +342,8 @@ class ItemsView(Gtk.TreeView):
         self.reloading = False
         self.store = models.feeds.FilteredItems()
         super(ItemsView, self).__init__(self.store, *args, **kwargs)
-        self.set_properties(headers_visible=False)
+        self.set_properties(headers_visible=False,
+                            enable_grid_lines=Gtk.TreeViewGridLines.HORIZONTAL)
 
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer, item=0)
