@@ -2,9 +2,9 @@
 _Name=Feeds
 _GenericName=Feeds Reader
 _Comment=Google Reader for GNOME
-Categories=GNOME;Utility;Internet;
+Categories=GNOME;Network;Feed;News;
 Exec=python3 -m trifle
 Icon=trifle
 Terminal=false
 Type=Application
-Keywords=rss;atom;google;reader;news;feed;
+_Keywords=rss;atom;google;reader;news;feed;trifle;
