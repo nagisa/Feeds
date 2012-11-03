@@ -1,6 +1,7 @@
 import gettext
 import logging
 import os
+import signal
 import sys
 
 # Add module to a path
@@ -29,3 +30,10 @@ __builtins__['ngettext'] = gettext.ngettext
 # Spec: http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 _CACHE_DIR = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
 __builtins__['CACHE_DIR'] = os.path.join(_CACHE_DIR, 'trifle')
+
+# From Transmaggedon
+# FIXME: Get rid of the following line which has the only purpose of
+# working around Ctrl+C not exiting Gtk applications from bug 622084.
+# https://bugzilla.gnome.org/show_bug.cgi?id=622084
+# NOTE: Will not execute a cleanup
+signal.signal(signal.SIGINT, signal.SIG_DFL)
