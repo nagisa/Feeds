@@ -117,15 +117,8 @@ class Application(Gtk.Application):
             if on_sync_done.to_finish == 0:
                 self.window.side_toolbar.refresh.set_sensitive(True)
             self.last_refresh = GLib.get_monotonic_time()
-            # If we can show notification
             if hasattr(model, 'unread_count') and model.unread_count > 0:
-                count = model.unread_count
-                summary = ngettext('You have an unread item',
-                           'You have {0} unread items', count).format(count)
-                if notification.closed or \
-                            notification.get_property('summary') != summary:
-                    notification.update(summary, '')
-                    notification.show()
+                notification.notify_unread_count(model.unread_count)
         on_sync_done.to_finish = 2
 
         # Show spinner twice, each for both synchronization works

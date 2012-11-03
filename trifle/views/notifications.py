@@ -1,35 +1,37 @@
-from gi.repository import Notify
+from gi.repository import Notify, GObject
 import functools
 
 from views.utils import connect_once
 from models.settings import settings
 
-if not Notify.is_initted():
-    Notify.init(_('Feeds'))
 
 class Notification(Notify.Notification):
-    icon = 'trifle'
-    def __new__(cls, *args, **kw):
-        n = Notify.Notification.new('', '', '', *args, **kw)
-        n._update, n.update = n.update, functools.partial(cls.update, n)
-        n._show, n.show = n.show, functools.partial(cls.show, n)
-        n.icon = cls.icon
-        n.closed = True
-        n.connect('closed', functools.partial(cls.on_close, n))
-        return n
+    icon = GObject.property(type=str, default='trifle')
+    visible = GObject.property(type=bool, default=False)
+    old_unread = GObject.property(type=int, default=-1)
 
     def update(self, summary, body):
-        self._update(summary, body, self.icon)
+        super(Notification, self).update(summary, body, self.icon)
 
     def show(self):
         if settings['notifications']:
-            self.closed = False
-            self._show()
+            self.visible = True
+            super(Notification, self).show()
         else:
             logger.warning('Notification was not shown')
 
     def on_close(self, *args):
-        self.closed = True
+        self.visible = False
+
+    def notify_unread_count(self, count):
+        if self.old_unread == count and self.visible:
+            # All ok, notification is still visible and displays correct info
+            return
+        summary = ngettext('You have an unread item',
+                           'You have {0} unread items', count).format(count)
+        self.update(summary, '')
+        self.show()
 
 
+Notify.init(_('Feeds'))
 notification = Notification()
