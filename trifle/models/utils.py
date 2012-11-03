@@ -106,8 +106,8 @@ def split_chunks(itr, chunk_size, fillvalue=None):
 
 
 def run_callbacks(lst):
-    copy = lst.copy()
-    lst.clear()
+    copy = lst[:]
+    del lst[:]
     [a() for a in copy]
 
 
