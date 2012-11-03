@@ -21,8 +21,8 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.subscriptions = widgets.SubscriptionsView()
         self.items = widgets.ItemsView()
         self.item_view = widgets.ItemView()
-        self.sizegroup = self.builder.get_object('side-sizegroup')
         self.paned = self.builder.get_object('paned')
+        self.side_paned = self.builder.get_object('paned-side')
         self.header = Gtk.Label('This is header')
 
     def on_show(self, window):
@@ -31,7 +31,10 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         widgets.populate_main_menubar(self.main_toolbar)
         self.main_toolbar.show_all()
         self.side_toolbar.spinner.set_visible(False)
-        self.paned.connect('notify::position', self.on_pos_change)
+        self.paned.connect('notify::position', self.on_horiz_pos_change)
+        self.paned.set_position(settings['horizontal-pos'])
+        self.side_paned.connect('notify::position', self.on_vert_pos_change)
+        self.side_paned.set_position(settings['vertical-pos'])
 
         self.item_view.set_controls(star=self.main_toolbar.star,
                                     unread=self.main_toolbar.unread)
@@ -50,8 +53,13 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.builder.get_object('item').add(self.item_view)
         self.item_view.show()
 
-    def on_pos_change(self, paned, pos):
+    def on_horiz_pos_change(self, paned, pos):
         self.side_toolbar.props.width_request = self.paned.props.position
+        settings['horizontal-pos'] = self.paned.props.position
+
+    def on_vert_pos_change(self, paned, pos):
+        settings['vertical-pos'] = self.side_paned.props.position
+
 
 
 class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):

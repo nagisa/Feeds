@@ -30,5 +30,19 @@ If value 0 is set, automatic refresh is turned off
 Starred items are counted separately, but abides this limit as well.
             </description>
         </key>
+        <key name="vertical-pos" type="q">
+            <default>150</default>
+            <summary>Sidebar paned position in pixels</summary>
+            <description>Keep note of position of paned to be able to
+restore it on next session
+            </description>
+        </key>
+        <key name="horizontal-pos" type="q">
+            <default>250</default>
+            <summary>Main paned position in pixels</summary>
+            <description>Keep note of position of paned to be able to
+restore it on next session
+            </description>
+        </key>
     </schema>
 </schemalist>

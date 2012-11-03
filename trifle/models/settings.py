@@ -3,7 +3,8 @@ from gi.repository import Gio, GLib
 
 class Settings(Gio.Settings):
     types = {'notifications': 'boolean', 'start-refresh': 'boolean',
-             'refresh-every': 'uint16', 'cache-items': 'int16'}
+             'refresh-every': 'uint16', 'cache-items': 'int16',
+             'vertical-pos': 'uint16', 'horizontal-pos': 'uint16'}
 
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
