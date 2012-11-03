@@ -324,10 +324,11 @@ class SubscriptionsView(Gtk.TreeView):
 
     def on_label_change(self, item, data):
         from views import app
-        app.window.display_spinner(True)
-        self.store.set_item_label(data[0], data[1], item.get_active())
+        app.window.side_toolbar.spinner.show()
+        app.ensure_login(lambda: \
+            self.store.set_item_label(data[0], data[1], item.get_active()))
         def sync_done(*args):
-            app.window.display_spinner(False)
+            app.window.side_toolbar.spinner.hide()
         utils.connect_once(self.store, 'sync-done', sync_done)
 
     def sync(self, callback=None):
