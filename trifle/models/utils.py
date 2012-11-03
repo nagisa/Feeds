@@ -10,8 +10,6 @@ import sqlite3
 
 from trifle.utils import get_data_path, VERSION
 
-
-AuthStatus = namedtuple('AuthStatus', 'OK BAD NET_ERROR PROGRESS')(0, 1, 2, 3)
 SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
 
 
@@ -54,42 +52,9 @@ class AuthMessage(Message):
     def __new__(cls, auth, *args, **kwargs):
         obj = super(AuthMessage, cls).__new__(cls, *args, **kwargs)
         hdr = obj.get_property('request-headers')
-        hdr.append('Authorization', 'GoogleLogin auth={0}'.format(auth.key))
-        hdr.append('Cookie', 'SID={0}'.format(auth.sid))
+        hdr.append('Authorization',
+                   'GoogleLogin auth={0}'.format(auth.login_token))
         return obj
-
-
-class LoginRequired:
-    """Injects ensure_login method which will make sure, that method is
-    executed when person is logged in.
-    """
-    def ensure_login(self, auth, func, *args, **kwargs):
-        """
-        If auth object has no key, this function will return False, ask
-        Auth object to get one and then call func with *args and **kwargs
-        """
-        if not auth.key:
-            logger.debug('auth object has no key, asking to get one')
-            def status_change(auth):
-                if auth.status == AuthStatus.OK:
-                    return func(*args, **kwargs)
-                else:
-                    auth.login()
-            auth.login()
-            auth.connect('status-change', status_change)
-            return False
-        return True
-
-    def ensure_token(self, auth, func, *args, **kwargs):
-        """ You are expected to already have a key, that is to be called
-        ensure_login before calling this function already. """
-        if not auth.token: # Automatically starts request if doesn't have one
-            logger.debug('auth object has no token, asking to get one')
-            def status_change(auth):
-                return func(*args, **kwargs)
-            auth.connect('token-available', status_change)
-            return False
-        return True
 
 
 def api_method(path, getargs=None):
@@ -134,9 +99,17 @@ def icon_pixbuf(url):
     else:
         return icon.load_icon()
 
+
 def split_chunks(itr, chunk_size, fillvalue=None):
     items = [iter(itr)] * chunk_size
     return itertools.zip_longest(*items, fillvalue=fillvalue)
+
+
+def run_callbacks(lst):
+    copy = lst.copy()
+    lst.clear()
+    [a() for a in copy]
+
 
 unescape = HTMLParser().unescape
 urlencode = urlencode

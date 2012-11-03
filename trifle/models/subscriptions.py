@@ -8,7 +8,7 @@ from models import utils
 from models.utils import SubscriptionType
 
 
-class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
+class Subscriptions(Gtk.TreeStore):
     __gsignals__ = {
         'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
         'subscribed': (GObject.SignalFlags.RUN_LAST, None, (bool,))
@@ -53,10 +53,8 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
             return '/'.join(split[:2]), split[-1]
 
     def sync(self):
-        if not self.ensure_login(auth, self.sync):
-            return False
         url = utils.api_method('subscription/list')
-        msg = utils.AuthMessage(auth, 'GET', url)
+        msg = auth.message('GET', url)
         utils.session.queue_message(msg, self.on_response, None)
 
     def on_response(self, session, msg, data=None):
@@ -146,14 +144,10 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
             self.update()
 
     def subscribe_to(self, url):
-        if not self.ensure_login(auth, self.subscribe_to, url) or \
-           not self.ensure_token(auth, self.subscribe_to, url):
-            return False
-
         uri = utils.api_method('subscription/quickadd')
         req_type = 'application/x-www-form-urlencoded'
-        data = utils.urlencode({'T': auth.token, 'quickadd': url})
-        msg = utils.AuthMessage(auth, 'POST', uri)
+        data = utils.urlencode({'T': auth.edit_token, 'quickadd': url})
+        msg = auth.message('POST', uri)
         msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
         utils.session.queue_message(msg, self.on_quickadd, None)
 
@@ -185,21 +179,16 @@ class Subscriptions(Gtk.TreeStore, utils.LoginRequired):
             logger.error('Adding label to non-subscription!')
             return False
 
-        args = (itr, label_id, value)
-        if not self.ensure_login(auth, self.set_item_label, *args) or \
-           not self.ensure_token(auth, self.set_item_label, *args):
-            return False
-
         uri = utils.api_method('subscription/edit')
         req_type = 'application/x-www-form-urlencoded'
 
         label_id = 'user/-/{0}'.format(label_id)
         action = 'a' if value else 'r'
         item_id = self.split_id(self[itr][1])[1]
-        data = utils.urlencode({'T': auth.token, 's': item_id, 'ac': 'edit',
-                                action: label_id})
+        data = utils.urlencode({'T': auth.edit_token, 's': item_id,
+                                'ac': 'edit', action: label_id})
 
-        msg = utils.AuthMessage(auth, 'POST', uri)
+        msg = auth.message('POST', uri)
         msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
         utils.session.queue_message(msg, self.on_sub_edit, None)
 

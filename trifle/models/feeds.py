@@ -17,9 +17,7 @@ from models.utils import urlencode
 from views.utils import connect_once
 
 
-
-
-class Ids(GObject.Object, utils.LoginRequired):
+class Ids(GObject.Object):
     states = {'reading-list': [('s', 'user/-/state/com.google/reading-list')],
               'unread': [('s', 'user/-/state/com.google/reading-list'),
                          ('xt', 'user/-/state/com.google/read')],
@@ -35,8 +33,6 @@ class Ids(GObject.Object, utils.LoginRequired):
         self.sets = {'reading-list': set(), 'unread': set(), 'starred': set()}
 
     def sync(self):
-        if not self.ensure_login(auth, self.sync):
-            return False
         if hasattr(self, 'partial_handler'):
             logger.error('IDs are already synchronizing')
             return False
@@ -47,7 +43,7 @@ class Ids(GObject.Object, utils.LoginRequired):
         for name, state in self.states.items():
             getargs = state + [('n', item_limit)]
             url = utils.api_method('stream/items/ids', getargs)
-            msg = utils.AuthMessage(auth, 'GET', url)
+            msg = auth.message('GET', url)
             utils.session.queue_message(msg, self.on_response, name)
         # Initially mark everything as deletable and unflag all items.
         # Laten in process items that are still important will be unmarked
@@ -117,7 +113,7 @@ class Ids(GObject.Object, utils.LoginRequired):
         self.emit('sync-done')
 
 
-class Flags(GObject.Object, utils.LoginRequired):
+class Flags(GObject.Object):
     __gsignals__ = {
         'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
     }
@@ -140,9 +136,6 @@ class Flags(GObject.Object, utils.LoginRequired):
             utils.sqlite.execute(query, (remove,) + args)
 
     def sync(self):
-        if not self.ensure_login(auth, self.sync) or \
-           not self.ensure_token(auth, self.sync):
-            return False
         self.syncing = 0
         logger.debug('Synchronizing flags')
 
@@ -156,14 +149,15 @@ class Flags(GObject.Object, utils.LoginRequired):
                 if len(result) == 0:
                     continue
 
-                post = (('r' if args[1] else 'a', flag,), ('T', auth.token),)
+                post = (('r' if args[1] else 'a', flag,),
+                        ('T', auth.edit_token),)
                 chunks = utils.split_chunks(result, 250, None)
                 for chunk in chunks:
                     self.syncing += 1
                     iids, ids = zip(*filter(lambda x: x is not None, chunk))
                     iids = tuple(zip(itertools.repeat('i'), iids))
                     payload = urlencode(iids + post)
-                    msg = utils.AuthMessage(auth, 'POST', uri)
+                    msg = auth.message('POST', uri)
                     msg.set_request(req_type, Soup.MemoryUse.COPY, payload,
                                     len(payload))
 
@@ -194,7 +188,7 @@ class Flags(GObject.Object, utils.LoginRequired):
             self.emit('sync-done')
 
 
-class Items(Gtk.ListStore, utils.LoginRequired):
+class Items(Gtk.ListStore):
     __gsignals__ = {
         'sync-done': (GObject.SignalFlags.RUN_FIRST, None, [])
     }
@@ -295,9 +289,6 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         self.flags.sync()
 
     def sync_items(self):
-        if not self.ensure_login(auth, self.sync_items):
-            return False
-
         logger.debug('Synchronizing items')
         uri = utils.api_method('stream/items/contents')
         req_type = 'application/x-www-form-urlencoded'
@@ -314,7 +305,7 @@ class Items(Gtk.ListStore, utils.LoginRequired):
         for chunk in chunks:
             self.syncing += 1
             data = urlencode(chunk)
-            message = utils.AuthMessage(auth, 'POST', uri)
+            message = auth.message('POST', uri)
             message.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
             utils.session.queue_message(message, self.process_response, None)
 

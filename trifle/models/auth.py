@@ -1,182 +1,178 @@
 # -*- encoding: utf-8 -*-
 # Problem: https://live.gnome.org/GnomeGoals/LibsecretMigration
-# But libsecret is not yet available in most repositories.
-from gi.repository import GnomeKeyring as GK
-from gi.repository import Soup, GObject, GLib
-import json
+# But libsecret doesn't have introspection yet.
+
+from collections import defaultdict
+from gi.repository import GObject, Soup, GLib
 
 from models import utils
-from models.utils import AuthStatus
-
 
 class Auth(GObject.Object):
-    __gsignals__ = {
-        'status-change': (GObject.SignalFlags.RUN_FIRST, None, []),
-        'token-available': (GObject.SignalFlags.RUN_FIRST, None, []),
-    }
+    status = GObject.property(type=object)
+    login_token = GObject.property(type=str)
+    edit_token = GObject.property(type=str)
+    # int automatically converts property to gint32, we need guint64,
+    # so we better just keep a python object ;)
+    edit_token_expire = GObject.property(type=object)
 
     def __init__(self, *args, **kwargs):
         super(Auth, self).__init__(*args, **kwargs)
-        self.secrets = SecretStore()
-        # These variables must filled after login
-        self.key, self.sid, self.lsid = None, None, None
-        # And these after request for editing token
-        self.info, self._token, self.token_expires = None, None, -1
-        self.status = AuthStatus.BAD
+        self.login_callbacks = []
+        self.edit_token_expire = -1
+        self.status = defaultdict(bool)
 
-        self._url = 'https://www.google.com/accounts/ClientLogin'
-        self._data = 'service=reader&accountType=GOOGLE&Email={0}&Passwd={1}'
+    def message(self, *args, **kwargs):
+        return utils.AuthMessage(self, *args, **kwargs)
 
-    def login(self):
-        """
-        This method is asynchronous!
-        You should connect to 'status-change' signal if you want to receive a
-        response upon login (successful or not).
-        """
-        if self.status == AuthStatus.PROGRESS:
-            logger.debug('Already authentificating')
-            return False
-        self.status = AuthStatus.PROGRESS
-        self.sid, self.key, self.lsid = None, None, None
+    def login(self, callback):
+        self.login_callbacks.append(callback)
+        if self.status['PROGRESS']:
+            logger.error('Already logging in')
+        else:
+            self.status.update({'PROGRESS': True, 'ABORTED': False,
+                                'BAD_CREDENTIALS': False, 'OK': False})
+            keyring.load_credentials(self.on_credentials)
 
-        user, password = self.secrets['user'], self.secrets['password']
-        if user is None or password is None:
-            logger.debug('Cannot login, because didn\'t get email or password')
-            return False
+    def on_credentials(self):
+        if not keyring.has_credentials:
+            self.status.update({'ABORTED': True, 'PROGRESS': False})
+            logger.debug('callback without credentials, assuming abort')
+            utils.run_callbacks(self.login_callbacks)
+            return
 
-        message = utils.Message('POST', self._url)
+        uri = 'https://www.google.com/accounts/ClientLogin'
+        data = 'service=reader&accountType=GOOGLE&Email={0}&Passwd={1}'
+        data = data.format(keyring.username, keyring.password)
+        message = utils.Message('POST', uri)
         req_type = 'application/x-www-form-urlencoded'
-        data = self._data.format(user, password)
         message.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
         utils.session.queue_message(message, self.on_login, None)
 
-    @property
-    def token(self):
-        current_time = GLib.get_monotonic_time()
-        msg = 'Token expires in {0} µs'
-        logger.debug(msg.format(self.token_expires - current_time))
-        if current_time > self.token_expires:
-            message = utils.AuthMessage(self, 'GET', utils.api_method('token'))
-            utils.session.queue_message(message, self.on_token, None)
-            return False
-        else:
-            return self._token
-
-    def on_login(self, session, message, data=None):
-        """
-        Should set state of Auth object to show state of login and key
-        """
-        if 400 <= message.status_code < 500:
-            logger.debug('Auth failed with {0}'.format(message.status_code))
-            self.status = AuthStatus.BAD
-        elif message.status_code < 100 or 500 <= message.status_code < 600:
-            logger.debug('Auth failed with {0}'.format(message.status_code))
-            self.status = AuthStatus.NET_ERROR
-        else:
-            self.status = AuthStatus.BAD
+    def on_login(self, session, message, data):
+        status = message.status_code
+        if not 200 <= status < 400:
+            logger.error('Authentification failed (HTTP {0})'.format(status))
+            self.status.update({'OK': False, 'PROGRESS': False,
+                                'BAD_CREDENTIALS': status == 403})
+            utils.run_callbacks(self.login_callbacks)
+        else: # Login was likely successful
             for line in message.response_body.data.splitlines():
-                if line.startswith('SID='):
-                    self.sid = line[4:]
-                if line.startswith('Auth='):
-                    self.key = line[5:]
-                if line.startswith('LSID='):
-                    self.lsid = line[5:]
-                if self.sid and self.key and self.lsid:
-                    self.status = AuthStatus.OK
-
-        if self.status == AuthStatus.OK:
-            # Try to get user information
-            message = utils.AuthMessage(self, 'GET',
-                                        utils.api_method('user-info'))
-            utils.session.queue_message(message, self.on_user_data, None)
-        elif self.status == AuthStatus.BAD:
-            self.secrets.emit('ask-password')
-
-    def on_user_data(self, session, message, data=None):
-        info = json.loads(message.response_body.data)
-        self.info = {'id': info['userId']}
-        self.emit('status-change')
+                if line.startswith('Auth'):
+                    self.login_token = line[5:]
+                    message = self.message('GET', utils.api_method('token'))
+                    utils.session.queue_message(message, self.on_token, None)
+                    break
 
     def on_token(self, session, message, data=None):
-        if not 200 <= message.status_code < 400:
-            logger.error('Token failed with {0}'.format(message.status_code))
+        status = message.status_code
+        if not 200 <= status < 400:
+            logger.error('Token request failed (HTTP {0})'.format(status))
+            self.status['OK'] = False
         else:
-            self._token = message.response_body.data
-            self.token_expires = GLib.get_monotonic_time() + 1.5E9 #µs = 25min
-            self.emit('token-available')
+            self.edit_token = message.response_body.data
+            self.edit_token_expire = GLib.get_real_time() + 1.5E9 #µs
+            self.status['OK'] = True
+        self.status['PROGRESS'] = False
+        utils.run_callbacks(self.login_callbacks)
+
+    def token_valid(self):
+        return GLib.get_real_time() < self.edit_token_expire
 
 
-class SecretStore(GObject.Object):
+class Keyring(GObject.Object):
     __gsignals__ = {
-        'ask-password': (GObject.SignalFlags.ACTION, None, [])
+        'ask-password': (GObject.SignalFlags.ACTION, None, [object])
     }
-    keys = ('user', 'password',)
+    username = GObject.property(type=str)
+    password = GObject.property(type=str)
 
     def __init__(self, *args, **kwargs):
-        super(SecretStore, self).__init__(*args, **kwargs)
+        super(Keyring, self).__init__(*args, **kwargs)
+        self.load_callbacks = []
 
-        self._password, self._user = None, None
-        self._use_keyring = GK.is_available()
-        if not self._use_keyring:
-            logger.warning('Keyring is not available')
+    @property
+    def has_credentials(self):
+        return self.username and self.password
+
+    def load_credentials(self, callback):
+        if self.has_credentials:
+            callback()
         else:
-            self._keyring_name = GK.get_default_keyring_sync()[1]
+            self.load_callbacks.append(callback)
+            resp_callback = lambda: utils.run_callbacks(self.load_callbacks)
+            self.emit('ask-password', resp_callback)
 
-    def _load_creds(self):
-        if not self._use_keyring:
-            logger.debug('Because keyring is unavailable, loaded nothing')
-            raise EnvironmentError('Could not load password')
+    def set_credentials(self, username, password):
+        self.username, self.password = username, password
+        return True
 
-        queryset = GK.Attribute.list_new()
-        GK.Attribute.list_append_string(queryset, 'application', 'trifle')
-        status, result = GK.find_items_sync(GK.ItemType.NETWORK_PASSWORD,
-                                            queryset)
-        if len(result) > 1:
-            logger.warning('>1 trifle specific secrets found')
+    def invalidate_credentials(self):
+        self.username, self.password = None, None
 
-        if status == GK.Result.OK:
-            self._password = result[0].secret
-            for attribute in GK.Attribute.list_to_glist(result[0].attributes):
-                if attribute.name == 'user':
-                    self._user = attribute.get_string()
-            return True # All OK!
-        elif status == GK.Result.NO_MATCH:
-            logger.debug('No trifle specific secrets found')
+
+class GKeyring(Keyring):
+    @property
+    def keyring(self):
+        if GnomeKeyring.is_available():
+            return GnomeKeyring.get_default_keyring_sync()[1]
+        return None
+
+    def load_credentials(self, callback):
+        keyring = self.keyring
+        if self.has_credentials:
+            callback()
+        elif keyring is None:
+            # We degrade to a simple session keyring
+            return super(GKeyring, self).load_credentials(callback)
         else:
-            logger.warning('Unexpected keyring error occured')
-        raise EnvironmentError('Could not load password')
+            self.load_callbacks.append(callback)
+            Attribute = GnomeKeyring.Attribute
+            queryset = Attribute.list_new()
+            Attribute.list_append_string(queryset, 'application', 'trifle')
+            itemtype = GnomeKeyring.ItemType.NETWORK_PASSWORD
+            status, result = GnomeKeyring.find_items_sync(itemtype, queryset)
+            if len(result) > 1:
+                logger.warning('More than one trifle passwords found')
 
-    def __getitem__(self, key):
-        if self._password is None and self._user is None:
-            try:
-                self._load_creds()
-            except EnvironmentError:
-                self.emit('ask-password')
-                return None
+            if status == GnomeKeyring.Result.OK:
+                self.password = result[0].secret
+                for attribute in Attribute.list_to_glist(result[0].attributes):
+                    if attribute.name == 'user':
+                        self.username = attribute.get_string()
+                utils.run_callbacks(self.load_callbacks)
+            else:
+                # We again degrade to simple session keyring
+                cback = lambda: utils.run_callbacks(self.load_callbacks)
+                return super(GKeyring, self).load_credentials(cback)
 
-        if key in self.keys:
-            value = getattr(self, '_{0}'.format(key))
-            if value is None:
-                logger.debug('Getting {0} before setting it'.format(key))
-            return value
-        raise KeyError('There\'s no key named {0}'.format(key))
+    def set_credentials(self, username, password):
+        Attribute = GnomeKeyring.Attribute
+        attributes = Attribute.list_new()
+        Attribute.list_append_string(attributes, 'application', 'trifle')
+        Attribute.list_append_string(attributes, 'user', username)
+        itemtype = GnomeKeyring.ItemType.NETWORK_PASSWORD
+        status, _ = GnomeKeyring.item_create_sync(self.keyring,
+                                                  itemtype,
+                                                  'Trifle Password',
+                                                  attributes, password, True)
 
-    def set(self, user, password):
-        self._user, self._password = user, password
+        return super(GKeyring, self).set_credentials(username, password) or \
+               status == GnomeKeyring.Result.OK
 
-        if not self._use_keyring:
-            logger.warning('Keyring is unavailable, didn\'t save the secret')
-            return False
-
-        attributes = GK.Attribute.list_new()
-        GK.Attribute.list_append_string(attributes, 'application', 'trifle')
-        GK.Attribute.list_append_string(attributes, 'user', user)
-        status, _ = GK.item_create_sync(self._keyring_name,
-                                        GK.ItemType.NETWORK_PASSWORD,
-                                        'Trifle Password',
-                                        attributes, password, True)
-        return status == GK.Result.OK
+    def invalidate_credentials(self):
+        Attribute = GnomeKeyring.Attribute
+        queryset = Attribute.list_new()
+        Attribute.list_append_string(queryset, 'application', 'trifle')
+        itemtype = GnomeKeyring.ItemType.NETWORK_PASSWORD
+        status, results = GnomeKeyring.find_items_sync(itemtype, queryset)
+        for result in results:
+            GnomeKeyring.item_delete_sync(result.keyring, result.item_id)
+        super(GKeyring, self).invalidate_credentials()
 
 
-# Model level instances
+try:
+    from gi.repository import GnomeKeyring
+    keyring = GKeyring()
+except ImportError:
+    keyring = Keyring()
 auth = Auth()

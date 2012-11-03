@@ -2,7 +2,7 @@ from gi.repository import Gtk, GObject
 
 
 from trifle.utils import VERSION
-from models.auth import auth
+from models import auth
 from models.settings import settings
 from views import widgets, utils
 
@@ -131,7 +131,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
         if len(password) == 0 or len(user) == 0:
             self.msg.set_text(_('All fields are required'))
             return False
-        auth.secrets.set(user, password)
+        auth.keyring.set_credentials(user, password)
         self.destroy()
 
     def on_activate(self, entry, data=None):
