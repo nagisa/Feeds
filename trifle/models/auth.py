@@ -68,7 +68,7 @@ class Auth(GObject.Object):
             self.status['OK'] = False
         else:
             self.edit_token = message.response_body.data
-            self.edit_token_expire = GLib.get_real_time() + 1.5E9 #µs
+            self.edit_token_expire = int(GLib.get_real_time() + 1.5E9) #µs
             self.status['OK'] = True
         self.status['PROGRESS'] = False
         utils.run_callbacks(self.login_callbacks)
