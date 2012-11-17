@@ -11,9 +11,7 @@ class Auth(GObject.Object):
     status = GObject.property(type=object)
     login_token = GObject.property(type=str)
     edit_token = GObject.property(type=str)
-    # int automatically converts property to gint32, we need guint64,
-    # so we better just keep a python object ;)
-    edit_token_expire = GObject.property(type=object)
+    edit_token_expire = GObject.property(type=GObject.TYPE_UINT64)
 
     def __init__(self, *args, **kwargs):
         super(Auth, self).__init__(*args, **kwargs)
