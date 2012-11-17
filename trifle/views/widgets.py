@@ -127,7 +127,6 @@ class ItemHeader(Gtk.Grid):
                                                   escape(self.title)))
 
     def set_item(self, item):
-        print(item.author, item.time, item.title, item.href)
         self.set_properties(author=item.author, timestamp=item.time,
                             title=item.title, url=item.href)
 
