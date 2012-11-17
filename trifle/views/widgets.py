@@ -149,14 +149,13 @@ class ItemView(WebKit.WebView):
         dom.get_element_by_id('trifle_content').set_inner_html(content)
         # IFrame repacement
         iframes = dom.get_elements_by_tag_name('iframe')
-        for iframe in (iframes.item(i) for i in range(iframes.get_length())):
-            iframe_type, uri = utils.get_full_uri(iframe.get_src())
-            if iframe_type is not None:
-                repl_id = 'trifle_{0}_repl'.format(iframe_type)
-                repl = dom.get_element_by_id(repl_id).clone_node(True)
-                repl.set_href(uri)
-                iframe.get_parent_node().replace_child(repl, iframe)
-                logger.debug('{0} iframe was replaced'.format(iframe_type))
+        while iframes.item(0) is not None:
+            iframe = iframes.item(0)
+            uri = iframe.get_src()
+            repl = dom.get_element_by_id('trifle_iframe').clone_node(True)
+            repl.set_href(uri)
+            repl.set_inner_text(uri)
+            iframe.get_parent_node().replace_child(repl, iframe)
 
         # Set item controls to sensitive and activate them if needed
         if self.controls is not None:
@@ -194,12 +193,11 @@ class ItemView(WebKit.WebView):
 
     @staticmethod
     def on_navigate(self, frame, request, action, policy):
-        uri = action.get_original_uri()
-        if frame.get_parent():
-            logger.warning('{0} was not loaded'.format(uri))
+        if frame is not self.get_main_frame():
             policy.ignore()
             return True
-        elif uri.startswith('http'):
+        uri = action.get_original_uri()
+        if not uri.startswith('file://'):
             if not Gio.AppInfo.launch_default_for_uri(uri, None):
                 logger.error('System could not open {0}'.format(uri))
             policy.ignore()

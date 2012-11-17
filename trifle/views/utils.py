@@ -62,22 +62,3 @@ def connect_once(obj, signal, callback, data=None):
             callback(*args, **kwargs)
         return handler
     cnn_id = obj.connect(signal, disconnect_and_callback(callback), data)
-
-
-def get_full_uri(uri):
-    for key, value in get_full_uri.regexes.items():
-        match = re.match(value[0], uri, re.VERBOSE)
-        if match is not None:
-            return key, value[1].format(*match.groups())
-    return None, None
-# Thanks to youtube-dl project
-get_full_uri.regexes = {
-'youtube': (r"""^((?:https?://)?
-(?:youtu\.be/|(?:\w+\.)?youtube(?:-nocookie)?\.com/|tube\.majestyc\.net/)
-(?!view_play_list|my_playlists|artist|playlist)(?:
-(?:(?:v|embed|e)/)|(?:(?:watch(?:_popup)?(?:\.php)?)?(?:\?|\#!?)(?:.+&)?
-v=))?)?([0-9A-Za-z_-]+)(?(1).+)?$""", 'https://www.youtube.com/watch?v={1}'),
-
-'vimeo': (r'''(?:https?://)?(?:(?:www|player).)?vimeo\.com/(?:groups/[^/]+/)?
-(?:videos?/)?([0-9]+)''', 'https://vimeo.com/{0}')
-}

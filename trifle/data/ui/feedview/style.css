@@ -249,3 +249,16 @@ header hr {
     -webkit-transition: all 0 0;
     opacity: 1;
 }
+
+#trifle_iframe {
+    display: block;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0.3em;
+    background: -webkit-repeating-linear-gradient(.5rad, transparent,
+                                                  transparent 20px,
+                                                  rgba(0, 0, 0, .05) 20px,
+                                                  rgba(0, 0, 0, .05) 40px);
+}
