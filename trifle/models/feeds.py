@@ -406,14 +406,16 @@ class FeedItem(GObject.Object):
                 logger.error(msg)
                 raise ValueError(msg)
             self.cache = {'title': r[0], 'author': r[1], 'summary': r[2],
-                          'href': r[3], 'time': r[4] / 1E6, 'unread': r[5],
-                          'starred': r[6], 'origin': r[7], 'site': r[8]}
+                          'href': r[3], 'time': int(r[4] / 1E6),
+                          'unread': r[5], 'starred': r[6], 'origin': r[7],
+                          'site': r[7]}
             self.fetched = True
 
         return self.cache[key]
 
     def __setitem__(self, key, val):
         self.cache[key] = val
+        self.notify(key)
 
     title = GObject.property(lambda self: self['title'])
     author = GObject.property(lambda self: self['author'])

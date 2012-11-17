@@ -78,6 +78,8 @@ class Application(Gtk.Application):
                                            window.item_view.on_keep_unread)
         window.side_toolbar.mark_all.connect('clicked',
                                              window.items.on_all_read)
+        window.item_view.connect('notify::item', lambda i_v, x:
+                                 window.header.set_item(i_v.item))
         self.connect('shutdown', self.on_shutdown)
 
         # Initial application state, default values, saved values, actions etc.

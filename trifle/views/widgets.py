@@ -90,7 +90,49 @@ class ToolbarCategories(ToolbarComboBoxText):
         self.child.append('starred', _('Starred items'))
 
 
+class ItemHeader(Gtk.Grid):
+    author = GObject.property(type=str)
+    timestamp = GObject.property(type=GObject.TYPE_UINT64)
+    title = GObject.property(type=str)
+    url = GObject.property(type=str)
+
+    def __init__(self, *args, **kwargs):
+        super(ItemHeader, self).__init__(*args, border_width=5, row_spacing=5,
+                                         column_spacing=5, **kwargs)
+        self.author_label = Gtk.Label(halign=Gtk.Align.START)
+        self.date_label = Gtk.Label(halign=Gtk.Align.END)
+        self.title_label = Gtk.Label(hexpand=True, wrap=True)
+        self.attach(self.author_label, 0, 0, 1, 1)
+        self.attach(self.date_label, 1, 0, 1, 1)
+        self.attach(self.title_label, 0, 1, 2, 1)
+
+        self.connect('notify::author', self.on_author_change)
+        self.connect('notify::timestamp', self.on_timestamp_change)
+        self.connect('notify::title', self.on_title_change)
+        self.connect('notify::url', self.on_title_change)
+
+    @staticmethod
+    def on_author_change(self, param):
+        self.author_label.set_text(self.author)
+
+    @staticmethod
+    def on_timestamp_change(self, param):
+        text = datetime.datetime.fromtimestamp(self.timestamp).strftime('%c')
+        self.date_label.set_text(text)
+
+    @staticmethod
+    def on_title_change(self, param):
+        markup = "<span font='14'><a href='{0}'>{1}</a></span>"
+        self.title_label.set_markup(markup.format(self.url, self.title))
+
+    def set_item(self, item):
+        print(item.author, item.time, item.title, item.href)
+        self.set_properties(author=item.author, timestamp=item.time,
+                            title=item.title, url=item.href)
+
 class ItemView(WebKit.WebView):
+    item = GObject.property(type=GObject.Object)
+
     settings_props = {
         # These three saves us ~25MiB of residental memory
         'enable_scripts': False, 'enable_plugins': False,
@@ -110,7 +152,6 @@ class ItemView(WebKit.WebView):
 
     def __init__(self, *args, **kwargs):
         self.controls = None
-        self.item = None
         # TODO: Change to DOCUMENT_VIEWER after we start caching remote
         # resources at item processing stage
         WebKit.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER)
@@ -120,6 +161,7 @@ class ItemView(WebKit.WebView):
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
         self.connect('hovering-over-link', self.on_hovering_over_link)
+        self.connect('notify::item', self.on_item_change)
 
         self.settings = WebKit.WebSettings()
         self.settings.set_properties(**self.settings_props)
@@ -133,44 +175,39 @@ class ItemView(WebKit.WebView):
         template_path = get_data_path('ui', 'feedview', 'template.html')
         self.load_uri('file://' + template_path)
 
-    def load_item(self, item):
+    def set_controls(self, **controls):
+        self.controls = controls
+
+    @staticmethod
+    def on_item_change(self, param):
         # Scroll to (0, 0)
         self.get_hadjustment().set_value(0)
         self.get_vadjustment().set_value(0)
         # Set new data
         dom = self.get_dom_document()
-        dom.get_element_by_id('trifle_author').set_inner_text(item.author)
-        dt = datetime.datetime.fromtimestamp(item.time).strftime('%c')
-        dom.get_element_by_id('trifle_datetime').set_inner_text(dt)
-        link = dom.get_element_by_id('trifle_title')
-        link.set_inner_text(item.title)
-        link.set_href(item.href)
-        content = item.read_content(item.item_id)
+        content = self.item.read_content(self.item.item_id)
         dom.get_element_by_id('trifle_content').set_inner_html(content)
         # IFrame repacement
         iframes = dom.get_elements_by_tag_name('iframe')
-        while iframes.item(0) is not None:
-            iframe = iframes.item(0)
+        while iframes.self.item(0) is not None:
+            iframe = iframes.self.item(0)
             uri = iframe.get_src()
             repl = dom.get_element_by_id('trifle_iframe').clone_node(True)
             repl.set_href(uri)
             repl.set_inner_text(uri)
             iframe.get_parent_node().replace_child(repl, iframe)
 
-        # Set item controls to sensitive and activate them if needed
+        # Set self.item controls to sensitive and activate them if needed
         if self.controls is not None:
             try:
                 self.controls['star'].set_properties(sensitive=True,
-                                                     active=item.starred)
+                                                     active=self.item.starred)
                 self.controls['unread'].set_properties(sensitive=True,
-                                                       active=item.unread)
+                                                       active=self.item.unread)
             except KeyError:
                 logger.exception('Couldn\'t set state of controls')
         else:
             logger.warning('No controls to enable')
-
-    def set_controls(self, **controls):
-        self.controls = controls
 
     def on_inspector(self, insp, view):
         insp_view = WebKit.WebView()
@@ -220,7 +257,6 @@ class ItemView(WebKit.WebView):
         self.item = item
         if self.item.unread: # Set it to read
             self.item.set_read()
-        self.load_item(self.item)
 
     def on_star(self, button):
         if button.get_active():
