@@ -16,7 +16,7 @@ class Auth(GObject.Object):
     def __init__(self, *args, **kwargs):
         super(Auth, self).__init__(*args, **kwargs)
         self.login_callbacks = []
-        self.edit_token_expire = -1
+        self.edit_token_expire = 0
         self.status = defaultdict(bool)
 
     def message(self, *args, **kwargs):

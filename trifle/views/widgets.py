@@ -123,7 +123,8 @@ class ItemHeader(Gtk.Grid):
     @staticmethod
     def on_title_change(self, param):
         markup = "<span font='14'><a href='{0}'>{1}</a></span>"
-        self.title_label.set_markup(markup.format(self.url, self.title))
+        self.title_label.set_markup(markup.format(escape(self.url),
+                                                  escape(self.title)))
 
     def set_item(self, item):
         print(item.author, item.time, item.title, item.href)
@@ -189,8 +190,8 @@ class ItemView(WebKit.WebView):
         dom.get_element_by_id('trifle_content').set_inner_html(content)
         # IFrame repacement
         iframes = dom.get_elements_by_tag_name('iframe')
-        while iframes.self.item(0) is not None:
-            iframe = iframes.self.item(0)
+        while iframes.item(0) is not None:
+            iframe = iframes.item(0)
             uri = iframe.get_src()
             repl = dom.get_element_by_id('trifle_iframe').clone_node(True)
             repl.set_href(uri)
