@@ -17,32 +17,24 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.connect('realize', self.on_show)
 
         self.side_toolbar = self.builder.get_object('sidetoolbar')
-        self.main_toolbar = self.builder.get_object('maintoolbar')
+        self.main_toolbar = widgets.MainToolbar()
+        self.toolbar_box = self.builder.get_object('toolbar-box')
         self.subscriptions = widgets.SubscriptionsView()
         self.items = widgets.ItemsView()
         self.item_view = widgets.ItemView()
         self.paned = self.builder.get_object('paned')
         self.side_paned = self.builder.get_object('paned-side')
-        self.header = widgets.ItemHeader()
 
     def on_show(self, window):
         widgets.populate_side_menubar(self.side_toolbar)
         self.side_toolbar.show_all()
-        widgets.populate_main_menubar(self.main_toolbar)
+        self.toolbar_box.pack_start(self.main_toolbar, True, True, 0)
         self.main_toolbar.show_all()
         self.side_toolbar.spinner.set_visible(False)
         self.paned.connect('notify::position', self.on_horiz_pos_change)
         self.paned.set_position(settings['horizontal-pos'])
         self.side_paned.connect('notify::position', self.on_vert_pos_change)
         self.side_paned.set_position(settings['vertical-pos'])
-
-        self.item_view.set_controls(star=self.main_toolbar.star,
-                                    unread=self.main_toolbar.unread)
-
-        main_box = self.builder.get_object('mainview-box')
-        main_box.pack_start(self.header, False, True, 0)
-        main_box.reorder_child(self.header, 0)
-        self.header.show_all()
 
         self.builder.get_object('subscriptions').add(self.subscriptions)
         self.subscriptions.show()

@@ -27,19 +27,74 @@ def populate_side_menubar(toolbar):
     toolbar.insert(toolbar.subscribe, -1)
 
     toolbar.mark_all = stock_toolbutton(Gtk.STOCK_APPLY)
+    toolbar.mark_all.set_properties(halign=Gtk.Align.END)
     toolbar.insert(toolbar.mark_all, -1)
 
     for item in (toolbar.refresh, toolbar.subscribe, toolbar.mark_all):
         item.set_property('margin-right', 5)
 
 
-def populate_main_menubar(toolbar):
-    toolbar.star = Gtk.ToggleToolButton(label=_('Star'), margin_right=5,
-                                        is_important=True, sensitive=False)
-    toolbar.insert(toolbar.star, -1)
-    toolbar.unread = Gtk.ToggleToolButton(label=_('Keep unread'),
-                                          is_important=True, sensitive=False)
-    toolbar.insert(toolbar.unread, -1)
+class MainToolbar(Gtk.Toolbar):
+    timestamp = GObject.property(type=GObject.TYPE_UINT64)
+    title = GObject.property(type=str)
+    uri = GObject.property(type=str)
+
+    def __init__(self, *args, **kwargs):
+        super(MainToolbar, self).__init__(*args, show_arrow=False,
+                                         toolbar_style=Gtk.ToolbarStyle.TEXT,
+                                         icon_size=2,
+                                         **kwargs)
+        self.get_style_context().add_class('primary-toolbar')
+
+        self.unread = Gtk.ToggleToolButton(label=_('Unread'), margin_right=5)
+        self.starred = Gtk.ToggleToolButton(label=_('Starred'), margin_right=5)
+
+        self.title_label = Gtk.Label(ellipsize=Pango.EllipsizeMode.END)
+        self.title_button = Gtk.ToolButton(margin_right=5, no_show_all=True,
+                                           halign=Gtk.Align.CENTER,
+                                           label_widget=self.title_label)
+        self.title_button.set_expand(True)
+        self.title_button.set_size_request(100, -1)
+
+        self.date_label = ToolbarLabel(margin_right=5)
+        self.date_label.label.set_property('justify', Gtk.Justification.CENTER)
+
+        self.insert(self.unread, -1)
+        self.insert(self.starred, -1)
+        self.insert(self.title_button, -1)
+        self.insert(self.date_label, -1)
+
+        self.connect('notify::timestamp', self.on_timestamp_change)
+        self.connect('notify::title', self.on_title_change)
+        self.connect('notify::url', self.on_title_change)
+        self.title_button.connect('clicked', self.on_link)
+
+    @staticmethod
+    def on_author_change(self, param):
+        return
+        self.author_label.set_text(self.author)
+
+    @staticmethod
+    def on_timestamp_change(self, param):
+        time = datetime.datetime.fromtimestamp(self.timestamp)
+        self.date_label.label.set_text(time.strftime('%x\n%X'))
+
+    @staticmethod
+    def on_title_change(self, param):
+        self.title_label.set_markup('<b>{0}</b>'.format(escape(self.title)))
+        self.title_label.set_ellipsize(Pango.EllipsizeMode.END)
+        self.title_button.show()
+        self.title_label.show()
+
+    def on_link(self, button):
+        if not Gio.AppInfo.launch_default_for_uri(self.uri, None):
+            logger.error('System could not open {0}'.format(self.uri))
+
+    def set_item(self, item):
+        self.set_properties(timestamp=item.time, title=item.title,
+                            uri=item.href)
+        self.starred.set_active(item.starred)
+        self.unread.set_active(False)
 
 
 # NOTE: When we'll use it, port to Gtk.SearchEntry. Will also raise version
@@ -57,7 +112,6 @@ def populate_main_menubar(toolbar):
 
 
 class ToolbarSpinner(Gtk.ToolItem):
-
     def __init__(self, *args, **kwargs):
         super(ToolbarSpinner, self).__init__(*args, **kwargs)
         self.spinner = Gtk.Spinner(active=True)
@@ -90,45 +144,12 @@ class ToolbarCategories(ToolbarComboBoxText):
         self.child.append('starred', _('Starred items'))
 
 
-class ItemHeader(Gtk.Grid):
-    author = GObject.property(type=str)
-    timestamp = GObject.property(type=GObject.TYPE_UINT64)
-    title = GObject.property(type=str)
-    url = GObject.property(type=str)
-
+class ToolbarLabel(Gtk.ToolItem):
     def __init__(self, *args, **kwargs):
-        super(ItemHeader, self).__init__(*args, border_width=5, row_spacing=5,
-                                         column_spacing=5, **kwargs)
-        self.author_label = Gtk.Label(halign=Gtk.Align.START)
-        self.date_label = Gtk.Label(halign=Gtk.Align.END)
-        self.title_label = Gtk.Label(hexpand=True, wrap=True)
-        self.attach(self.author_label, 0, 0, 1, 1)
-        self.attach(self.date_label, 1, 0, 1, 1)
-        self.attach(self.title_label, 0, 1, 2, 1)
+        super(ToolbarLabel, self).__init__(*args, **kwargs)
+        self.label = Gtk.Label()
+        self.add(self.label)
 
-        self.connect('notify::author', self.on_author_change)
-        self.connect('notify::timestamp', self.on_timestamp_change)
-        self.connect('notify::title', self.on_title_change)
-        self.connect('notify::url', self.on_title_change)
-
-    @staticmethod
-    def on_author_change(self, param):
-        self.author_label.set_text(self.author)
-
-    @staticmethod
-    def on_timestamp_change(self, param):
-        text = datetime.datetime.fromtimestamp(self.timestamp).strftime('%c')
-        self.date_label.set_text(text)
-
-    @staticmethod
-    def on_title_change(self, param):
-        markup = "<span font='14'><a href='{0}'>{1}</a></span>"
-        self.title_label.set_markup(markup.format(escape(self.url),
-                                                  escape(self.title)))
-
-    def set_item(self, item):
-        self.set_properties(author=item.author, timestamp=item.time,
-                            title=item.title, url=item.href)
 
 class ItemView(WebKit.WebView):
     item = GObject.property(type=GObject.Object)
@@ -151,7 +172,6 @@ class ItemView(WebKit.WebView):
     }
 
     def __init__(self, *args, **kwargs):
-        self.controls = None
         # TODO: Change to DOCUMENT_VIEWER after we start caching remote
         # resources at item processing stage
         WebKit.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER)
@@ -175,9 +195,6 @@ class ItemView(WebKit.WebView):
         template_path = get_data_path('ui', 'feedview', 'template.html')
         self.load_uri('file://' + template_path)
 
-    def set_controls(self, **controls):
-        self.controls = controls
-
     @staticmethod
     def on_item_change(self, param):
         # Scroll to (0, 0)
@@ -196,18 +213,6 @@ class ItemView(WebKit.WebView):
             repl.set_href(uri)
             repl.set_inner_text(uri)
             iframe.get_parent_node().replace_child(repl, iframe)
-
-        # Set self.item controls to sensitive and activate them if needed
-        if self.controls is not None:
-            try:
-                self.controls['star'].set_properties(sensitive=True,
-                                                     active=self.item.starred)
-                self.controls['unread'].set_properties(sensitive=True,
-                                                       active=self.item.unread)
-            except KeyError:
-                logger.exception('Couldn\'t set state of controls')
-        else:
-            logger.warning('No controls to enable')
 
     def on_inspector(self, insp, view):
         insp_view = WebKit.WebView()

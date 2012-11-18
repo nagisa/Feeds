@@ -72,14 +72,14 @@ class Application(Gtk.Application):
                                      window.items.on_filter_change)
         window.items.connect('cursor-changed',
                              window.item_view.on_change)
-        window.main_toolbar.star.connect('toggled',
-                                         window.item_view.on_star)
+        window.main_toolbar.starred.connect('toggled',
+                                            window.item_view.on_star)
         window.main_toolbar.unread.connect('toggled',
                                            window.item_view.on_keep_unread)
         window.side_toolbar.mark_all.connect('clicked',
                                              window.items.on_all_read)
         window.item_view.connect('notify::item', lambda i_v, x:
-                                 window.header.set_item(i_v.item))
+                                 window.main_toolbar.set_item(i_v.item))
         self.connect('shutdown', self.on_shutdown)
 
         # Initial application state, default values, saved values, actions etc.
