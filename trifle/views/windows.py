@@ -46,6 +46,8 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.item_view.show()
 
     def on_horiz_pos_change(self, paned, pos):
+        min_width = self.main_toolbar.get_preferred_width()
+        self.builder.get_object('item').set_size_request(max(min_width), -1)
         self.side_toolbar.props.width_request = self.paned.props.position
         settings['horizontal-pos'] = self.paned.props.position
 
