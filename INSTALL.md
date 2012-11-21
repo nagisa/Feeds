@@ -8,7 +8,7 @@ Check if there's no package named `trifle` in official and/or unofficial
 ```sh
 git clone git://github.com/simukis/Feeds.git # Getting sources
 cd Feeds
-sudo python setup.py install # Actual installation
+sudo python3 setup.py install # Actual installation
 cd ..
 sudo rm -r Feeds
 ```
