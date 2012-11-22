@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from distutils.core import setup
 from distutils.command.build_scripts import build_scripts
 from distutils.dep_util import newer
