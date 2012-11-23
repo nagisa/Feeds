@@ -4,7 +4,7 @@ import datetime
 
 from arguments import arguments
 from models.utils import escape
-from utils import get_data_path
+from utils import get_data_path, _, logger
 from views import utils
 import models
 

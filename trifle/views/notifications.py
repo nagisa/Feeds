@@ -1,8 +1,7 @@
 from gi.repository import Notify, GObject
-import functools
 
-from views.utils import connect_once
 from models.settings import settings
+from trifle.utils import logger, ngettext, _
 
 
 class Notification(Notify.Notification):

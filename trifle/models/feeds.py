@@ -15,6 +15,7 @@ from models.auth import auth
 from models.settings import settings
 from models.utils import urlencode
 from views.utils import connect_once
+from utils import logger, _
 
 
 class Ids(GObject.Object):

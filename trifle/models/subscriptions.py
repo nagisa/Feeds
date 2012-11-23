@@ -1,4 +1,8 @@
-from gi.repository import Gtk, GdkPixbuf, GObject, GLib, Soup
+from gi.repository import Gtk
+from gi.repository import GdkPixbuf
+from gi.repository import GObject
+from gi.repository import GLib
+from gi.repository import Soup
 import json
 import os
 import random
@@ -6,6 +10,7 @@ import random
 from models.auth import auth
 from models import utils
 from models.utils import SubscriptionType
+from utils import logger
 
 
 class Subscriptions(Gtk.TreeStore):

@@ -1,12 +1,12 @@
 from gi.repository import Gtk, Gio, GLib
-import os
 
 from models import auth
 from models.settings import settings
 from views.windows import ApplicationWindow, LoginDialog, PreferencesDialog, \
                           AboutDialog, SubscribeDialog
 from views.notifications import notification
-from views.utils import connect_once, get_data_path
+from views.utils import connect_once
+from utils import logger, _, get_data_path
 
 
 class Application(Gtk.Application):

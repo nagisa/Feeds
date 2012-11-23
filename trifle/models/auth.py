@@ -3,9 +3,12 @@
 # But libsecret doesn't have introspection yet.
 
 from collections import defaultdict
-from gi.repository import GObject, Soup, GLib
+from gi.repository import GObject
+from gi.repository import Soup
+from gi.repository import GLib
 
 from models import utils
+from utils import logger
 
 class Auth(GObject.Object):
     status = GObject.property(type=object)

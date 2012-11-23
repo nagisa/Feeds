@@ -1,7 +1,6 @@
-from gi.repository import Gtk, GObject
+from gi.repository import Gtk
 
-
-from trifle.utils import VERSION
+from trifle.utils import VERSION, _, logger
 from models import auth
 from models.settings import settings
 from views import widgets, utils

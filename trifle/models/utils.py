@@ -8,7 +8,7 @@ import itertools
 import os
 import sqlite3
 
-from trifle.utils import get_data_path, VERSION
+from utils import get_data_path, VERSION, CACHE_DIR, logger
 
 SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
 

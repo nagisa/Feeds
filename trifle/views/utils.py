@@ -2,9 +2,8 @@ from gi.repository import Gtk
 import collections
 import functools
 import time
-import re
 
-from trifle.utils import get_data_path
+from utils import get_data_path, logger, _, ngettext
 
 
 class BuiltMixin(object):

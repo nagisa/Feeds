@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import logging
-import trifle
 import os
+
+import trifle
+from trifle.utils import CACHE_DIR, logger
 
 # Create a cache dir if it doesn't exist yet
 # Adding this to __init__ will fail us with creating directory belonging to
@@ -15,5 +17,5 @@ if arguments.debug:
     logger.setLevel(logging.DEBUG)
 
 # Should go latest. Do NOT move this import to the begining
-from views import app
-app.run(None)
+from views import application
+application.Application().run(None)

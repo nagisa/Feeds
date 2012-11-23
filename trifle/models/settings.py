@@ -1,4 +1,7 @@
-from gi.repository import Gio, GLib
+from gi.repository import Gio
+from gi.repository import GLib
+
+from utils import logger
 
 
 class Settings(Gio.Settings):
