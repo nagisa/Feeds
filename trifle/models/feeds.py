@@ -77,19 +77,6 @@ class FeedItem(Item):
         self._unread, self._starred = bool(unread), bool(starred)
         super(FeedItem, self).__init__(*args, **kwargs)
 
-    # def update_item(self):
-    #     query = """INSERT OR REPLACE INTO items(id, title, author, summary,
-    #             href, time, update_time, subscription, unread, starred,
-    #             to_sync, to_delete) VALUES(:item_id, :title, :author, :summary,
-    #             :href, :time,
-    #             (SELECT update_time FROM items WHERE id=:item_id),
-    #             (SELECT subscription FROM items WHERE id=:item_id), :unread,
-    #             :starred, (SELECT to_sync FROM items WHERE id=:item_id),
-    #             (SELECT to_delete FROM items WHERE id=:item_id)"""
-    #     keys = ('item_id', 'title', 'author', 'summary', 'href', 'time',
-    #             'unread', 'starred')
-    #     utils.sqlite.execute(query, {k: self.get_property(k) for k in keys})
-
     @GObject.property
     def content(self):
         fpath = os.path.join(utils.content_dir, str(self.item_id))
