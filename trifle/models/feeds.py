@@ -113,9 +113,9 @@ class FeedItem(Item):
             return
         self._starred = value
 
-        self.add_flag(synchronizers.Flags.flags['starred'], value)
-        query = 'UPDATE items SET starred=? WHERE id=?'
+        self.add_flag(synchronizers.Flags.flags['starred'], not value)
 
+        query = 'UPDATE items SET starred=? WHERE id=?'
         utils.sqlite.execute(query, (self.starred, self.item_id,))
         utils.sqlite.commit()
         self.notify('starred')
