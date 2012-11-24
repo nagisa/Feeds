@@ -55,15 +55,24 @@ class Store(ItemsStore):
         items = utils.sqlite.execute(query, binds).fetchall()
         self.clear()
         for item in items:
-            obj = FeedItem(item_id=item[0], title=item[1],
+            obj = FeedItem(model=self, item_id=item[0], title=item[1],
                            author=item[2], summary=item[3], href=item[4],
                            time=int(item[5] // 1E6), unread=item[6],
                            starred=item[7], origin=item[8], site=item[9])
             self.append((obj,))
         self.emit('load-done')
 
+    def redraw_row(self, item=None):
+        """ Will notify all rows if item is None """
+        # Redraw row, for exaple title will instantly become bold again if
+        # item is made unread.
+        for row in self:
+            if item is None or row[0] == item:
+                self.row_changed(row.path, row.iter)
+
 
 class FeedItem(Item):
+    model = GObject.property(type=GObject.Object)
     def __init__(self, unread=False, starred=False, *args, **kwargs):
         self._unread, self._starred = bool(unread), bool(starred)
         super(FeedItem, self).__init__(*args, **kwargs)
@@ -106,6 +115,7 @@ class FeedItem(Item):
         utils.sqlite.execute(query, (self.unread, self.item_id,))
         utils.sqlite.commit()
         self.notify('unread')
+        self.model.redraw_row(self)
 
     @starred.setter
     def starred_change(self, value):
