@@ -99,8 +99,8 @@ class FeedItem(Item):
             return
         self._unread = value
 
-        flag = synchronizers.Flags.flags['kept-unread' if value else 'read']
-        self.add_flag(flag, True)
+        self.add_flag(synchronizers.Flags.flags['kept-unread'], not value)
+        self.add_flag(synchronizers.Flags.flags['read'], value)
 
         query = 'UPDATE items SET unread=? WHERE id=?'
         utils.sqlite.execute(query, (self.unread, self.item_id,))
