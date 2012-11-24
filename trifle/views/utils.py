@@ -3,7 +3,7 @@ import collections
 import functools
 import time
 
-from utils import get_data_path, logger, _, ngettext
+from trifle.utils import get_data_path, logger, _, ngettext
 
 
 class BuiltMixin(object):

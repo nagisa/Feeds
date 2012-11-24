@@ -7,8 +7,9 @@ import hashlib
 import itertools
 import os
 import sqlite3
+import ctypes
 
-from utils import get_data_path, VERSION, CACHE_DIR, logger
+from trifle.utils import get_data_path, VERSION, CACHE_DIR, logger
 
 SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
 
@@ -109,6 +110,14 @@ def run_callbacks(lst):
     copy = lst[:]
     del lst[:]
     [a() for a in copy]
+
+
+def short_id(item_id):
+    if '/' not in item_id:
+        # It's probably is not a long id, sorry
+        return item_id
+    short = ctypes.c_int64(int(item_id.split('/')[-1], 16)).value
+    return str(short)
 
 
 unescape = HTMLParser().unescape

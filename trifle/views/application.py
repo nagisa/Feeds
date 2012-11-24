@@ -1,12 +1,12 @@
 from gi.repository import Gtk, Gio, GLib
 
-from models import auth
-from models.settings import settings
-from views.windows import ApplicationWindow, LoginDialog, PreferencesDialog, \
-                          AboutDialog, SubscribeDialog
-from views.notifications import notification
-from views.utils import connect_once
-from utils import logger, _, get_data_path
+from trifle.models import auth
+from trifle.models.settings import settings
+from trifle.views.windows import ApplicationWindow, LoginDialog, AboutDialog,\
+                           PreferencesDialog, SubscribeDialog
+from trifle.views.notifications import notification
+from trifle.views.utils import connect_once
+from trifle.utils import logger, _, get_data_path
 
 
 class Application(Gtk.Application):
@@ -175,5 +175,5 @@ class Application(Gtk.Application):
 
     @staticmethod
     def on_shutdown(self):
-        from models.utils import sqlite
+        from trifle.models.utils import sqlite
         sqlite.force_commit()

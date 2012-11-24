@@ -1,6 +1,6 @@
 from gi.repository import Notify, GObject
 
-from models.settings import settings
+from trifle.models import settings
 from trifle.utils import logger, ngettext, _
 
 

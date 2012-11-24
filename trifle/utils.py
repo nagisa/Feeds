@@ -2,6 +2,14 @@ import os
 import logging
 import gettext
 
+# Directories
+# Spec: http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+CACHE_DIR = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+CACHE_DIR = os.path.join(CACHE_DIR, 'trifle')
+
+VERSION_INFO = (1, 0)
+VERSION = '.'.join(str(part) for part in VERSION_INFO)
+MODULE_PATH = os.path.abspath(os.path.dirname(__file__))
 
 def get_data_path(*args):
     """ Constructs absolute path to data file """
@@ -29,11 +37,3 @@ localedir = gettext.bindtextdomain('trifle')
 _ = gettext.gettext
 ngettext = gettext.ngettext
 
-# Directories
-# Spec: http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-CACHE_DIR = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
-CACHE_DIR = os.path.join(CACHE_DIR, 'trifle')
-
-VERSION_INFO = (1, 0)
-VERSION = '.'.join(str(part) for part in VERSION_INFO)
-MODULE_PATH = os.path.abspath(os.path.dirname(__file__))

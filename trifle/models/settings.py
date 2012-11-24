@@ -1,7 +1,7 @@
 from gi.repository import Gio
 from gi.repository import GLib
 
-from utils import logger
+from trifle.utils import logger
 
 
 class Settings(Gio.Settings):

@@ -1,9 +1,9 @@
 from gi.repository import Gtk
 
 from trifle.utils import VERSION, _, logger
-from models import auth
-from models.settings import settings
-from views import widgets, utils
+from trifle.models import auth
+from trifle.models.settings import settings
+from trifle.views import widgets, utils
 
 
 class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import logging
 import os
+import signal
 
-import trifle
 from trifle.utils import CACHE_DIR, logger
 
 # Create a cache dir if it doesn't exist yet
@@ -12,10 +12,17 @@ from trifle.utils import CACHE_DIR, logger
 if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR)
 
-from arguments import arguments
+from trifle.arguments import arguments
 if arguments.debug:
     logger.setLevel(logging.DEBUG)
 
+# From Transmaggedon
+# FIXME: Get rid of the following line which has the only purpose of
+# working around Ctrl+C not exiting Gtk applications from bug 622084.
+# https://bugzilla.gnome.org/show_bug.cgi?id=622084
+# NOTE: Will not execute a cleanup function in application
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 # Should go latest. Do NOT move this import to the begining
-from views import application
+from trifle.views import application
 application.Application().run(None)

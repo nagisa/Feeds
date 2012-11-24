@@ -7,10 +7,10 @@ import json
 import os
 import random
 
-from models.auth import auth
-from models import utils
-from models.utils import SubscriptionType
-from utils import logger
+from trifle.models.auth import auth
+from trifle.models import utils
+from trifle.models.utils import SubscriptionType
+from trifle.utils import logger
 
 
 class Subscriptions(Gtk.TreeStore):

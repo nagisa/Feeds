@@ -7,8 +7,8 @@ from gi.repository import GObject
 from gi.repository import Soup
 from gi.repository import GLib
 
-from models import utils
-from utils import logger
+from trifle.models import utils
+from trifle.utils import logger
 
 class Auth(GObject.Object):
     status = GObject.property(type=object)

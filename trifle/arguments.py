@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
-from utils import _
-
+from trifle.utils import _
 
 parser = ArgumentParser()
 parser.add_argument('--debug', action='store_true',
