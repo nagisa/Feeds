@@ -1,6 +1,7 @@
+import itertools
 import json
 import os
-import itertools
+import random
 import re
 
 from trifle.utils import logger
@@ -140,7 +141,6 @@ class Flags(base.SyncObject):
 
 
 class Items(base.SyncObject):
-
     def __init__(self, *args, **kwargs):
         super(Items, self).__init__(*args, **kwargs)
         self.sync_status = 0
@@ -177,7 +177,7 @@ class Items(base.SyncObject):
     def process_response(self, session, message, data=None):
         status = message.status_code
         if not 200 <= status < 400:
-            logger.error('Items synchronization failed: {0}' .format(status))
+            logger.error('Items synchronization failed {0}'.format(status))
         else:
             data = json.loads(message.response_body.data)
             for item in data['items']:
@@ -212,7 +212,6 @@ class Items(base.SyncObject):
         else:
             with open(fpath, 'w') as f:
                 f.write(content)
-
 
     def process_item(self, item):
         """
@@ -260,3 +259,79 @@ class Items(base.SyncObject):
             result['summary'] = result['summary'][:139] + '…'
 
         return result, content
+
+
+class Subscriptions(base.SyncObject):
+    def sync(self):
+        url = utils.api_method('subscription/list')
+        msg = auth.auth.message('GET', url)
+        utils.session.queue_message(msg, self.on_response, None)
+
+    def on_response(self, session, msg, data):
+        status = msg.status_code
+        if not 200 <= status < 400:
+            logger.error('Subscriptions synchronization failed {0}'
+                         .format(status))
+            return
+
+        # Clear database, it's easier than updating everything ;)
+        q = '; DELETE FROM '.join(('subscriptions', 'labels', 'labels_fk'))
+        utils.sqlite.executescript('DELETE FROM ' + q)
+        res = json.loads(msg.response_body.data)['subscriptions']
+
+        # Reinsert items
+        q = '''INSERT INTO subscriptions(id, url, title)
+               VALUES(:id, :htmlUrl, :title)'''
+        utils.sqlite.executemany(q, res)
+
+        lid = lambda x: x['id'].split('/', 2)[-1]
+        # Reinsert labels
+        q = 'INSERT OR IGNORE INTO labels(id, name) VALUES (?, ?)'
+        values = ((lid(l), l['label']) for s in res for l in s['categories'])
+        utils.sqlite.executemany(q, values)
+
+        # Estabilish foreign keys via labels_fk
+        q = 'INSERT INTO labels_fk(item_id, label_id) VALUES(?, ?)'
+        values = ((s['id'], lid(l)) for s in res for l in s['categories'])
+        utils.sqlite.executemany(q, values)
+        logger.debug('Subscriptions synchronization completed')
+        self.emit('sync-done')
+
+
+class Favicons(base.SyncObject):
+    def __init__(self, *args, **kwargs):
+        super(Favicons, self).__init__(*args, **kwargs)
+        self.sync_status = 0
+        if not os.path.exists(utils.favicon_dir):
+            os.makedirs(utils.favicon_dir)
+
+    def sync(self):
+        uri = 'https://getfavicon.appspot.com/{0}?defaulticon=none'
+        query = 'SELECT url FROM subscriptions'
+        for site_uri, in utils.sqlite.execute(query).fetchall():
+            if not site_uri.startswith('http') or (self.has_icon(site_uri)
+               and not random.randint(0, 200) == 0):
+                # Resync only 0.5% of icons. It's unlikely that icon changes
+                # or becomes available
+               continue
+            msg = utils.Message('GET', uri.format(utils.quote(site_uri)))
+            utils.session.queue_message(msg, self.on_response, site_uri)
+            self.sync_status += 1
+        if self.sync_status == 0:
+            logger.debug('Favicons synchronization completed')
+            self.emit('sync-done')
+
+    def on_response(self, session, msg, site_uri):
+        self.sync_status -= 1
+        with open(utils.icon_name(site_uri), 'wb') as f:
+            if not (200 <= msg.status_code < 400) or msg.status_code == 204:
+                logger.warning('Could not get icon for {0}'.format(site_uri))
+                # Save an empty file so we know that we don't have an icon
+            else:
+                f.write(msg.response_body.flatten().get_data())
+        if self.sync_status == 0:
+            logger.debug('Favicons synchronization completed')
+            self.emit('sync-done')
+
+    def has_icon(self, site_uri):
+        return os.path.isfile(utils.icon_name(site_uri))

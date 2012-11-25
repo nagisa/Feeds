@@ -1,7 +1,7 @@
 from collections import namedtuple
 from gi.repository import Soup, Gtk, GdkPixbuf, GLib
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlencode
+from urllib.parse import urljoin, urlencode, quote, unquote
 from xml.sax.saxutils import escape
 import hashlib
 import itertools
@@ -120,8 +120,20 @@ def short_id(item_id):
     return str(short)
 
 
+def combine_ids(label_id, sub_id):
+    if not label_id:
+        return quote(sub_id, '')
+    else:
+        return quote(label_id, '') + '/' + quote(sub_id, '')
+
+
+def split_id(combined_ids):
+    if not '/' in combined_ids:
+        return unquote(combined_ids)
+    else:
+        return tuple(unquote(i) for i in combined_ids.split('/'))
+
 unescape = HTMLParser().unescape
-urlencode = urlencode
 session = Soup.SessionAsync(max_conns=50, max_conns_per_host=8)
 content_dir = os.path.join(CACHE_DIR, 'content')
 favicon_dir = os.path.join(CACHE_DIR, 'favicons')

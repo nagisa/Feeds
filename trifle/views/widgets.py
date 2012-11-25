@@ -372,9 +372,12 @@ class SubscriptionsView(Gtk.TreeView):
 
     def sync(self, callback=None):
         logger.debug('Starting subscriptions\' sync')
-        self.store.sync()
-        if callback is not None:
-            utils.connect_once(self.store, 'sync-done', callback)
+        subscriptions = models.synchronizers.Subscriptions()
+        icons = models.synchronizers.Favicons()
+        utils.connect_once(subscriptions, 'sync-done', lambda *x: icons.sync())
+        # TODO: Also ask to update model
+        utils.connect_once(icons, 'sync-done', lambda *x: callback(self.store))
+        subscriptions.sync()
 
 
 class ItemsView(Gtk.TreeView):
