@@ -52,7 +52,7 @@ class Auth(GObject.Object):
     def on_login(self, session, message, data):
         status = message.status_code
         if not 200 <= status < 400:
-            logger.error('Authentification failed (HTTP {0})'.format(status))
+            logger.error('Authentication failed (HTTP {0})'.format(status))
             self.status.update({'OK': False, 'PROGRESS': False,
                                 'BAD_CREDENTIALS': status == 403})
             utils.run_callbacks(self.login_callbacks)
