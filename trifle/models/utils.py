@@ -129,7 +129,7 @@ def combine_ids(label_id, sub_id):
 
 def split_id(combined_ids):
     if not '/' in combined_ids:
-        return unquote(combined_ids)
+        return None, unquote(combined_ids)
     else:
         return tuple(unquote(i) for i in combined_ids.split('/'))
 

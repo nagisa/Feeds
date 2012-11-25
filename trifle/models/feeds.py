@@ -39,8 +39,7 @@ class Store(ItemsStore):
             if self.category in ['unread', 'starred']:
                 query += ' AND items.{0}=1'.format(self.category)
             query += ' ORDER BY time DESC'
-            split = self.subscription.split('/')
-            subscription = '/'.join(split[split.index('feed'):])
+            subscription = utils.split_id(self.subscription)[1]
             self.load_from_query(query, subscription=subscription)
 
     def load_from_query(self, query, **binds):
