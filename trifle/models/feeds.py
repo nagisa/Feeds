@@ -9,6 +9,7 @@ from trifle.models.base import Item, ItemsStore
 class Store(ItemsStore):
     def __init__(self, *args, **kwargs):
         super(Store, self).__init__(*args, **kwargs)
+        self.objects_cache = {}
 
         if not os.path.exists(utils.content_dir):
             os.makedirs(utils.content_dir)
@@ -54,11 +55,14 @@ class Store(ItemsStore):
         items = utils.sqlite.execute(query, binds).fetchall()
         self.clear()
         for item in items:
-            obj = FeedItem(model=self, item_id=item[0], title=item[1],
-                           author=item[2], summary=item[3], href=item[4],
-                           time=int(item[5] // 1E6), unread=item[6],
-                           starred=item[7], origin=item[8], site=item[9])
-            self.append((obj,))
+            if not item[0] in self.objects_cache:
+                obj = FeedItem(model=self, item_id=item[0], title=item[1],
+                               author=item[2], summary=item[3], href=item[4],
+                               time=int(item[5] // 1E6), unread=item[6],
+                               starred=item[7], origin=item[8], site=item[9])
+                self.objects_cache[item[0]] = obj
+
+            self.append((self.objects_cache[item[0]],))
         self.emit('load-done')
 
     def redraw_row(self, item=None):
