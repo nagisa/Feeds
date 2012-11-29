@@ -15,56 +15,57 @@ from trifle import models
 from trifle.views import utils
 from trifle.views.itemcell import ItemCellRenderer
 
-def populate_side_menubar(toolbar):
-    stock_toolbutton = Gtk.ToolButton.new_from_stock
-
-    toolbar.spinner = ToolbarSpinner(margin_right=5)
-    toolbar.insert(toolbar.spinner, -1)
-
-    toolbar.combobox = ToolbarCategories(margin_right=5)
-    toolbar.insert(toolbar.combobox, -1)
-
-    toolbar.refresh = stock_toolbutton(Gtk.STOCK_REFRESH)
-    toolbar.insert(toolbar.refresh, -1)
-
-    toolbar.subscribe = stock_toolbutton(Gtk.STOCK_ADD)
-    # toolbar.subscribe.set_expand(True)
-    # toolbar.subscribe.set_halign(Gtk.Align.END)
-    toolbar.insert(toolbar.subscribe, -1)
-
-    toolbar.mark_all = stock_toolbutton(Gtk.STOCK_APPLY)
-    toolbar.mark_all.set_properties(halign=Gtk.Align.END)
-    toolbar.insert(toolbar.mark_all, -1)
-
-    for item in (toolbar.refresh, toolbar.subscribe, toolbar.mark_all):
-        item.set_property('margin-right', 5)
-
 
 class MainToolbar(Gtk.Toolbar):
     timestamp = GObject.property(type=GObject.TYPE_UINT64)
     title = GObject.property(type=str)
     uri = GObject.property(type=str)
+    category = GObject.property(type=str)
 
     def __init__(self, *args, **kwargs):
         super(MainToolbar, self).__init__(*args, show_arrow=False,
                                          toolbar_style=Gtk.ToolbarStyle.TEXT,
                                          icon_size=2,
                                          **kwargs)
-        self.get_style_context().add_class('primary-toolbar')
+        self.get_style_context().add_class('menubar')
 
-        self.unread = Gtk.ToggleToolButton(label=_('Unread'), margin_right=5)
-        self.starred = Gtk.ToggleToolButton(label=_('Starred'), margin_right=5)
+        # Category selectors [All|Unread|Starred]
+        self.category_buttons = (
+            ('reading-list', Gtk.RadioButton(_('All'), draw_indicator=False)),
+            ('unread', Gtk.RadioButton(_('Unread'), draw_indicator=False)),
+            ('starred', Gtk.RadioButton(_('Starred'), draw_indicator=False)),
+        )
+        button_box = Gtk.Box()
+        button_box.get_style_context().add_class('linked')
+        categories = Gtk.ToolItem(margin_right=5)
+        categories.add(button_box)
+        for key, item in self.category_buttons:
+            button_box.pack_start(item, False, True, 0)
+            item.connect('toggled', self.on_category_change)
+            if item is not self.category_buttons[0][1]:
+                item.set_property('group', self.category_buttons[0][1])
 
+        # Item status buttons [Make unread] [Make starred]
+        self.unread = Gtk.ToggleToolButton(label=_('Make unread'),
+                                           margin_right=5)
+        self.starred = Gtk.ToggleToolButton(label=_('Make starred'),
+                                            margin_right=5)
+
+        # Item title button
         self.title_label = Gtk.Label(ellipsize=Pango.EllipsizeMode.END)
-        self.title_button = Gtk.ToolButton(margin_right=5, no_show_all=True,
-                                           halign=Gtk.Align.CENTER,
-                                           label_widget=self.title_label)
+        self.title_button = Gtk.ToolItem(margin_right=5, no_show_all=True,
+                                           halign=Gtk.Align.CENTER)
+        self.title_link = Gtk.LinkButton('127.0.0.1')
+        self.title_link.show()
+        self.title_button.add(self.title_link)
         self.title_button.set_expand(True)
         self.title_button.set_size_request(100, -1)
 
+        # Item date label
         self.date_label = ToolbarLabel(margin_right=5)
         self.date_label.label.set_property('justify', Gtk.Justification.CENTER)
 
+        self.insert(categories, -1)
         self.insert(self.unread, -1)
         self.insert(self.starred, -1)
         self.insert(self.title_button, -1)
@@ -73,28 +74,26 @@ class MainToolbar(Gtk.Toolbar):
         self.connect('notify::timestamp', self.on_timestamp_change)
         self.connect('notify::title', self.on_title_change)
         self.connect('notify::url', self.on_title_change)
-        self.title_button.connect('clicked', self.on_link)
-
-    @staticmethod
-    def on_author_change(self, param):
-        return
-        self.author_label.set_text(self.author)
 
     @staticmethod
     def on_timestamp_change(self, param):
         time = datetime.datetime.fromtimestamp(self.timestamp)
-        self.date_label.label.set_text(time.strftime('%x\n%X'))
+        self.date_label.label.set_text(time.strftime('%x %X'))
 
     @staticmethod
     def on_title_change(self, param):
-        self.title_label.set_markup('<b>{0}</b>'.format(escape(self.title)))
-        self.title_label.set_ellipsize(Pango.EllipsizeMode.END)
+        self.title_link.set_properties(label=self.title, uri=self.uri)
+        self.title_link.get_child().set_property('ellipsize',
+                                                 Pango.EllipsizeMode.END)
         self.title_button.show()
-        self.title_label.show()
 
-    def on_link(self, button):
-        if not Gio.AppInfo.launch_default_for_uri(self.uri, None):
-            logger.error('System could not open {0}'.format(self.uri))
+    def on_category_change(self, button):
+        if not button.get_active():
+            return
+        for key, item in self.category_buttons:
+            if item == button:
+                self.category = key
+                return
 
     def set_item(self, item):
         self.set_properties(timestamp=item.time, title=item.title,
@@ -102,19 +101,6 @@ class MainToolbar(Gtk.Toolbar):
         self.starred.set_active(item.starred)
         self.unread.set_active(False)
 
-
-# NOTE: When we'll use it, port to Gtk.SearchEntry. Will also raise version
-# of GTK we depend on to 3.6.
-# class ToolbarSearch(Gtk.ToolItem):
-#
-#     def __init__(self, *args, **kwargs):
-#         super(ToolbarSearch, self).__init__(*args, **kwargs)
-#         self.entry = Gtk.Entry(hexpand=True, halign=Gtk.Align.FILL)
-#         self.set_unread_count(0)
-#         self.add(self.entry)
-#
-#     def set_unread_count(self, items):
-#         self.entry.set_placeholder_text(_('Search {0} items').format(items))
 
 
 class ToolbarSpinner(Gtk.ToolItem):
@@ -370,15 +356,6 @@ class SubscriptionsView(Gtk.TreeView):
             app.window.side_toolbar.spinner.hide()
         utils.connect_once(self.store, 'sync-done', sync_done)
 
-    def sync(self, callback=None):
-        logger.debug('Starting subscriptions\' sync')
-        subscriptions = models.synchronizers.Subscriptions()
-        icons = models.synchronizers.Favicons()
-        utils.connect_once(subscriptions, 'sync-done', lambda *x: icons.sync())
-        # TODO: Also ask to update model
-        utils.connect_once(icons, 'sync-done', lambda *x: callback(self.store))
-        subscriptions.sync()
-
 
 class ItemsView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
@@ -392,15 +369,6 @@ class ItemsView(Gtk.TreeView):
         self.append_column(column)
         # Needed so model is connected after filling it up
         self.remove_and_reconnect()
-
-    def sync(self, callback=None):
-        ids = models.synchronizers.Id()
-        flags = models.synchronizers.Flags()
-        items = models.synchronizers.Items()
-        utils.connect_once(flags, 'sync-done', lambda *x: ids.sync())
-        utils.connect_once(ids, 'sync-done', lambda *x: items.sync())
-        utils.connect_once(items, 'sync-done', lambda *x: callback(self.store))
-        flags.sync()
 
     def remove_and_reconnect(self):
         self.set_model(None)
@@ -418,11 +386,10 @@ class ItemsView(Gtk.TreeView):
                 self.store.is_feed = row[0] == 1
                 self.store.subscription = row[1]
 
-    def on_cat_change(self, combobox):
-        category = combobox.get_active_id()
-        if category is not None and self.store.category != category:
+    def on_cat_change(self, obj):
+        if obj.category is not None and self.store.category != obj.category:
             self.remove_and_reconnect()
-            self.store.category = category
+            self.store.category = obj.category
 
     def on_all_read(self, button):
         for item in self.store:

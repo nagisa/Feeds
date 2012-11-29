@@ -6,22 +6,20 @@ import time
 from trifle.utils import get_data_path, logger, _, ngettext
 
 
-class BuiltMixin(object):
-
+class BuiltMixin:
     def __new__(cls, *args, **kwargs):
         builder = Gtk.Builder(translation_domain='trifle')
         path = get_data_path('ui', cls.ui_file)
         builder.add_from_file(path)
-        new_obj = builder.get_object(cls.top_object)
-        new_obj.builder = builder
+        parent = builder.get_object(cls.top_object)
         for attr, value in cls.__dict__.items():
             if isinstance(value, collections.Callable):
-                setattr(new_obj, attr, functools.partial(value, new_obj))
+                setattr(parent, attr, functools.partial(value, parent))
             else:
-                setattr(new_obj, attr, value)
-        # Call __init__, somewhy it doesn't do so automatically.
-        new_obj.__init__(new_obj, *args, **kwargs)
-        return new_obj
+                setattr(parent, attr, value)
+        parent.builder = builder
+        cls.__init__(parent, *args, **kwargs)
+        return parent
 
 
 def hexcolor(color):

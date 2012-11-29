@@ -1,8 +1,7 @@
 from gi.repository import Gtk
 
+from trifle import models
 from trifle.utils import VERSION, _, logger
-from trifle.models import auth
-from trifle.models.settings import settings
 from trifle.views import widgets, utils
 
 
@@ -11,47 +10,42 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
     top_object = 'main-window'
 
     def __init__(self, *args, **kwargs):
+        Gtk.ApplicationWindow.__init__(self, *args, **kwargs)
         self.set_wmclass('Trifle', 'Trifle')
-        self.maximize()
-        self.connect('realize', self.on_show)
+        self.maximize() # Shall we do that by default?
 
-        self.side_toolbar = self.builder.get_object('sidetoolbar')
-        self.main_toolbar = widgets.MainToolbar()
-        self.toolbar_box = self.builder.get_object('toolbar-box')
-        self.subscriptions = widgets.SubscriptionsView()
-        self.items = widgets.ItemsView()
-        self.item_view = widgets.ItemView()
-        self.paned = self.builder.get_object('paned')
-        self.side_paned = self.builder.get_object('paned-side')
+        tbr = self.toolbar = widgets.MainToolbar()
+        items = self.items = widgets.ItemsView()
+        subscrs = self.subscriptions = widgets.SubscriptionsView()
+        item = self.item_view = widgets.ItemView()
 
-    def on_show(self, window):
-        widgets.populate_side_menubar(self.side_toolbar)
-        self.side_toolbar.show_all()
-        self.toolbar_box.pack_start(self.main_toolbar, True, True, 0)
-        self.main_toolbar.show_all()
-        self.side_toolbar.spinner.set_visible(False)
-        self.paned.connect('notify::position', self.on_horiz_pos_change)
-        self.paned.set_position(settings['horizontal-pos'])
-        self.side_paned.connect('notify::position', self.on_vert_pos_change)
-        self.side_paned.set_position(settings['vertical-pos'])
+        base_box = self.builder.get_object('base-box')
+        base_box.pack_start(tbr, False, True, 0)
+        base_box.reorder_child(tbr, 0)
+        self.builder.get_object('subscriptions').add(subscrs)
+        self.builder.get_object('items').add(items)
+        self.builder.get_object('item').add(item)
+        subscrs.show()
+        items.show()
+        item.show()
+        items.store.category = 'reading-list'
 
-        self.builder.get_object('subscriptions').add(self.subscriptions)
-        self.subscriptions.show()
+        subscrs.connect('cursor-changed', items.on_filter_change)
+        items.connect('cursor-changed', item.on_change)
+        tbr.connect('notify::category', lambda t, p: items.on_cat_change(t))
+        tbr.connect('notify::category', lambda t, p: subscrs.on_cat_change(t))
+        tbr.starred.connect('toggled', item.on_star)
+        tbr.unread.connect('toggled', item.on_keep_unread)
+        item.connect('notify::item', lambda i, x: tbr.set_item(i.item))
 
-        self.builder.get_object('items').add(self.items)
-        self.items.show()
-
-        self.builder.get_object('item').add(self.item_view)
-        self.item_view.show()
-
-    def on_horiz_pos_change(self, paned, pos):
-        min_width = self.main_toolbar.get_preferred_width()
-        self.builder.get_object('item').set_size_request(max(min_width), -1)
-        self.side_toolbar.props.width_request = self.paned.props.position
-        settings['horizontal-pos'] = self.paned.props.position
-
-    def on_vert_pos_change(self, paned, pos):
-        settings['vertical-pos'] = self.side_paned.props.position
+# TODO: These doesn't work correctly yet.
+#     def on_horiz_pos_change(self, paned, gprop):
+#         paned = self.builder.get_object('paned')
+#         models.settings.settings['horizontal-pos'] = paned.props.position
+#
+#     def on_vert_pos_change(self, paned, gprop):
+#         paned_side = self.builder.get_object('paned-side')
+#         models.settings.settings['vertical-pos'] = paned_side.props.position
 
 
 
@@ -65,7 +59,7 @@ class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
 
         for cb_name in ['notifications', 'start-refresh']:
             checkbox = self.builder.get_object(cb_name)
-            checkbox.set_active(settings[cb_name])
+            checkbox.set_active(models.settings.settings[cb_name])
             checkbox.connect('toggled', self.on_toggle, cb_name)
 
         refresh = self.builder.get_object('refresh-every')
@@ -73,21 +67,21 @@ class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
                             (10, _('10 minutes')), (30, _('30 minutes')),
                             (60, _('1 hour'))):
             refresh.append(str(time), label)
-        refresh.set_active_id(str(settings['refresh-every']))
+        refresh.set_active_id(str(models.settings.settings['refresh-every']))
         refresh.connect('changed', self.on_change, 'refresh-every')
 
         adjustment = self.builder.get_object('cache-upto-value')
-        adjustment.set_value(settings['cache-items'])
+        adjustment.set_value(models.settings.settings['cache-items'])
         adjustment.connect('value-changed', self.on_val_change, 'cache-items')
 
     def on_change(self, widget, setting):
-        settings[setting] = int(widget.get_active_id())
+        models.settings.settings[setting] = int(widget.get_active_id())
 
     def on_val_change(self, adj, setting):
-        settings[setting] = adj.get_value()
+        models.settings.settings[setting] = adj.get_value()
 
     def on_toggle(self, widget, setting):
-        settings[setting] = widget.get_active()
+        models.settings.settings[setting] = widget.get_active()
 
     def on_response(self, dialog, r):
         if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.OK):
@@ -132,7 +126,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
         if len(password) == 0 or len(user) == 0:
             self.msg.set_text(_('All fields are required'))
             return False
-        auth.keyring.set_credentials(user, password)
+        models.auth.keyring.set_credentials(user, password)
         self.destroy()
 
     def on_activate(self, entry, data=None):

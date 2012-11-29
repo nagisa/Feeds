@@ -7,44 +7,12 @@
     <property name="hide_titlebar_when_maximized">True</property>
     <property name="icon_name">trifle</property>
     <child>
-      <object class="GtkBox" id="box1">
+      <object class="GtkBox" id="base-box">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkBox" id="toolbar-box">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <style>
-              <class name="menubar"/>
-            </style>
-            <child>
-              <object class="GtkToolbar" id="sidetoolbar">
-                <property name="width_request">250</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="toolbar_style">icons</property>
-                <property name="show_arrow">False</property>
-                <property name="icon_size">2</property>
-                <style>
-                  <class name="primary-toolbar"/>
-                </style>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
           <object class="GtkPaned" id="paned">
@@ -60,20 +28,6 @@
                   <class name="sidebar"/>
                 </style>
                 <child>
-                  <object class="GtkScrolledWindow" id="subscriptions">
-                    <property name="height_request">100</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <child>
-                      <placeholder/>
-                    </child>
-                  </object>
-                  <packing>
-                    <property name="resize">False</property>
-                    <property name="shrink">False</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkScrolledWindow" id="items">
                     <property name="height_request">100</property>
                     <property name="visible">True</property>
@@ -84,6 +38,20 @@
                   </object>
                   <packing>
                     <property name="resize">True</property>
+                    <property name="shrink">False</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkScrolledWindow" id="subscriptions">
+                    <property name="height_request">100</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="resize">False</property>
                     <property name="shrink">False</property>
                   </packing>
                 </child>
