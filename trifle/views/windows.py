@@ -1,7 +1,7 @@
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
 
 from trifle import models
-from trifle.utils import VERSION, _, logger
+from trifle.utils import VERSION, _, logger, get_data_path
 from trifle.views import widgets, utils
 
 
@@ -13,6 +13,12 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         Gtk.ApplicationWindow.__init__(self, *args, **kwargs)
         self.set_wmclass('Trifle', 'Trifle')
         self.maximize() # Shall we do that by default?
+
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_path(get_data_path('ui', 'trifle-style.css'))
+        ctx = Gtk.StyleContext()
+        ctx.add_provider_for_screen(Gdk.Screen.get_default(), css_provider,
+                                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         tbr = self.toolbar = widgets.MainToolbar()
         items = self.items = widgets.ItemsView()

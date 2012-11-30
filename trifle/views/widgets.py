@@ -8,7 +8,6 @@ from gi.repository import WebKit
 import datetime
 
 from trifle.arguments import arguments
-from trifle.models.utils import escape
 from trifle.utils import get_data_path, _, logger
 from trifle import models
 
@@ -28,6 +27,7 @@ class MainToolbar(Gtk.Toolbar):
                                          icon_size=2,
                                          **kwargs)
         self.get_style_context().add_class('menubar')
+        self.get_style_context().add_class('trifle-toolbar')
 
         # Category selectors [All|Unread|Starred]
         self.category_buttons = (
@@ -363,6 +363,7 @@ class ItemsView(Gtk.TreeView):
         super(ItemsView, self).__init__(None, *args, **kwargs)
         self.set_properties(headers_visible=False,
                             enable_grid_lines=Gtk.TreeViewGridLines.HORIZONTAL)
+        self.get_style_context().add_class('trifle-items-view')
 
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer, item=0)

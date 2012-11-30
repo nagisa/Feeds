@@ -18,6 +18,9 @@
           <object class="GtkPaned" id="paned">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <style>
+              <class name="sidebar"/>
+            </style>
             <child>
               <object class="GtkPaned" id="paned-side">
                 <property name="width_request">250</property>
@@ -32,6 +35,7 @@
                     <property name="height_request">100</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="margin_bottom">2</property>
                     <child>
                       <placeholder/>
                     </child>
@@ -46,6 +50,10 @@
                     <property name="height_request">100</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="margin_top">2</property>
+                    <style>
+                      <class name="trifle-subscriptions"/>
+                    </style>
                     <child>
                       <placeholder/>
                     </child>
@@ -65,8 +73,12 @@
               <object class="GtkScrolledWindow" id="item">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="shadow_type">out</property>
                 <property name="min_content_width">200</property>
                 <property name="min_content_height">200</property>
+                <style>
+                  <class name="trifle-item"/>
+                </style>
                 <child>
                   <placeholder/>
                 </child>
