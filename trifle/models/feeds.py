@@ -55,13 +55,15 @@ class Store(ItemsStore):
         items = utils.sqlite.execute(query, binds).fetchall()
         self.clear()
         for item in items:
+            props = {'model': self, 'item_id': item[0], 'title': item[1],
+                     'author': item[2], 'summary': item[3],'href': item[4],
+                     'time': int(item[5] // 1E6), 'unread': item[6],
+                     'starred': item[7], 'origin': item[8], 'site': item[9]}
             if not item[0] in self.objects_cache:
-                obj = FeedItem(model=self, item_id=item[0], title=item[1],
-                               author=item[2], summary=item[3], href=item[4],
-                               time=int(item[5] // 1E6), unread=item[6],
-                               starred=item[7], origin=item[8], site=item[9])
+                obj = FeedItem(**props)
                 self.objects_cache[item[0]] = obj
-
+            else:
+                self.objects_cache[item[0]].set_properties(**props)
             self.append((self.objects_cache[item[0]],))
         self.emit('load-done')
 
