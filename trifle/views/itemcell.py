@@ -1,6 +1,7 @@
 from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import Gtk
+from gi.repository import GLib
 from gi.repository import Pango
 from gi.repository import PangoCairo
 
@@ -35,6 +36,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
         if self.item is None and not self.item.is_presentable():
             return
 
+        state = self.get_state(view, flags)
+        text_color = view.get_style_context().get_color(state)
+
         ctx.save()
         ctx.move_to(area.x, area.y)
         # Render icon
@@ -49,20 +53,22 @@ class ItemCellRenderer(Gtk.CellRenderer):
         # Render time
         time = utils.time_ago(self.item.time)
         kwargs = {'width': area.width - self.icon_size - self.line_spacing,
-                  'align': Pango.Alignment.RIGHT}
+                  'align': Pango.Alignment.RIGHT, 'color': text_color}
         h, w = self.render_text(view, ctx, time, **kwargs)
         # Render subscription title
-        kwargs = {'width': area.width - self.icon_size - w - self.line_spacing}
+        kwargs = {'width': area.width - self.icon_size - w - self.line_spacing,
+                  'color': text_color}
         self.render_text(view, ctx, self.item.site, **kwargs)
 
         # Render title
         ctx.move_to(area.x, area.y + self.icon_size + self.line_spacing)
         kwargs = {'size': self.title_size, 'width': area.width,
-                  'bold': self.item.unread}
+                  'bold': self.item.unread, 'color': text_color}
         h, w = self.render_text(view, ctx, self.item.title, **kwargs)
         # Render summary
         ctx.rel_move_to(0, h + self.line_spacing)
-        self.render_text(view, ctx, self.item.summary, width=area.width)
+        kwargs = {'width': area.width, 'color': text_color}
+        self.render_text(view, ctx, self.item.summary, **kwargs)
         ctx.restore()
 
     @staticmethod
@@ -75,7 +81,8 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     @staticmethod
     def render_text(view, context, text, size=1, width=None, height=None,
-                    bold=False, align=None):
+                    bold=False, align=None, color=None):
+
         layout = view.create_pango_layout(text)
         layout.set_text(text, len(text))
         layout.set_ellipsize(Pango.EllipsizeMode.END)
@@ -85,6 +92,22 @@ class ItemCellRenderer(Gtk.CellRenderer):
             layout.set_height(height * Pango.SCALE)
         if align is not None:
             layout.set_alignment(align)
+
+        # I'm feelin so ninja doing things introspection doesn't let me do with
+        # introspection.
+        # Coincidentally I really don't want to go and fix Pango introspection
+        # after this 😨
+        if color is not None:
+            attrlist = []
+            def filter_cb(attr, attrlist):
+                attrlist.append(attr)
+                return False
+            color_hex = color.to_color().to_string()
+            markup = '<span color="{0}"></span>'.format(color_hex)
+            attrs = Pango.parse_markup(markup, -1, '\01')[1]
+            attrs.filter(filter_cb, attrlist)
+            attrlist[0].end_index = GLib.MAXINT32
+            layout.set_attributes(attrs)
 
         if size != 1 or bold:
             descr = layout.get_context().get_font_description().copy()
