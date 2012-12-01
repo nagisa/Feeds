@@ -6,6 +6,7 @@ from gi.repository import Gtk
 from gi.repository import Pango
 from gi.repository import WebKit
 import datetime
+import base64
 
 from trifle.arguments import arguments
 from trifle.utils import get_data_path, _, logger
@@ -166,15 +167,19 @@ class ItemView(WebKit.WebView):
         WebKit.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER)
         WebKit.get_default_session().set_property('max-conns-per-host', 8)
 
-        super(ItemView, self).__init__(*args, **kwargs)
+        settings = WebKit.WebSettings()
+        settings.set_properties(**self.settings_props)
+        super(ItemView, self).__init__(*args, settings=settings, **kwargs)
+
+        ctx = self.get_style_context()
+        ctx.add_class('view')
+
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
         self.connect('hovering-over-link', self.on_hovering_over_link)
         self.connect('notify::item-id', self.on_item_change)
+        self.connect('realize', self.on_realize)
 
-        self.settings = WebKit.WebSettings()
-        self.settings.set_properties(**self.settings_props)
-        self.set_settings(self.settings)
         if arguments.devtools:
             insp = self.get_inspector()
             insp.connect('inspect-web-view', self.on_inspector)
@@ -183,6 +188,17 @@ class ItemView(WebKit.WebView):
         # Load base template
         template_path = get_data_path('ui', 'feedview', 'template.html')
         self.load_uri('file://' + template_path)
+
+    @staticmethod
+    def on_realize(self):
+        ctx = self.get_style_context()
+        fmt = (ctx.get_color(Gtk.StateFlags.NORMAL).to_string(),
+              ctx.get_background_color(Gtk.StateFlags.NORMAL).to_string())
+        style = "html, body {{ color: {0}; background: {1}; }}".format(*fmt)
+        encoded = base64.b64encode(bytes(style, 'utf-8'))
+        uri = 'data:text/css;charset=utf-8;base64,' + encoded.decode('ascii')
+        dom = self.get_dom_document()
+        dom.get_element_by_id('trifle_userstyle').set_href(uri)
 
     @staticmethod
     def on_item_change(self, param):
@@ -202,6 +218,7 @@ class ItemView(WebKit.WebView):
             repl.set_href(uri)
             repl.set_inner_text(uri)
             iframe.get_parent_node().replace_child(repl, iframe)
+        self.show()
 
     def on_inspector(self, insp, view):
         insp_view = WebKit.WebView()

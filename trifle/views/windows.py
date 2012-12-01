@@ -23,7 +23,7 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         tbr = self.toolbar = widgets.MainToolbar()
         items = self.items = widgets.ItemsView()
         subscrs = self.subscriptions = widgets.SubscriptionsView()
-        item_view = self.item_view = widgets.ItemView()
+        item_view = self.item_view = widgets.ItemView(no_show_all=True)
 
         base_box = self.builder.get_object('base-box')
         base_box.pack_start(tbr, False, True, 0)
@@ -33,7 +33,6 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         self.builder.get_object('item').add(item_view)
         subscrs.show()
         items.show()
-        item_view.show()
         items.category = 'reading-list'
 
         subscrs.get_selection().connect('changed', self.on_subscr_change)
