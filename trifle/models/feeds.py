@@ -126,3 +126,6 @@ class FeedItem(Item):
                    (SELECT id FROM flags WHERE item_id=:id AND flag=:flag))'''
         utils.sqlite.execute(query, {'id': self.item_id, 'flag': flag,
                                      'remove': remove})
+
+    def is_presentable(self):
+        return not (self.title is None or self.summary is None)

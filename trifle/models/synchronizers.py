@@ -254,9 +254,7 @@ class Items(base.SyncObject):
         result['summary'] = strip(content)[:512]
 
         for k in ['author', 'title', 'summary']:
-            result[k] = utils.escape(result[k]) if result[k] else result[k]
-        if len(result['summary']) > 140:
-            result['summary'] = result['summary'][:139] + '…'
+            result[k] = utils.unescape(result[k]) if result[k] else result[k]
 
         return result, content
 
