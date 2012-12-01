@@ -15,9 +15,6 @@ class ItemCellRenderer(Gtk.CellRenderer):
     line_spacing = GObject.property(type=GObject.TYPE_INT, default=2)
     height = GObject.property(type=GObject.TYPE_UINT, default=0)
 
-    sizes = {'date': 9216, 'site': 9216, 'title': 10240, 'summary': 9216}
-    heights = [0, 0, 0]
-
     def __init__(self, *args, **kwargs):
         super(ItemCellRenderer, self).__init__(*args, **kwargs)
 
