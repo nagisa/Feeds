@@ -84,7 +84,6 @@ class ItemCellRenderer(Gtk.CellRenderer):
                     bold=False, align=None, color=None):
 
         layout = view.create_pango_layout(text)
-        layout.set_text(text, len(text))
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         if width is not None:
             layout.set_width(width * Pango.SCALE)
