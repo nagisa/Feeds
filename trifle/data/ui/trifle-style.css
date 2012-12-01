@@ -1,13 +1,11 @@
 .trifle-toolbar {
     border-style: solid;
-    border-color: @borders;
     border-radius: 0;
     border-width: 0 0 1px 0;
 }
 
 .trifle-item {
     border-style: solid;
-    border-color: @borders;
     border-radius: 0;
     border-width: 0 0 0 1px;
 }
@@ -16,5 +14,4 @@
     -GtkTreeView-grid-line-pattern: "\1";
     -GtkTreeView-vertical-separator: 4px;
     -GtkTreeView-horizontal-separator: 4px;
-    border-color: @borders;
 }
