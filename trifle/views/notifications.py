@@ -1,6 +1,6 @@
 from gi.repository import Notify, GObject
 
-from trifle.models import settings
+from trifle import models
 from trifle.utils import logger, ngettext, _
 
 
@@ -13,7 +13,7 @@ class Notification(Notify.Notification):
         super(Notification, self).update(summary, body, self.icon)
 
     def show(self):
-        if settings['notifications']:
+        if models.settings.settings['notifications']:
             self.visible = True
             super(Notification, self).show()
         else:
@@ -30,7 +30,7 @@ class Notification(Notify.Notification):
                            'You have {0} unread items', count).format(count)
         self.update(summary, '')
         self.show()
-
+        self.old_unread = count
 
 Notify.init(_('Feeds'))
 notification = Notification()

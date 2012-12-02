@@ -52,7 +52,6 @@ class MainToolbar(Gtk.Toolbar):
                                             margin_right=5)
 
         # Item title button
-        self.title_label = Gtk.Label(ellipsize=Pango.EllipsizeMode.END)
         self.title_button = Gtk.ToolItem(margin_right=5, no_show_all=True,
                                            halign=Gtk.Align.CENTER)
         self.title_link = Gtk.LinkButton('127.0.0.1')

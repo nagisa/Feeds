@@ -43,6 +43,11 @@ class Store(ItemsStore):
             subscription = utils.split_id(self.subscription)[1]
             self.load_from_query(query, subscription=subscription)
 
+    @staticmethod
+    def unread_count():
+        query = 'SELECT COUNT(unread) FROM items WHERE unread=1'
+        return utils.sqlite.execute(query).fetchone()[0]
+
     def load_from_query(self, query, **binds):
         """ Will load items with query. SELECt query should contain {fields}
         and {join} format fields.

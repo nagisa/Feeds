@@ -103,8 +103,11 @@ class Application(Gtk.Application):
     def _on_sync(self, action, data=None):
         def on_sync_done(synchronizer, data=None):
             self.last_sync = GLib.get_monotonic_time()
-            # if hasattr(model, 'unread_count') and model.unread_count > 0:
-            #     notification.notify_unread_count(model.unread_count)
+
+        def on_items_sync_done(synchronizer, data=None):
+            notification = views.notifications.notification
+            unread = models.feeds.Store.unread_count()
+            notification.notify_unread_count(unread)
 
         ids = models.synchronizers.Id()
         flags = models.synchronizers.Flags()
@@ -115,6 +118,7 @@ class Application(Gtk.Application):
         connect_once(flags, 'sync-done', lambda *x: ids.sync())
         connect_once(ids, 'sync-done', lambda *x: items.sync())
         connect_once(items, 'sync-done', on_sync_done)
+        connect_once(items, 'sync-done', on_items_sync_done)
         connect_once(subscriptions, 'sync-done', lambda *x: icons.sync())
         # TODO: Also ask to update model
         connect_once(icons, 'sync-done', on_sync_done)
