@@ -23,11 +23,12 @@ class Notification(Notify.Notification):
         self.visible = False
 
     def notify_unread_count(self, count):
-        if self.old_unread == count and self.visible:
+        if self.old_unread == count and self.visible or count == 0:
+            self.old_unread = count # In case count is 0
             # All ok, notification is still visible and displays correct info
             return
-        summary = ngettext('You have an unread item',
-                           'You have {0} unread items', count).format(count)
+        summary = ngettext('Unread item is available', '{0} unread items are '
+                           'available', count).format(count)
         self.update(summary, '')
         self.show()
         self.old_unread = count
