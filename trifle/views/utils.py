@@ -5,7 +5,6 @@ import time
 
 from trifle.utils import get_data_path, logger, _, ngettext
 
-
 class BuiltMixin:
     def __new__(cls, *args, **kwargs):
         builder = Gtk.Builder(translation_domain='trifle')

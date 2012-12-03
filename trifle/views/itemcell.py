@@ -10,7 +10,13 @@ from trifle.views import utils
 
 
 class ItemCellRenderer(Gtk.CellRenderer):
-    item = GObject.property(type=models.base.Item)
+    title = GObject.property(type=GObject.TYPE_STRING)
+    summary = GObject.property(type=GObject.TYPE_STRING)
+    time = GObject.property(type=GObject.TYPE_UINT64)
+    unread = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+    source = GObject.property(type=GObject.TYPE_STRING)
+    source_title = GObject.property(type=GObject.TYPE_STRING)
+    # Some style properties
     icon_size = GObject.property(type=GObject.TYPE_UINT, default=16)
     title_size = GObject.property(type=GObject.TYPE_DOUBLE, default=1.15)
     line_spacing = GObject.property(type=GObject.TYPE_INT, default=2)
@@ -33,9 +39,6 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     # Any of render functions should not modify self.* in any way
     def do_render(self, ctx, view, bg_area, area, flags):
-        if self.item is None and not self.item.is_presentable():
-            return
-
         state = self.get_state(view, flags)
         text_color = view.get_style_context().get_color(state)
 
@@ -44,31 +47,31 @@ class ItemCellRenderer(Gtk.CellRenderer):
         # Render icon
         ctx.save()
         x, y = ctx.get_current_point()
-        self.render_icon(ctx, self.item.origin, self.icon_size, x, y)
+        self.render_icon(ctx, self.source, self.icon_size, x, y)
         ctx.restore()
         # Center vertically
         tmp_layout = view.create_pango_layout('Gg')
         dh = int(self.icon_size - tmp_layout.get_pixel_extents()[1].height)
         ctx.rel_move_to(self.icon_size + self.line_spacing, dh)
         # Render time
-        time = utils.time_ago(self.item.time)
+        time = utils.time_ago(self.time)
         kwargs = {'width': area.width - self.icon_size - self.line_spacing,
                   'align': Pango.Alignment.RIGHT, 'color': text_color}
         h, w = self.render_text(view, ctx, time, **kwargs)
         # Render subscription title
         kwargs = {'width': area.width - self.icon_size - w - self.line_spacing,
                   'color': text_color}
-        self.render_text(view, ctx, self.item.site, **kwargs)
+        self.render_text(view, ctx, self.source_title, **kwargs)
 
         # Render title
         ctx.move_to(area.x, area.y + self.icon_size + self.line_spacing)
         kwargs = {'size': self.title_size, 'width': area.width,
-                  'bold': self.item.unread, 'color': text_color}
-        h, w = self.render_text(view, ctx, self.item.title, **kwargs)
+                  'bold': self.unread, 'color': text_color}
+        h, w = self.render_text(view, ctx, self.title, **kwargs)
         # Render summary
         ctx.rel_move_to(0, h + self.line_spacing)
         kwargs = {'width': area.width, 'color': text_color}
-        self.render_text(view, ctx, self.item.summary, **kwargs)
+        self.render_text(view, ctx, self.summary, **kwargs)
         ctx.restore()
 
     @staticmethod

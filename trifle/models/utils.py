@@ -58,6 +58,13 @@ class AuthMessage(Message):
         return obj
 
 
+class TreeModelFilter(Gtk.TreeModelFilter):
+    def set_value(self, iter, column, val):
+        # Delegate change to parent
+        iter = self.convert_iter_to_child_iter(iter)
+        self.get_model().set_value(iter, column, val)
+
+
 def api_method(path, getargs=None):
     if getargs is None:
         getargs = []
@@ -132,6 +139,16 @@ def split_id(combined_ids):
         return None, unquote(combined_ids)
     else:
         return tuple(unquote(i) for i in combined_ids.split('/'))
+
+
+def item_content(item_id):
+    fpath = os.path.join(content_dir, str(item_id))
+    if os.path.isfile(fpath):
+        with open(fpath, 'r') as f:
+            return f.read()
+    else:
+        return None
+
 
 unescape = HTMLParser().unescape
 session = Soup.SessionAsync(max_conns=50, max_conns_per_host=8)

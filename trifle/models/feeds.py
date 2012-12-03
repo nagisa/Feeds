@@ -1,138 +1,60 @@
 # -*- coding:utf-8 -*-
-from gi.repository import GObject
 import os
+from gi.repository import GObject
 
 from trifle.models import utils, synchronizers
-from trifle.models.base import Item, ItemsStore
+from trifle.models.base import ItemsStore
 
 
 class Store(ItemsStore):
     def __init__(self, *args, **kwargs):
-        super(Store, self).__init__(*args, **kwargs)
-        self.objects_cache = {}
+        # We will use this boolean flag to keep track of forced visibility
+        super(Store, self).__init__(GObject.TYPE_BOOLEAN, *args, **kwargs)
+        self.forced = []
 
         if not os.path.exists(utils.content_dir):
             os.makedirs(utils.content_dir)
 
-        self.connect('notify::category', self.category_change)
-        self.connect('notify::subscription', self.subscription_change)
-
-    @staticmethod
-    def category_change(self, gprop):
-        query = 'SELECT {fields} FROM items {join}'
-        if self.category in ['unread', 'starred']:
-            query += ' WHERE items.{0}=1'.format(self.category)
-        query += ' ORDER BY time DESC'
-        self.load_from_query(query)
-
-    @staticmethod
-    def subscription_change(self, gprop):
-        if not self.is_feed:
-            query = '''SELECT {fields} FROM items {join} WHERE subscriptions.id
-                    IN (SELECT item_id FROM labels_fk WHERE label_id=:lblid)'''
-            if self.category in ['unread', 'starred']:
-                query += ' AND items.{0}=1'.format(self.category)
-            query += ' ORDER BY time DESC'
-            self.load_from_query(query, lblid=self.subscription)
-        else:
-            query = '''SELECT {fields} FROM items {join} WHERE
-                    items.subscription=:subscription'''
-            if self.category in ['unread', 'starred']:
-                query += ' AND items.{0}=1'.format(self.category)
-            query += ' ORDER BY time DESC'
-            subscription = utils.split_id(self.subscription)[1]
-            self.load_from_query(query, subscription=subscription)
+        self.connect('row-changed', self.on_changed)
 
     @staticmethod
     def unread_count():
         query = 'SELECT COUNT(unread) FROM items WHERE unread=1'
         return utils.sqlite.execute(query).fetchone()[0]
 
-    def load_from_query(self, query, **binds):
-        """ Will load items with query. SELECt query should contain {fields}
-        and {join} format fields.
-        In the end query will look like this:
-        SELECT {fields} FROM items {join} WHERE items.unread=1 """
-        fields = '''items.id, items.title, author, summary, href, time, unread,
-                    starred, subscriptions.url, subscriptions.title'''
-        join = 'LEFT JOIN subscriptions ON subscriptions.id=items.subscription'
-        query = query.format(fields=fields, join=join)
-        items = utils.sqlite.execute(query, binds).fetchall()
-        self.clear()
+    def load(self):
+        query = '''SELECT items.id, items.title, author, summary, href, time,
+                   unread, starred, s.url, s.title, s.id, label_id FROM items
+                   LEFT JOIN subscriptions AS s ON s.id=items.subscription
+                   LEFT JOIN labels_fk ON labels_fk.item_id=s.id
+                   ORDER BY time DESC'''
+        items = utils.sqlite.execute(query).fetchall()
         for item in items:
-            props = {'model': self, 'item_id': item[0], 'title': item[1],
-                     'author': item[2], 'summary': item[3],'href': item[4],
-                     'time': int(item[5] // 1E6), 'unread': item[6],
-                     'starred': item[7], 'origin': item[8], 'site': item[9]}
-            if not item[0] in self.objects_cache:
-                obj = FeedItem(**props)
-                self.objects_cache[item[0]] = obj
-            else:
-                self.objects_cache[item[0]].set_properties(**props)
-            self.append((self.objects_cache[item[0]],))
-        self.emit('load-done')
+            cols = list(item)
+            cols[5] = int(cols[5] // 1E6)
+            cols.append(False)
+            self.append(cols)
 
-    def redraw_row(self, item=None):
-        """ Will notify all rows if item is None """
-        # Redraw row, for exaple title will instantly become bold again if
-        # item is made unread.
-        for row in self:
-            if item is None or row[0] == item:
-                self.row_changed(row.path, row.iter)
+    def unforce_all(self):
+        for path in self.forced:
+            self[self.get_iter(path)][12] = False
+        self.forced.clear()
 
-
-class FeedItem(Item):
-    model = GObject.property(type=GObject.Object)
-    def __init__(self, unread=False, starred=False, *args, **kwargs):
-        self._unread, self._starred = bool(unread), bool(starred)
-        super(FeedItem, self).__init__(*args, **kwargs)
-
-    @GObject.property
-    def content(self):
-        fpath = os.path.join(utils.content_dir, str(self.item_id))
-        if os.path.isfile(fpath):
-            with open(fpath, 'r') as f:
-                return f.read()
-        else:
-            return None
-
-    unread = GObject.property(lambda self: self._unread)
-    starred = GObject.property(lambda self: self._starred)
-
-    @unread.setter
-    def unread_change(self, value):
-        if self.unread == value:
-            return
-        self._unread = value
-
-        self.add_flag(synchronizers.Flags.flags['kept-unread'], not value)
-        self.add_flag(synchronizers.Flags.flags['read'], value)
-
-        query = 'UPDATE items SET unread=? WHERE id=?'
-        utils.sqlite.execute(query, (self.unread, self.item_id,))
+    @staticmethod
+    def on_changed(self, path, itr):
+        row = self[itr]
+        if row[12] == True and path not in self.forced:
+            self.forced.append(path.copy())
+        query = '''UPDATE items SET unread=?, starred=? WHERE id=?'''
+        utils.sqlite.execute(query, (row[6], row[7], row[0],))
+        self.add_flag(row[0], synchronizers.Flags.flags['read'], not row[6])
+        self.add_flag(row[0], synchronizers.Flags.flags['kept-unread'], row[6])
+        self.add_flag(row[0], synchronizers.Flags.flags['starred'], row[7])
         utils.sqlite.commit()
-        self.notify('unread')
-        self.model.redraw_row(self)
 
-    @starred.setter
-    def starred_change(self, value):
-        if self._starred == value:
-            return
-        self._starred = value
-
-        self.add_flag(synchronizers.Flags.flags['starred'], not value)
-
-        query = 'UPDATE items SET starred=? WHERE id=?'
-        utils.sqlite.execute(query, (self.starred, self.item_id,))
-        utils.sqlite.commit()
-        self.notify('starred')
-
-    def add_flag(self, flag, remove):
+    def add_flag(self, item_id, flag, value):
         query = '''INSERT OR REPLACE INTO flags(item_id, flag, remove, id)
                    VALUES (:id, :flag, :remove,
                    (SELECT id FROM flags WHERE item_id=:id AND flag=:flag))'''
-        utils.sqlite.execute(query, {'id': self.item_id, 'flag': flag,
-                                     'remove': remove})
-
-    def is_presentable(self):
-        return not (self.title is None or self.summary is None)
+        utils.sqlite.execute(query, {'id': item_id, 'flag': flag,
+                                     'remove': not value})

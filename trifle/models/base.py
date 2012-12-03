@@ -1,32 +1,27 @@
 from gi.repository import GObject, Gtk
 
-class Item(GObject.Object):
-    # https://bugzilla.gnome.org/show_bug.cgi?id=688949
-    item_id = GObject.property(type=object)
-    title = GObject.property(type=GObject.TYPE_STRING)
-    author = GObject.property(type=GObject.TYPE_STRING)
-    summary = GObject.property(type=GObject.TYPE_STRING)
-    href = GObject.property(type=GObject.TYPE_STRING)
-    time = GObject.property(type=GObject.TYPE_UINT64)
-    unread = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
-    starred = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
-    origin = GObject.property(type=GObject.TYPE_STRING)
-    site = GObject.property(type=GObject.TYPE_STRING)
-    icon = GObject.property(type=GObject.TYPE_STRING)
-
 
 class ItemsStore(Gtk.ListStore):
     __gsignals__ = {
-        'sync-done': (GObject.SignalFlags.RUN_FIRST, None, []),
-        'load-done': (GObject.SignalFlags.RUN_LAST, None, [])
+        'load-done': (GObject.SignalFlags.RUN_LAST, None, []),
     }
-    category = GObject.property(type=GObject.TYPE_STRING)
-    subscription = GObject.property(type=GObject.TYPE_STRING)
     is_feed = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
     flags = GObject.property(type=GObject.Object)
 
     def __init__(self, *args, **kwargs):
-        super(ItemsStore, self).__init__(Item, *args, **kwargs)
+        base_cols = (object, # Item ID
+                     GObject.TYPE_STRING, # Title
+                     GObject.TYPE_STRING, # Author
+                     GObject.TYPE_STRING, # Summary
+                     GObject.TYPE_STRING, # Link to document
+                     GObject.TYPE_UINT64, # Timestamp
+                     GObject.TYPE_BOOLEAN, # Is item unread
+                     GObject.TYPE_BOOLEAN, # Is item starred
+                     GObject.TYPE_STRING, # Subscription URI
+                     GObject.TYPE_STRING, # Subscription Title
+                     GObject.TYPE_STRING, # Subscription ID
+                     GObject.TYPE_STRING,) # Label ID
+        super(ItemsStore, self).__init__(*(base_cols + args), **kwargs)
 
 
 class SyncObject(GObject.Object):

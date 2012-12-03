@@ -23,26 +23,49 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         tbr = self.toolbar = widgets.MainToolbar()
         items = self.items = widgets.ItemsView()
         subscrs = self.subscriptions = widgets.SubscriptionsView()
-        item = self.item_view = widgets.ItemView()
+        item_view = self.item_view = widgets.ItemView()
 
         base_box = self.builder.get_object('base-box')
         base_box.pack_start(tbr, False, True, 0)
         base_box.reorder_child(tbr, 0)
         self.builder.get_object('subscriptions').add(subscrs)
         self.builder.get_object('items').add(items)
-        self.builder.get_object('item').add(item)
+        self.builder.get_object('item').add(item_view)
         subscrs.show()
         items.show()
-        item.show()
-        items.store.category = 'reading-list'
+        item_view.show()
+        items.category = 'reading-list'
 
-        subscrs.connect('cursor-changed', items.on_filter_change)
-        items.connect('cursor-changed', item.on_change)
-        tbr.connect('notify::category', lambda t, p: items.on_cat_change(t))
+        subscrs.get_selection().connect('changed', self.on_subscr_change)
+        items.get_selection().connect('changed', self.on_item_change)
+        tbr.connect('notify::category',
+                    lambda t, p: items.set_category(t.category))
         tbr.connect('notify::category', lambda t, p: subscrs.on_cat_change(t))
-        tbr.starred.connect('toggled', item.on_star)
-        tbr.unread.connect('toggled', item.on_keep_unread)
-        item.connect('notify::item', lambda i, x: tbr.set_item(i.item))
+        tbr.starred.connect('toggled', self.on_star)
+        tbr.unread.connect('toggled', self.on_keep_unread)
+
+    def on_subscr_change(self, selection):
+        model, itr = selection.get_selected()
+        if itr is not None:
+            row = model[itr]
+            self.items.set_properties(subscription=row[1],
+                                      sub_is_feed = row[0] == 1)
+
+    def on_item_change(self, selection):
+        model, itr = selection.get_selected()
+        if model is None or itr is None:
+            return
+        row = model[itr]
+
+        self.item_view.item_id = row[0]
+        self.toolbar.set_properties(timestamp=row[5], title=row[1], uri=row[4])
+        row[12], row[6] = True, False
+
+    def on_star(self, button):
+        pass
+
+    def on_keep_unread(self, button):
+        pass
 
 # TODO: These doesn't work correctly yet.
 #     def on_horiz_pos_change(self, paned, gprop):

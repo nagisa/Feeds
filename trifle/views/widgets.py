@@ -82,8 +82,8 @@ class MainToolbar(Gtk.Toolbar):
     @staticmethod
     def on_title_change(self, param):
         self.title_link.set_properties(label=self.title, uri=self.uri)
-        self.title_link.get_child().set_property('ellipsize',
-                                                 Pango.EllipsizeMode.END)
+        title_label = self.title_link.get_child()
+        title_label.set_properties(ellipsize=Pango.EllipsizeMode.END)
         self.title_button.show()
 
     def on_category_change(self, button):
@@ -95,8 +95,6 @@ class MainToolbar(Gtk.Toolbar):
                 return
 
     def set_item(self, item):
-        self.set_properties(timestamp=item.time, title=item.title,
-                            uri=item.href)
         self.starred.set_active(item.starred)
         self.unread.set_active(False)
 
@@ -143,7 +141,7 @@ class ToolbarLabel(Gtk.ToolItem):
 
 
 class ItemView(WebKit.WebView):
-    item = GObject.property(type=GObject.Object)
+    item_id = GObject.property(type=object)
 
     settings_props = {
         # These three saves us ~25MiB of residental memory
@@ -172,7 +170,7 @@ class ItemView(WebKit.WebView):
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('console-message', self.on_console_message)
         self.connect('hovering-over-link', self.on_hovering_over_link)
-        self.connect('notify::item', self.on_item_change)
+        self.connect('notify::item-id', self.on_item_change)
 
         self.settings = WebKit.WebSettings()
         self.settings.set_properties(**self.settings_props)
@@ -193,7 +191,7 @@ class ItemView(WebKit.WebView):
         self.get_vadjustment().set_value(0)
         # Set new data
         dom = self.get_dom_document()
-        content = self.item.content
+        content = models.utils.item_content(self.item_id)
         dom.get_element_by_id('trifle_content').set_inner_html(content)
         # IFrame repacement
         iframes = dom.get_elements_by_tag_name('iframe')
@@ -241,25 +239,6 @@ class ItemView(WebKit.WebView):
     def on_console_message(self, message, line, source):
         logger.debug(message)
         return True
-
-    def on_change(self, treeview):
-        if treeview.in_destruction():
-            return
-        selection = treeview.get_selection().get_selected()
-        if selection[0] is None or selection[1] is None:
-            return
-        item = selection[0].get_value(selection[1], 0)
-        # We don't have anything to do if same item is being loaded
-        if item is self.item:
-            return None
-        self.item = item
-        self.item.unread = False
-
-    def on_star(self, button):
-        self.item.starred = button.get_active()
-
-    def on_keep_unread(self, button):
-        self.item.unread = button.get_active()
 
 class CategoriesView(Gtk.TreeView):
 
@@ -357,41 +336,60 @@ class SubscriptionsView(Gtk.TreeView):
 
 
 class ItemsView(Gtk.TreeView):
+    category = GObject.property(type=GObject.TYPE_STRING)
+    subscription = GObject.property(type=GObject.TYPE_STRING)
+    sub_is_feed = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+    sub_filt = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+
     def __init__(self, *args, **kwargs):
-        self.store = models.feeds.Store()
+        # Initialize models and filters
+        self.reading_list = models.feeds.Store()
+        self.reading_list.load()
+
         super(ItemsView, self).__init__(None, *args, **kwargs)
-        self.set_properties(headers_visible=False,
-                            enable_grid_lines=Gtk.TreeViewGridLines.HORIZONTAL)
+        self.set_properties(headers_visible=False)
         self.get_style_context().add_class('trifle-items-view')
 
         renderer = ItemCellRenderer()
-        column = Gtk.TreeViewColumn("Item", renderer, item=0)
+        column = Gtk.TreeViewColumn("Item", renderer)
+        column.set_attributes(renderer, title=1, summary=3, time=5, unread=6,
+                              source=8, source_title=9)
         self.append_column(column)
-        # Needed so model is connected after filling it up
-        self.remove_and_reconnect()
 
-    def remove_and_reconnect(self):
-        self.set_model(None)
-        callback = lambda *x: self.set_model(self.store)
-        utils.connect_once(self.store, 'load-done', callback)
+        self.connect('notify::category', self.category_change)
+        self.connect('notify::subscription', self.subscription_change)
+        self.connect('notify::category', self.either_change)
+        self.connect('notify::subscription', self.either_change)
 
-    def on_filter_change(self, treeview):
-        if treeview.in_destruction():
-            return
-        model, selection = treeview.get_selection().get_selected()
-        if selection is not None:
-            row = model[selection]
-            if row[1] != self.store.subscription:
-                self.remove_and_reconnect()
-                self.store.is_feed = row[0] == 1
-                self.store.subscription = row[1]
+    @staticmethod
+    def either_change(self, gprop):
+        self.reading_list.unforce_all()
 
-    def on_cat_change(self, obj):
-        if obj.category is not None and self.store.category != obj.category:
-            self.remove_and_reconnect()
-            self.store.category = obj.category
+    @staticmethod
+    def category_change(self, gprop):
+        if self.category in ('unread', 'starred'):
+            self.reading_list
+            filt = models.utils.TreeModelFilter(child_model=self.reading_list)
+            key = 6 if self.category == 'unread' else 7
+            compr = lambda m, i, d: m[i][key] or m[i][12]
+            filt.set_visible_func(compr)
+            self.set_model(filt)
+        else:
+            self.set_model(self.reading_list)
+        self.sub_filt = False
 
-    def on_all_read(self, button):
-        for item in self.store:
-            if item[0].unread:
-                item[0].unread = False
+    @staticmethod
+    def subscription_change(self, gprop):
+        m = self.get_model().get_model() if self.sub_filt else self.get_model()
+        filt = models.utils.TreeModelFilter(child_model=m)
+        if self.sub_is_feed:
+            filt_key, sub = 10, models.utils.split_id(self.subscription)[1]
+        else:
+            filt_key, sub = 11, self.subscription
+        compr = lambda m, i, d: m[i][filt_key] == d
+        filt.set_visible_func(compr, sub)
+        self.set_model(filt)
+        self.sub_filt = True
+
+    def set_category(self, value):
+        self.category = value
