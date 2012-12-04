@@ -11,7 +11,7 @@ class Store(ItemsStore):
     def __init__(self, *args, **kwargs):
         # We will use this boolean flag to keep track of forced visibility
         super(Store, self).__init__(GObject.TYPE_BOOLEAN, *args, **kwargs)
-        self.forced = []
+        self.forced = set()
 
         if not os.path.exists(utils.content_dir):
             os.makedirs(utils.content_dir)
@@ -47,15 +47,19 @@ class Store(ItemsStore):
         self.set_sort_column_id(4, Gtk.SortType.DESCENDING)
 
     def unforce_all(self):
-        for path in self.forced:
-            self[self.get_iter(path)][11] = False
-        self.forced.clear()
+        if len(self.forced) == 0:
+            return
+        for row in (row for row in self if row[0] in self.forced):
+            self.forced.remove(row[0])
+            row[11] = False
+            if len(self.forced) == 0:
+                break
 
     @staticmethod
     def on_changed(self, path, itr):
         row = self[itr]
-        if row[11] == True and path not in self.forced:
-            self.forced.append(path.copy())
+        if row[11] == True and row[0] not in self.forced:
+            self.forced.add(row[0])
         query = '''UPDATE items SET unread=?, starred=? WHERE id=?'''
         utils.sqlite.execute(query, (row[5], row[6], row[0],))
         self.add_flag(row[0], synchronizers.Flags.flags['read'], not row[5])
