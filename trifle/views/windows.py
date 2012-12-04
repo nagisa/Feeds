@@ -58,7 +58,7 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         row = model[itr]
 
         self.item_view.item_id = row[0]
-        self.toolbar.set_properties(timestamp=row[5], title=row[1], uri=row[4])
+        self.toolbar.set_properties(timestamp=row[4], title=row[1], uri=row[3])
         row[11], row[5] = True, False
 
     def on_star(self, button):
