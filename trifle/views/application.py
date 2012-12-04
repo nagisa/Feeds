@@ -104,25 +104,34 @@ class Application(Gtk.Application):
         def on_sync_done(synchronizer, data=None):
             self.last_sync = GLib.get_monotonic_time()
 
+        def on_subscr_sync_done(synchronizer, data=None):
+            for window in self.get_windows():
+                window.subscriptions.store.update()
+
         def on_items_sync_done(synchronizer, data=None):
+            for window in self.get_windows():
+                window.items.reading_list.update()
+
             notification = views.notifications.notification
             unread = models.feeds.Store.unread_count()
             notification.notify_unread_count(unread)
 
+        logger.debug('Starting synchronization')
+        # Items synchronization
         ids = models.synchronizers.Id()
         flags = models.synchronizers.Flags()
         items = models.synchronizers.Items()
-        subscriptions = models.synchronizers.Subscriptions()
-        icons = models.synchronizers.Favicons()
-        logger.debug('Starting synchronization')
         connect_once(flags, 'sync-done', lambda *x: ids.sync())
         connect_once(ids, 'sync-done', lambda *x: items.sync())
         connect_once(items, 'sync-done', on_sync_done)
         connect_once(items, 'sync-done', on_items_sync_done)
-        connect_once(subscriptions, 'sync-done', lambda *x: icons.sync())
-        # TODO: Also ask to update model
-        connect_once(icons, 'sync-done', on_sync_done)
         flags.sync()
+        # Subscriptions synchronization
+        subscriptions = models.synchronizers.Subscriptions()
+        icons = models.synchronizers.Favicons()
+        connect_once(subscriptions, 'sync-done', lambda *x: icons.sync())
+        connect_once(icons, 'sync-done', on_sync_done)
+        connect_once(icons, 'sync-done', on_subscr_sync_done)
         subscriptions.sync()
 
     def on_sync_timeout(self):

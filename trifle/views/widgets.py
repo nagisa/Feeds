@@ -344,7 +344,7 @@ class ItemsView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
         # Initialize models and filters
         self.reading_list = models.feeds.Store()
-        self.reading_list.load()
+        self.reading_list.update()
 
         super(ItemsView, self).__init__(None, *args, **kwargs)
         self.set_properties(headers_visible=False)
@@ -352,8 +352,8 @@ class ItemsView(Gtk.TreeView):
 
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer)
-        column.set_attributes(renderer, title=1, summary=3, time=5, unread=6,
-                              source=8, source_title=9)
+        column.set_attributes(renderer, title=1, summary=2, time=4, unread=5,
+                              source=7, source_title=8)
         self.append_column(column)
 
         self.connect('notify::category', self.category_change)
@@ -370,8 +370,8 @@ class ItemsView(Gtk.TreeView):
         if self.category in ('unread', 'starred'):
             self.reading_list
             filt = models.utils.TreeModelFilter(child_model=self.reading_list)
-            key = 6 if self.category == 'unread' else 7
-            compr = lambda m, i, d: m[i][key] or m[i][12]
+            key = 5 if self.category == 'unread' else 6
+            compr = lambda m, i, d: m[i][key] or m[i][11]
             filt.set_visible_func(compr)
             self.set_model(filt)
         else:
@@ -383,9 +383,9 @@ class ItemsView(Gtk.TreeView):
         m = self.get_model().get_model() if self.sub_filt else self.get_model()
         filt = models.utils.TreeModelFilter(child_model=m)
         if self.sub_is_feed:
-            filt_key, sub = 10, models.utils.split_id(self.subscription)[1]
+            filt_key, sub = 9, models.utils.split_id(self.subscription)[1]
         else:
-            filt_key, sub = 11, self.subscription
+            filt_key, sub = 10, self.subscription
         compr = lambda m, i, d: m[i][filt_key] == d
         filt.set_visible_func(compr, sub)
         self.set_model(filt)

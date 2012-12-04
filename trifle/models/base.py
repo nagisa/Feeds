@@ -11,7 +11,6 @@ class ItemsStore(Gtk.ListStore):
     def __init__(self, *args, **kwargs):
         base_cols = (object, # Item ID
                      GObject.TYPE_STRING, # Title
-                     GObject.TYPE_STRING, # Author
                      GObject.TYPE_STRING, # Summary
                      GObject.TYPE_STRING, # Link to document
                      GObject.TYPE_UINT64, # Timestamp
