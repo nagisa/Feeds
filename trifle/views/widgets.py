@@ -178,7 +178,7 @@ class ItemView(WebKit.WebView):
         self.connect('console-message', self.on_console_message)
         self.connect('hovering-over-link', self.on_hovering_over_link)
         self.connect('notify::item-id', self.on_item_change)
-        self.connect('realize', self.on_realize)
+        self.connect('style-updated', self.on_style)
 
         if arguments.devtools:
             insp = self.get_inspector()
@@ -190,11 +190,18 @@ class ItemView(WebKit.WebView):
         self.load_uri('file://' + template_path)
 
     @staticmethod
-    def on_realize(self):
+    def on_style(self):
         ctx = self.get_style_context()
-        fmt = (ctx.get_color(Gtk.StateFlags.NORMAL).to_string(),
-              ctx.get_background_color(Gtk.StateFlags.NORMAL).to_string())
-        style = "html, body {{ color: {0}; background: {1}; }}".format(*fmt)
+        text = ctx.get_color(Gtk.StateFlags.NORMAL).to_string()
+        bg = ctx.get_background_color(Gtk.StateFlags.NORMAL).to_string()
+        succ, link = self.get_style().lookup_color('link_color')
+        link = Gdk.RGBA.from_color(link).to_string() if succ else '#4a90d9'
+        font_descr = self.get_pango_context().get_font_description()
+        font_size = font_descr.get_size() / Pango.SCALE
+        style = '''html, body {{color: {0}; background: {1}; font-size: {3}pt;
+                   }} *:link {{ color: {2};
+                   }}'''.format(text, bg, link, font_size)
+
         encoded = base64.b64encode(bytes(style, 'utf-8'))
         uri = 'data:text/css;charset=utf-8;base64,' + encoded.decode('ascii')
         dom = self.get_dom_document()

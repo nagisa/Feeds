@@ -31,7 +31,6 @@ abbr[title] {
 }
 
 body {
-    font-size: 16px;
     font-family: "Ubuntu Light",
                  "Ubuntu",
                  "Helvetica",
@@ -53,7 +52,8 @@ body {
     display: none;
 }
 
-header, article {
+article {
+    font-size: 1.25em;
     width: 95%;
     max-width: 1000px;
     margin: 0 auto;
@@ -62,96 +62,62 @@ header, article {
     overflow: hidden;
 }
 
-header h1 {
-    width: 100%;
-    text-align: center;
-    line-height: 1em;
-    margin: 0;
-}
-
-#trifle_title:link {
-    word-wrap: break-word;
-    line-height: 1em;
-    display: block;
-    text-decoration: none;
-    color: #627AAD;
-}
-
-#trifle_title:hover {
-    text-decoration: underline;
-}
-
-#trifle_datetime {
-    display: inline-block;
-    float: right;
-}
-
-header hr {
-    width: 100%;
-    border: none;
-    height: 2px;
-    margin: .5em 0;
-    background: #E8E8E8;
-}
-
 /* Content styles */
-#trifle_content * {
+* {
     font-family: inherit !important;
     font-size: inherit;
 }
 
-#trifle_content h1, #trifle_content h2 {
+h1, h2 {
     font-size: 1.5em !important;
     margin: 0;
 }
 
-#trifle_content h3 {
+h3 {
     font-size: 1.17em !important;
     margin: 0;
 }
 
-#trifle_content h4 {
+h4 {
     font-size: 1em !important;
     margin: 0;
 }
 
-#trifle_content h5 {
+h5 {
     font-size: 0.83em !important;
     margin: 0;
 }
 
-#trifle_content h6 {
+h6 {
     font-size: 0.75em !important;
     margin: 0;
 }
 
-#trifle_content ul, #trifle_content ol {
+ul, ol {
     margin: 0;
     padding: 0 0 0 2em;
 }
 
-#trifle_content img {
+img {
     max-width: 100%;
     height: auto;
 }
 
-#trifle_content a:link {
+*:link {
     text-decoration: none;
-    color: #627AAD;
 }
 
-#trifle_content a:hover {
+*:link:hover {
     text-decoration: underline;
 }
 
-#trifle_content pre, #trifle_content code, #trifle_content kbd,
-#trifle_content samp {
+pre, code, kbd, samp {
     font-family: monospace, serif !important;
     _font-family: 'courier new', monospace !important;
     font-size: 1em;
 }
 
-#trifle_content pre {
+pre {
     width: 100%;
     white-space: pre;
     word-wrap: normal;
@@ -159,64 +125,63 @@ header hr {
     font-size: 0.85em !important;
 }
 
-#trifle_content tr {
+tr {
     border: 1px solid #E8E8E8;
     border-bottom: none;
     border-left: none;
 }
 
-#trifle_content tr:nth-child(odd) {
+tr:nth-child(odd) {
     background: #F3F3F3;
 }
 
-#trifle_content td, #trifle_content th {
+td, th {
     border-left: 1px solid #E8E8E8 !important;
     padding: .25em .5em !important;
 }
 
-#trifle_content th {
+th {
     font-weight: bold !important;
 }
 
-#trifle_content table {
+table {
     border-bottom: 1px solid #E8E8E8;
     border-collapse: collapse;
     border-spacing: 0;
 }
 
-#trifle_content b, #trifle_content strong {
+b, strong {
     font-weight: bold !important;
 }
 
-#trifle_content blockquote {
+blockquote {
     margin: 1em 40px;
 }
 
-#trifle_content dfn {
+dfn {
     font-style: italic;
 }
 
-
-#trifle_content small {
+small {
     font-size: 75%;
 }
 
-#trifle_content sub, sup {
+sub, sup {
     font-size: 75%;
     line-height: 0;
     position: relative;
     vertical-align: baseline;
 }
 
-#trifle_content sup {
+sup {
     top: -0.5em;
 }
 
-#trifle_content sub {
+sub {
     bottom: -0.25em;
 }
 
-#trifle_content fieldset {
+fieldset {
     border: 1px solid #c0c0c0;
     margin: 0 2px;
     padding: 0.35em 0.625em 0.75em;
