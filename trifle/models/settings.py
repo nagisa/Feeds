@@ -32,3 +32,4 @@ class Settings(Gio.Settings):
 
 
 settings = Settings('apps.trifle')
+desktop = Settings('org.gnome.desktop.interface')

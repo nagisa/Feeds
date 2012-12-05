@@ -143,6 +143,8 @@ class ToolbarLabel(Gtk.ToolItem):
 
 class ItemView(WebKit.WebView):
     item_id = GObject.property(type=object)
+    font = GObject.property(type=GObject.TYPE_STRING)
+    monospace = GObject.property(type=GObject.TYPE_STRING)
 
     settings_props = {
         # These three saves us ~25MiB of residental memory
@@ -178,7 +180,13 @@ class ItemView(WebKit.WebView):
         self.connect('console-message', self.on_console_message)
         self.connect('hovering-over-link', self.on_hovering_over_link)
         self.connect('notify::item-id', self.on_item_change)
+        self.connect('notify::font', self.on_font)
+        self.connect('notify::font', self.on_monospace)
         self.connect('style-updated', self.on_style)
+        models.settings.desktop.bind('document-font-name', self, 'font',
+                                     Gio.SettingsBindFlags.GET)
+        models.settings.desktop.bind('monospace-font-name', self, 'monospace',
+                                     Gio.SettingsBindFlags.GET)
 
         if arguments.devtools:
             insp = self.get_inspector()
@@ -194,18 +202,30 @@ class ItemView(WebKit.WebView):
         ctx = self.get_style_context()
         text = ctx.get_color(Gtk.StateFlags.NORMAL).to_string()
         bg = ctx.get_background_color(Gtk.StateFlags.NORMAL).to_string()
-        succ, link = self.get_style().lookup_color('link_color')
-        link = Gdk.RGBA.from_color(link).to_string() if succ else '#4a90d9'
+        succ, link = ctx.lookup_color('link_color')
+        link = link.to_string() if succ else '#4a90d9'
         font_descr = self.get_pango_context().get_font_description()
         font_size = font_descr.get_size() / Pango.SCALE
-        style = '''html, body {{color: {0}; background: {1}; font-size: {3}pt;
-                   }} *:link {{ color: {2};
+        style = '''html, body {{color: {0}; background: {1};}}
+                   *:link {{ color: {2};
                    }}'''.format(text, bg, link, font_size)
 
         encoded = base64.b64encode(bytes(style, 'utf-8'))
         uri = 'data:text/css;charset=utf-8;base64,' + encoded.decode('ascii')
         dom = self.get_dom_document()
         dom.get_element_by_id('trifle_userstyle').set_href(uri)
+
+    @staticmethod
+    def on_font(self, gprop):
+        family, size = utils.parse_font(self.font)
+        self.get_settings().set_properties(default_font_family=family,
+                                           default_font_size=size)
+
+    @staticmethod
+    def on_monospace(self, gprop):
+        family, size = utils.parse_font(self.monospace)
+        self.get_settings().set_properties(default_monospace_font_size=size,
+                                           monospace_font_family=family)
 
     @staticmethod
     def on_item_change(self, param):

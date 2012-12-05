@@ -1,4 +1,4 @@
-from gi.repository import Gtk
+from gi.repository import Gtk, Pango
 import collections
 import functools
 import time
@@ -25,6 +25,12 @@ def hexcolor(color):
     return '#{0:02X}{1:02X}{2:02X}'.format((color.red * 0xFF).__trunc__(),
                                            (color.green * 0xFF).__trunc__(),
                                            (color.blue * 0xFF).__trunc__())
+
+def parse_font(string):
+    font = Pango.font_description_from_string(string)
+    if font is None:
+        return (None, None)
+    return(font.get_family(), font.get_size() / Pango.SCALE)
 
 
 def time_ago(timestamp):
