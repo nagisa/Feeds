@@ -391,13 +391,14 @@ class ItemsView(Gtk.TreeView):
         self.reading_list.update()
 
         super(ItemsView, self).__init__(None, *args, **kwargs)
-        self.set_properties(headers_visible=False)
+        self.set_properties(headers_visible=False, fixed_height_mode=True)
         self.get_style_context().add_class('trifle-items-view')
 
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer)
         column.set_attributes(renderer, title=1, summary=2, time=4, unread=5,
                               source=7, source_title=8)
+        column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
         self.append_column(column)
 
         self.connect('notify::category', self.category_change)
