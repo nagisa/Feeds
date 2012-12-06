@@ -12,7 +12,7 @@ from trifle.arguments import arguments
 from trifle.utils import get_data_path, _, logger
 from trifle import models
 
-from trifle.views import utils
+from trifle.views import utils, toolitems
 from trifle.views.itemcell import ItemCellRenderer
 
 
@@ -32,21 +32,13 @@ class MainToolbar(Gtk.Toolbar):
         self.get_style_context().add_class('menubar')
         self.get_style_context().add_class('trifle-toolbar')
 
-        # Category selectors [All|Unread|Starred]
-        self.category_buttons = (
-            ('reading-list', Gtk.RadioButton(_('All'), draw_indicator=False)),
-            ('unread', Gtk.RadioButton(_('Unread'), draw_indicator=False)),
-            ('starred', Gtk.RadioButton(_('Starred'), draw_indicator=False)),
-        )
-        button_box = Gtk.Box()
-        button_box.get_style_context().add_class('linked')
-        categories = Gtk.ToolItem(margin_right=5)
-        categories.add(button_box)
-        for key, item in self.category_buttons:
-            button_box.pack_start(item, False, True, 0)
-            item.connect('toggled', self.on_category_change)
-            if item is not self.category_buttons[0][1]:
-                item.set_property('group', self.category_buttons[0][1])
+        # Category buttons [All|Unread|Starred]
+        ids = ['reading-list', 'unread', 'starred']
+        buttons = [Gtk.RadioButton(_('All'), draw_indicator=False),
+                   Gtk.RadioButton(_('Unread'), draw_indicator=False),
+                   Gtk.RadioButton(_('Starred'), draw_indicator=False)]
+        categories = toolitems.ToolLinkedButtons(margin_right=5)
+        for k, b in zip(ids, buttons): categories.add_button(k, b)
 
         # Item status buttons [Make unread] [Make starred]
         unread = Gtk.ToggleToolButton(label=_('Mark as unread'),
@@ -56,17 +48,13 @@ class MainToolbar(Gtk.Toolbar):
                                             margin_right=5)
 
         # Item title button
-        self.title_button = Gtk.ToolItem(margin_right=5, no_show_all=True,
-                                           halign=Gtk.Align.CENTER)
-        self.title_link = Gtk.LinkButton('127.0.0.1')
-        self.title_link.show()
-        self.title_button.add(self.title_link)
+        args = {'margin_right': 5, 'no_show_all': True,
+                'halign': Gtk.Align.CENTER}
+        self.title_button = toolitems.ToolLinkButton(**args)
         self.title_button.set_expand(True)
-        self.title_button.set_size_request(100, -1)
 
         # Item date label
-        self.date_label = ToolbarLabel(margin_right=5)
-        self.date_label.label.set_property('justify', Gtk.Justification.CENTER)
+        self.date_label = toolitems.ToolLabel()
 
         self.insert(categories, -1)
         self.insert(unread, -1)
@@ -74,13 +62,15 @@ class MainToolbar(Gtk.Toolbar):
         self.insert(self.title_button, -1)
         self.insert(self.date_label, -1)
 
+        categories.bind_property('current-id', self, 'category')
         unread.bind_property('active', self, 'unread',
-                             GObject.BindingFlags.BIDIRECTIONAL)
+                                  GObject.BindingFlags.BIDIRECTIONAL)
         starred.bind_property('active', self, 'starred',
-                              GObject.BindingFlags.BIDIRECTIONAL)
+                                   GObject.BindingFlags.BIDIRECTIONAL)
+        self.bind_property('title', self.title_button, 'label')
+        self.bind_property('uri', self.title_button, 'uri')
         self.connect('notify::timestamp', self.on_timestamp_change)
         self.connect('notify::title', self.on_title_change)
-        self.connect('notify::url', self.on_title_change)
 
     @staticmethod
     def on_timestamp_change(self, param):
@@ -89,63 +79,9 @@ class MainToolbar(Gtk.Toolbar):
 
     @staticmethod
     def on_title_change(self, param):
-        self.title_link.set_properties(label=self.title, uri=self.uri)
-        title_label = self.title_link.get_child()
-        title_label.set_properties(ellipsize=Pango.EllipsizeMode.END)
+        label = self.title_button.get_child().get_child()
+        label.set_property('ellipsize', Pango.EllipsizeMode.END)
         self.title_button.show()
-
-    def on_category_change(self, button):
-        if not button.get_active():
-            return
-        for key, item in self.category_buttons:
-            if item == button:
-                self.category = key
-                return
-
-    def set_item(self, item):
-        self.starred.set_active(item.starred)
-        self.unread.set_active(False)
-
-
-
-class ToolbarSpinner(Gtk.ToolItem):
-    def __init__(self, *args, **kwargs):
-        super(ToolbarSpinner, self).__init__(*args, **kwargs)
-        self.spinner = Gtk.Spinner(active=True)
-        self.add(self.spinner)
-        self.show_count = 0
-
-    def show(self):
-        self.show_count += 1
-        self.spinner.show_all()
-        super(ToolbarSpinner, self).show()
-
-    def hide(self):
-        self.show_count -= 1
-        if self.show_count == 0:
-            super(ToolbarSpinner, self).hide()
-
-
-class ToolbarComboBoxText(Gtk.ToolItem):
-    def __init__(self, *args, **kwargs):
-        super(ToolbarComboBoxText, self).__init__(*args, **kwargs)
-        self.child = Gtk.ComboBoxText()
-        self.add(self.child)
-
-
-class ToolbarCategories(ToolbarComboBoxText):
-    def __init__(self, *args, **kwargs):
-        super(ToolbarCategories, self).__init__(*args, **kwargs)
-        self.child.append('reading-list', _('All items'))
-        self.child.append('unread', _('Unread items'))
-        self.child.append('starred', _('Starred items'))
-
-
-class ToolbarLabel(Gtk.ToolItem):
-    def __init__(self, *args, **kwargs):
-        super(ToolbarLabel, self).__init__(*args, **kwargs)
-        self.label = Gtk.Label()
-        self.add(self.label)
 
 
 class ItemView(WebKit.WebView):
