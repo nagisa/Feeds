@@ -143,8 +143,9 @@ class ToolbarLabel(Gtk.ToolItem):
 
 class ItemView(WebKit.WebView):
     item_id = GObject.property(type=object)
-    font = GObject.property(type=GObject.TYPE_STRING)
-    monospace = GObject.property(type=GObject.TYPE_STRING)
+    font = GObject.property(type=GObject.TYPE_STRING, default='sans-serif 12')
+    monospace = GObject.property(type=GObject.TYPE_STRING,
+                                 default='monospace 10')
 
     settings_props = {
         # These three saves us ~25MiB of residental memory
