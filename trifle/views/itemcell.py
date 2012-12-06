@@ -51,8 +51,8 @@ class ItemCellRenderer(Gtk.CellRenderer):
         ctx.restore()
         # Center vertically
         tmp_layout = view.create_pango_layout('Gg')
-        dh = int(self.icon_size - tmp_layout.get_pixel_extents()[1].height)
-        ctx.rel_move_to(self.icon_size + self.line_spacing, dh)
+        dh = (self.icon_size - tmp_layout.get_pixel_extents()[1].height) / 2
+        ctx.rel_move_to(self.icon_size + self.line_spacing, int(dh))
         # Render time
         time = utils.time_ago(self.time)
         kwargs = {'width': area.width - self.icon_size - self.line_spacing,
