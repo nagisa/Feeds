@@ -336,7 +336,7 @@ class ItemsView(Gtk.TreeView):
 
         super(ItemsView, self).__init__(None, *args, **kwargs)
         self.set_properties(headers_visible=False, fixed_height_mode=True,
-                            search_column=1, tooltip_column=1)
+                            search_column=1)
         self.get_style_context().add_class('trifle-items-view')
 
         renderer = ItemCellRenderer()
