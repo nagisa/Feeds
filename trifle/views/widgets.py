@@ -18,9 +18,11 @@ from trifle.views.itemcell import ItemCellRenderer
 
 class MainToolbar(Gtk.Toolbar):
     timestamp = GObject.property(type=GObject.TYPE_UINT64)
-    title = GObject.property(type=str)
-    uri = GObject.property(type=str)
-    category = GObject.property(type=str)
+    title = GObject.property(type=GObject.TYPE_STRING)
+    uri = GObject.property(type=GObject.TYPE_STRING)
+    category = GObject.property(type=GObject.TYPE_STRING)
+    unread = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+    starred = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
 
     def __init__(self, *args, **kwargs):
         super(MainToolbar, self).__init__(*args, show_arrow=False,
@@ -47,9 +49,10 @@ class MainToolbar(Gtk.Toolbar):
                 item.set_property('group', self.category_buttons[0][1])
 
         # Item status buttons [Make unread] [Make starred]
-        self.unread = Gtk.ToggleToolButton(label=_('Make unread'),
+        unread = Gtk.ToggleToolButton(label=_('Mark as unread'),
                                            margin_right=5)
-        self.starred = Gtk.ToggleToolButton(label=_('Make starred'),
+
+        starred = Gtk.ToggleToolButton(label=_('Toggle star'),
                                             margin_right=5)
 
         # Item title button
@@ -66,11 +69,15 @@ class MainToolbar(Gtk.Toolbar):
         self.date_label.label.set_property('justify', Gtk.Justification.CENTER)
 
         self.insert(categories, -1)
-        self.insert(self.unread, -1)
-        self.insert(self.starred, -1)
+        self.insert(unread, -1)
+        self.insert(starred, -1)
         self.insert(self.title_button, -1)
         self.insert(self.date_label, -1)
 
+        unread.bind_property('active', self, 'unread',
+                             GObject.BindingFlags.BIDIRECTIONAL)
+        starred.bind_property('active', self, 'starred',
+                              GObject.BindingFlags.BIDIRECTIONAL)
         self.connect('notify::timestamp', self.on_timestamp_change)
         self.connect('notify::title', self.on_title_change)
         self.connect('notify::url', self.on_title_change)

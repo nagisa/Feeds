@@ -40,8 +40,8 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         tbr.connect('notify::category',
                     lambda t, p: items.set_category(t.category))
         tbr.connect('notify::category', lambda t, p: subscrs.on_cat_change(t))
-        tbr.starred.connect('toggled', self.on_star)
-        tbr.unread.connect('toggled', self.on_keep_unread)
+        tbr.connect('notify::starred', self.on_star)
+        tbr.connect('notify::unread', self.on_keep_unread)
 
     def on_subscr_change(self, selection):
         model, itr = selection.get_selected()
@@ -57,14 +57,17 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         row = model[itr]
 
         self.item_view.item_id = row[0]
-        self.toolbar.set_properties(timestamp=row[4], title=row[1], uri=row[3])
+        self.toolbar.set_properties(timestamp=row[4], title=row[1], uri=row[3],
+                                    unread=False, starred=row[6])
         row[11], row[5] = True, False
 
-    def on_star(self, button):
-        pass
+    def on_star(self, toolbar, gprop):
+        model, itr = self.items.get_selection().get_selected()
+        model[itr][6] = toolbar.starred
 
-    def on_keep_unread(self, button):
-        pass
+    def on_keep_unread(self, toolbar, gprop):
+        model, itr = self.items.get_selection().get_selected()
+        model[itr][5] = toolbar.unread
 
 # TODO: These doesn't work correctly yet.
 #     def on_horiz_pos_change(self, paned, gprop):
