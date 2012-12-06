@@ -62,12 +62,22 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
         row[11], row[5] = True, False
 
     def on_star(self, toolbar, gprop):
-        model, itr = self.items.get_selection().get_selected()
-        model[itr][6] = toolbar.starred
+        item_id = self.item_view.item_id
+        for row in self.items.reading_list:
+            if row[0] == item_id:
+                row[11], row[6] = True, toolbar.starred
+                return
+        logger.error("Couldn't set star for item {0}, it doesn't exist"
+                                                             .format(item_id))
 
     def on_keep_unread(self, toolbar, gprop):
-        model, itr = self.items.get_selection().get_selected()
-        model[itr][5] = toolbar.unread
+        item_id = self.item_view.item_id
+        for row in self.items.reading_list:
+            if row[0] == item_id:
+                row[11], row[5] = True, toolbar.unread
+                return
+        logger.error("Couldn't make item {0} unread, it doesn't exist"
+                                                             .format(item_id))
 
 # TODO: These doesn't work correctly yet.
 #     def on_horiz_pos_change(self, paned, gprop):
