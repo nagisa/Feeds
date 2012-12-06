@@ -12,6 +12,6 @@
 
 .trifle-items-view {
     -GtkTreeView-grid-line-pattern: "\1";
-    -GtkTreeView-vertical-separator: 4px;
-    -GtkTreeView-horizontal-separator: 4px;
+    -GtkTreeView-vertical-separator: 8px;
+    -GtkTreeView-horizontal-separator: 6px;
 }
