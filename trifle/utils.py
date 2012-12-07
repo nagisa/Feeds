@@ -26,11 +26,12 @@ class Formatter(logging.Formatter):
         return super(Formatter, self).format(record)
 
 logger = logging.getLogger('trifle')
-fmt = "%(levelname).7s\t%(lineno)4s |%(relpath)20.20s in %(funcName)15.15s" \
-      " %(msg)s"
-logging_handler = logging.StreamHandler()
-logging_handler.setFormatter(Formatter(fmt))
-logger.addHandler(logging_handler)
+fmt = "%(levelname)-7s(%(relpath)s:%(lineno)s in %(funcName)s) %(msg)s"
+verbose_handler = logging.StreamHandler()
+verbose_handler.setFormatter(Formatter(fmt))
+fmt = "%(levelname)-7s %(msg)s"
+handler = logging.StreamHandler()
+handler.setFormatter(Formatter(fmt))
 
 # L11n
 localedir = gettext.bindtextdomain('trifle')
