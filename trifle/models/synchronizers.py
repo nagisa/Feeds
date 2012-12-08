@@ -308,7 +308,6 @@ class Subscriptions(base.SyncObject):
         utils.session.queue_message(msg, self.on_quickadd, None)
 
     def on_quickadd(self, session, msg, data=None):
-        print('here')
         if not 200 <= msg.status_code < 400:
             logger.error('Add request returned {0}'.format(msg.status_code))
             self.emit('subscribed', False)
