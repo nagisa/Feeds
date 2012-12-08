@@ -1,8 +1,6 @@
 from gi.repository import Gtk
 from gi.repository import GdkPixbuf
-from gi.repository import GObject
 from gi.repository import Soup
-import json
 
 from trifle.models import utils
 from trifle.models.utils import SubscriptionType
@@ -10,9 +8,6 @@ from trifle.utils import logger
 
 
 class Subscriptions(Gtk.TreeStore):
-    __gsignals__ = {
-        'subscribed': (GObject.SignalFlags.RUN_LAST, None, (bool,))
-    }
 
     def __init__(self, *args, **kwargs):
         # SubscriptionType, id for item, icon_fpath, name
@@ -75,21 +70,6 @@ class Subscriptions(Gtk.TreeStore):
             removed_s[label_sub_id] = False
         for removed in (row for key, row in removed_s.items() if row):
             self.remove(removed.iter)
-
-    def subscribe_to(self, url):
-        uri = utils.api_method('subscription/quickadd')
-        req_type = 'application/x-www-form-urlencoded'
-        data = utils.urlencode({'T': auth.edit_token, 'quickadd': url})
-        msg = auth.message('POST', uri)
-        msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
-        utils.session.queue_message(msg, self.on_quickadd, None)
-
-    def on_quickadd(self, session, msg, data=None):
-        if not 200 <= msg.status_code < 400:
-            logger.error('Add request returned {0}'.format(msg.status_code))
-            self.emit('subscribed', False)
-        res = json.loads(msg.response_body.data)
-        self.emit('subscribed', 'streamId' in res)
 
     def get_item_labels(self, itr):
         row = self[itr]

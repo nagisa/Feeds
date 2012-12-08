@@ -1,3 +1,4 @@
+from gi.repository import GObject, Soup
 import itertools
 import json
 import os
@@ -259,6 +260,10 @@ class Items(base.SyncObject):
 
 
 class Subscriptions(base.SyncObject):
+    __gsignals__ = {
+        'subscribed': (GObject.SignalFlags.RUN_LAST, None, (bool,))
+    }
+
     def sync(self):
         url = utils.api_method('subscription/list')
         msg = self.auth.message('GET', url)
@@ -293,6 +298,22 @@ class Subscriptions(base.SyncObject):
         utils.sqlite.executemany(q, values)
         logger.debug('Subscriptions synchronization completed')
         self.emit('sync-done')
+
+    def subscribe_to(self, url):
+        uri = utils.api_method('subscription/quickadd')
+        req_type = 'application/x-www-form-urlencoded'
+        data = utils.urlencode({'T': self.auth.edit_token, 'quickadd': url})
+        msg = self.auth.message('POST', uri)
+        msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
+        utils.session.queue_message(msg, self.on_quickadd, None)
+
+    def on_quickadd(self, session, msg, data=None):
+        print('here')
+        if not 200 <= msg.status_code < 400:
+            logger.error('Add request returned {0}'.format(msg.status_code))
+            self.emit('subscribed', False)
+        res = json.loads(msg.response_body.data)
+        self.emit('subscribed', 'streamId' in res)
 
 
 class Favicons(base.SyncObject):

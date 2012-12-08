@@ -175,7 +175,6 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
             self.notify('logged-in')
             self.hide()
 
-
     def on_response(self, dialog, r):
         if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.CANCEL):
             # <ESC> or [Cancel] button pressed
@@ -210,11 +209,17 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
 
 
 class SubscribeDialog(utils.BuiltMixin, Gtk.Dialog):
-    """
-    This dialog will ensure, that user becomes logged in by any means
-    """
     ui_file = 'subscribe-dialog.ui'
     top_object = 'subscribe-dialog'
+    login_view = GObject.property(type=GObject.Object)
+    __gsignals__ = {
+        'subscribed': (GObject.SignalFlags.RUN_LAST, None, [])
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(SubscribeDialog, self).__init__(*args, **kwargs)
+        if self.login_view is None:
+            self.login_view = LoginDialog(modal=True)
 
     def on_response(self, dialog, r, data=None):
         if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.CANCEL):
@@ -223,14 +228,32 @@ class SubscribeDialog(utils.BuiltMixin, Gtk.Dialog):
             return
         uri = self._builder.get_object('uri')
         if len(uri.get_text()) == 0:
+            msg = _('All fields are required')
             self._builder.get_object('error-bar').show()
+            self._builder.get_object('error-label').set_text(msg)
             return
-        # If we've shown any errors before, hide them
+
         self._builder.get_object('error-bar').hide()
-        # Show a progress spinner
-        spinner = self._builder.get_object('progress')
-        spinner.show()
+        self._builder.get_object('progress').show()
+
         logger.debug('Subscribing to {0}'.format(uri.get_text()))
+        auth = self.login_view.model
+        subscriptions = models.synchronizers.Subscriptions(auth=auth)
+        callback = lambda *a: subscriptions.subscribe_to(uri.get_text())
+        utils.connect_once(self.login_view, 'logged-in', callback)
+        utils.connect_once(subscriptions, 'subscribed', self.on_subscribed)
+        self.login_view.set_transient_for(self)
+        self.login_view.ensure_login()
+
+    def on_subscribed(self, subscr, success, data=None):
+        if not success:
+            msg = _('Could not subscribe to a feed')
+            self._builder.get_object('error-bar').show()
+            self._builder.get_object('error-label').set_text(msg)
+            self._builder.get_object('progress').hide()
+        else:
+            self.emit('subscribed')
+            self.destroy()
 
     def on_activate(self, entry, data=None):
         self.emit('response', 0)

@@ -31,7 +31,7 @@
                   <object class="GtkLabel" id="error-label">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Feed URI seems to be invalid</property>
+                    <property name="label" translatable="yes"></property>
                   </object>
                   <packing>
                     <property name="expand">False</property>

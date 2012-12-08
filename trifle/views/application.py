@@ -20,9 +20,9 @@ class Application(Gtk.Application):
 
     def ensure_login(self, callback):
         if self.login_view is None:
-            props = {'modal': True, 'transient-for': self.get_active_window()}
-            self.login_view = views.windows.LoginDialog(**props)
+            self.login_view = views.windows.LoginDialog(modal=True)
         connect_once(self.login_view, 'logged-in', lambda *a: callback())
+        self.login_view.set_transient_for(self.get_active_window())
         self.login_view.ensure_login()
 
     @staticmethod
@@ -76,27 +76,11 @@ class Application(Gtk.Application):
         dialog.destroy()
 
     def on_subscribe(self, action, data=None):
-        # def on_subscribe_url(dialog):
-        #     if dialog.url is None:
-        #         return
-        #     self.ensure_login(lambda: _on_subscribe_url(dialog))
-
-        # def _on_subscribe_url(dialog):
-        #     subs_model = self.window.subscriptions.store
-        #     subs_model.subscribe_to(dialog.url)
-        #     connect_once(subs_model, 'subscribed',  on_subscribed)
-
-        # def on_subscribed(model, success, data=None):
-        #     if not success:
-        #         logger.error('Could not subscribe to a feed')
-        #         self.report_error(_('Could not subscribe to a feed'))
-        #         return
-        #     self.on_sync(None)
-
-        props = {'modal': True, 'transient-for': self.get_active_window()}
+        props = {'modal': True, 'transient-for': self.get_active_window(),
+                 'login_view': self.login_view}
         dialog = views.windows.SubscribeDialog(**props)
         dialog.show_all()
-        # dialog.connect('destroy', on_subscribe_url)
+        dialog.connect('subscribed', lambda *a: self.on_sync(None))
 
     on_sync = lambda s, *x: s.ensure_login(lambda: s._on_sync(*x))
     def _on_sync(self, action, data=None):
