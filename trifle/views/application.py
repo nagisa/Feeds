@@ -1,4 +1,4 @@
-from gi.repository import Gtk, Gio, GLib, GObject
+from gi.repository import Gtk, Gdk, Gio, GLib, GObject
 
 from trifle import models, views
 from trifle.views.utils import connect_once
@@ -57,6 +57,12 @@ class Application(Gtk.Application):
 
     @staticmethod
     def on_activate(self):
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_path(get_data_path('ui', 'trifle-style.css'))
+        ctx = Gtk.StyleContext()
+        ctx.add_provider_for_screen(Gdk.Screen.get_default(), css_provider,
+                                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
         window = views.windows.ApplicationWindow()
         window.set_application(self)
         window.show_all()

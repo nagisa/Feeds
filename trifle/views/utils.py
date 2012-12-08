@@ -1,6 +1,4 @@
 from gi.repository import Gtk, Pango
-import collections
-import functools
 import time
 
 from trifle.utils import get_data_path, logger, _, ngettext
@@ -11,13 +9,8 @@ class BuiltMixin:
         path = get_data_path('ui', cls.ui_file)
         builder.add_from_file(path)
         parent = builder.get_object(cls.top_object)
-        for attr, value in cls.__dict__.items():
-            if isinstance(value, collections.Callable):
-                setattr(parent, attr, functools.partial(value, parent))
-            else:
-                setattr(parent, attr, value)
-        parent.builder = builder
-        cls.__init__(parent, *args, **kwargs)
+        builder.connect_signals(parent)
+        parent._builder = builder
         return parent
 
 

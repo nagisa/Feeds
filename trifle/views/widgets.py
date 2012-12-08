@@ -86,26 +86,8 @@ class MainToolbar(Gtk.Toolbar):
 
 class ItemView(WebKit.WebView):
     item_id = GObject.property(type=object)
-    font = GObject.property(type=GObject.TYPE_STRING, default='sans-serif 12')
-    monospace = GObject.property(type=GObject.TYPE_STRING,
-                                 default='monospace 10')
-
-    settings_props = {
-        # These three saves us ~25MiB of residental memory
-        'enable_scripts': False, 'enable_plugins': False,
-        'enable_java_applet': False,
-        # We already have most files cached and load locally
-        'enable_page_cache': False, 'enable_dns_prefetching': False,
-        'enable_private_browsing': True,
-        # We don't use any of these features
-        'enable_html5_database': False, 'enable_html5_local_storage': False,
-        'enable_offline_web_application_cache': False,
-        'enable_xss_auditor': False, 'resizable_text_areas': False,
-        # Need this one of usability reasons.
-        'enable_default_context_menu': False,
-        # Enable in case developer tools are needed
-        'enable_developer_extras': arguments.devtools
-    }
+    font = GObject.property(type=GObject.TYPE_STRING)
+    monospace = GObject.property(type=GObject.TYPE_STRING)
 
     def __init__(self, *args, **kwargs):
         # TODO: Change to DOCUMENT_VIEWER after we start caching remote
@@ -114,32 +96,48 @@ class ItemView(WebKit.WebView):
         WebKit.get_default_session().set_property('max-conns-per-host', 8)
 
         settings = WebKit.WebSettings()
-        settings.set_properties(**self.settings_props)
+        settings.set_properties(**{
+            # These three saves us ~25MiB of residental memory
+            'enable_scripts': False, 'enable_plugins': False,
+            'enable_java_applet': False,
+            # We already have most files cached and load locally
+            'enable_page_cache': False, 'enable_dns_prefetching': False,
+            'enable_private_browsing': True,
+            # We don't use any of these features
+            'enable_html5_database': False, 'enable_html5_local_storage': False,
+            'enable_offline_web_application_cache': False,
+            'enable_xss_auditor': False, 'resizable_text_areas': False,
+            # Need this one of usability reasons.
+            'enable_default_context_menu': False,
+            # Enable in case developer tools are needed
+            'enable_developer_extras': arguments.devtools
+        })
         super(ItemView, self).__init__(*args, settings=settings, **kwargs)
 
-        ctx = self.get_style_context()
-        ctx.add_class('view')
-
-        self.connect('navigation-policy-decision-requested', self.on_navigate)
-        self.connect('console-message', self.on_console_message)
-        self.connect('hovering-over-link', self.on_hovering_over_link)
-        self.connect('notify::item-id', self.on_item_change)
-        self.connect('notify::font', self.on_font)
-        self.connect('notify::font', self.on_monospace)
+        self.connect('show', self.on_show)
         self.connect('style-updated', self.on_style)
-        models.settings.desktop.bind('document-font-name', self, 'font',
-                                     Gio.SettingsBindFlags.GET)
-        models.settings.desktop.bind('monospace-font-name', self, 'monospace',
-                                     Gio.SettingsBindFlags.GET)
-
-        if arguments.devtools:
-            insp = self.get_inspector()
-            insp.connect('inspect-web-view', self.on_inspector)
-            insp.inspect_coordinates(0, 0)
+        self.connect('notify::item-id', self.on_item_change)
+        self.connect('console-message', self.on_console_message)
 
         # Load base template
         template_path = get_data_path('ui', 'feedview', 'template.html')
         self.load_uri('file://' + template_path)
+
+    @staticmethod
+    def on_show(self):
+        self.connect('navigation-policy-decision-requested', self.on_navigate)
+        self.connect('notify::font', self.on_font)
+        self.connect('notify::monospace', self.on_monospace)
+        self.connect('hovering-over-link', self.on_hovering_over_link)
+
+        GET = Gio.SettingsBindFlags.GET
+        for s, p in (('document', 'font'), ('monospace', 'monospace')):
+            models.settings.desktop.bind(s + '-font-name', self, p, GET)
+
+        if arguments.devtools:
+            inspector = self.get_inspector()
+            inspector.connect('inspect-web-view', self.on_inspector)
+            inspector.inspect_coordinates(0, 0)
 
     @staticmethod
     def on_style(self):
@@ -212,16 +210,15 @@ class ItemView(WebKit.WebView):
 
     @staticmethod
     def on_navigate(self, frame, request, action, policy):
-        if frame is not self.get_main_frame():
-            policy.ignore()
-            return True
+        policy.ignore()
         uri = action.get_original_uri()
-        if not uri.startswith('file://'):
-            if not Gio.AppInfo.launch_default_for_uri(uri, None):
-                logger.error('System could not open {0}'.format(uri))
-            policy.ignore()
+        if frame is not self.get_main_frame():
             return True
-        return False
+        elif uri.startswith('file://'):
+            return False
+        elif not Gio.AppInfo.launch_default_for_uri(uri, None):
+            logger.error('System could not open {0}'.format(uri))
+        return True
 
     @staticmethod
     def on_console_message(self, message, line, source):
@@ -383,3 +380,9 @@ class ItemsView(Gtk.TreeView):
 
     def set_category(self, value):
         self.category = value
+
+GObject.type_register(MainToolbar)
+GObject.type_register(ItemView)
+GObject.type_register(CategoriesView)
+GObject.type_register(SubscriptionsView)
+GObject.type_register(ItemsView)

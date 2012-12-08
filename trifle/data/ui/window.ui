@@ -1,19 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 3.0 -->
-  <object class="GtkApplicationWindow" id="main-window">
+  <object class="trifle+views+windows+ApplicationWindow" id="main-window">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Feeds</property>
     <property name="hide_titlebar_when_maximized">True</property>
     <property name="icon_name">trifle</property>
+    <signal name="realize" handler="on_realize" swapped="no"/>
+
     <child>
       <object class="GtkBox" id="base-box">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
+
         <child>
-          <placeholder/>
+          <object class="trifle+views+widgets+MainToolbar" id="toolbar">
+            <signal name="notify::category" handler="on_toolbar_category" swapped="no"/>
+            <signal name="notify::starred" handler="on_star" swapped="no"/>
+            <signal name="notify::unread" handler="on_keep_unread" swapped="no"/>
+          </object>
         </child>
+
         <child>
           <object class="GtkPaned" id="paned">
             <property name="visible">True</property>
@@ -21,6 +29,7 @@
             <style>
               <class name="sidebar"/>
             </style>
+
             <child>
               <object class="GtkPaned" id="paned-side">
                 <property name="width_request">250</property>
@@ -30,21 +39,32 @@
                 <style>
                   <class name="sidebar"/>
                 </style>
+
                 <child>
                   <object class="GtkScrolledWindow" id="items">
                     <property name="height_request">100</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="margin_bottom">2</property>
+
                     <child>
-                      <placeholder/>
+                      <object class="trifle+views+widgets+ItemsView" id="items-view">
+                        <property name="category">reading-list</property>
+                        <child internal-child="selection">
+                          <object class="GtkTreeSelection" id="items-selection">
+                            <signal name="changed" handler="on_item_change" swapped="no"/>
+                          </object>
+                        </child>
+                      </object>
                     </child>
+
                   </object>
                   <packing>
                     <property name="resize">True</property>
                     <property name="shrink">False</property>
                   </packing>
                 </child>
+
                 <child>
                   <object class="GtkScrolledWindow" id="subscriptions">
                     <property name="height_request">100</property>
@@ -54,21 +74,31 @@
                     <style>
                       <class name="trifle-subscriptions"/>
                     </style>
+
                     <child>
-                      <placeholder/>
+                      <object class="trifle+views+widgets+SubscriptionsView" id="sub-view">
+                        <child internal-child="selection">
+                          <object class="GtkTreeSelection" id="subs-selection">
+                            <signal name="changed" handler="on_subscr_change" swapped="no"/>
+                          </object>
+                        </child>
+                      </object>
                     </child>
+
                   </object>
                   <packing>
                     <property name="resize">False</property>
                     <property name="shrink">False</property>
                   </packing>
                 </child>
+
               </object>
               <packing>
                 <property name="resize">False</property>
                 <property name="shrink">False</property>
               </packing>
             </child>
+
             <child>
               <object class="GtkScrolledWindow" id="item">
                 <property name="visible">True</property>
@@ -80,7 +110,15 @@
                   <class name="trifle-item"/>
                 </style>
                 <child>
-                  <placeholder/>
+                  <object class="trifle+views+widgets+ItemView" id="item-view">
+                    <property name="font">sans-serif 12</property>
+                    <property name="no_show_all">True</property>
+                    <property name="visible">False</property>
+                    <property name="monospace">monospace 10</property>
+                    <style>
+                      <class name="view"/>
+                    </style>
+                  </object>
                 </child>
               </object>
               <packing>
@@ -88,6 +126,7 @@
                 <property name="shrink">False</property>
               </packing>
             </child>
+
           </object>
           <packing>
             <property name="expand">True</property>
@@ -99,3 +138,4 @@
     </child>
   </object>
 </interface>
+<!-- vim: set sw=2 sts=2 ts=8: -->

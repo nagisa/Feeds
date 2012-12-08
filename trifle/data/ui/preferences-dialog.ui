@@ -8,27 +8,24 @@
     <property name="step_increment">100</property>
     <property name="page_increment">1000</property>
   </object>
-  <object class="GtkDialog" id="preferences-dialog">
+  <object class="trifle+views+windows+PreferencesDialog" id="preferences-dialog">
     <property name="can_focus">False</property>
-    <property name="border_width">5</property>
     <property name="title" translatable="yes">Preferences</property>
     <property name="modal">True</property>
     <property name="type_hint">dialog</property>
+    <signal name="realize" handler="on_realize" swapped="no"/>
+    <signal name="response" handler="on_response" swapped="no"/>
     <child internal-child="vbox">
       <object class="GtkBox" id="dialog-vbox1">
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
-        <property name="spacing">5</property>
         <child internal-child="action_area">
           <object class="GtkButtonBox" id="dialog-action_area1">
             <property name="can_focus">False</property>
             <property name="layout_style">end</property>
             <child>
-              <placeholder/>
-            </child>
-            <child>
-              <object class="GtkButton" id="OK">
-                <property name="label">gtk-ok</property>
+              <object class="GtkButton" id="close">
+                <property name="label">gtk-close</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -52,6 +49,11 @@
           <object class="GtkGrid" id="grid1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="halign">center</property>
+            <property name="valign">center</property>
+            <property name="hexpand">True</property>
+            <property name="vexpand">True</property>
+            <property name="border_width">5</property>
             <property name="row_spacing">5</property>
             <property name="column_spacing">10</property>
             <property name="row_homogeneous">True</property>
@@ -111,6 +113,14 @@
                 <property name="hexpand">True</property>
                 <property name="entry_text_column">0</property>
                 <property name="id_column">1</property>
+                <items>
+                  <item translatable="yes" id='0'>Never</item>
+                  <item translatable="yes" id='5'>5 minutes</item>
+                  <item translatable="yes" id='10'>10 minutes</item>
+                  <item translatable="yes" id='30'>30 minutes</item>
+                  <item translatable="yes" id='60'>1 hour</item>
+                </items>
+                <signal name="changed" handler="on_refresh_change" swapped="no"/>
               </object>
               <packing>
                 <property name="left_attach">1</property>
@@ -167,14 +177,14 @@
           </object>
           <packing>
             <property name="expand">False</property>
-            <property name="fill">True</property>
+            <property name="fill">False</property>
             <property name="position">1</property>
           </packing>
         </child>
       </object>
     </child>
     <action-widgets>
-      <action-widget response="-5">OK</action-widget>
+      <action-widget response="-5">close</action-widget>
     </action-widgets>
   </object>
 </interface>
