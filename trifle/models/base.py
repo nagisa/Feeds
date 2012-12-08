@@ -28,3 +28,4 @@ class SyncObject(GObject.Object):
         'sync-done': (GObject.SignalFlags.RUN_LAST, None, []),
     }
     sync_status = GObject.property(type=object)
+    auth = GObject.property(type=GObject.Object)

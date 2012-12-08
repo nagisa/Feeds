@@ -7,7 +7,6 @@ import re
 from trifle.utils import logger
 from trifle.models import settings
 from trifle.models import utils
-from trifle.models import auth
 from trifle.models import base
 
 
@@ -32,7 +31,7 @@ class Id(base.SyncObject):
         for name, state in self.states.items():
             getargs = state + [('n', item_limit)]
             url = utils.api_method('stream/items/ids', getargs)
-            msg = auth.auth.message('GET', url)
+            msg = self.auth.message('GET', url)
             utils.session.queue_message(msg, self.on_response, name)
         # Initially mark everything as deletable and unflag all items.
         # Laten in process items that are still important will be unmarked
@@ -106,13 +105,13 @@ class Flags(base.SyncObject):
             if len(result) == 0:
                 continue
 
-            post = (('r' if st else 'a', flag,), ('T', auth.auth.edit_token),)
+            post = (('r' if st else 'a', flag,), ('T', self.auth.edit_token),)
             chunks = utils.split_chunks(result, 250, None)
             for chunk in chunks:
                 iids, ids = zip(*filter(lambda x: x is not None, chunk))
                 iids = tuple(zip(itertools.repeat('i'), iids))
                 payload = utils.urlencode(iids + post)
-                msg = auth.auth.message('POST', uri)
+                msg = self.auth.message('POST', uri)
                 msg.set_request(req_type, utils.Soup.MemoryUse.COPY, payload,
                                 len(payload))
                 utils.session.queue_message(msg, self.on_response, ids)
@@ -168,7 +167,7 @@ class Items(base.SyncObject):
         for chunk in chunks:
             self.sync_status += 1
             data = utils.urlencode(chunk)
-            message = auth.auth.message('POST', uri)
+            message = self.auth.message('POST', uri)
             message.set_request(req_type, utils.Soup.MemoryUse.COPY, data,
                                 len(data))
             utils.session.queue_message(message, self.process_response, None)
@@ -262,7 +261,7 @@ class Items(base.SyncObject):
 class Subscriptions(base.SyncObject):
     def sync(self):
         url = utils.api_method('subscription/list')
-        msg = auth.auth.message('GET', url)
+        msg = self.auth.message('GET', url)
         utils.session.queue_message(msg, self.on_response, None)
 
     def on_response(self, session, msg, data):

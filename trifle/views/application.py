@@ -2,7 +2,7 @@ from gi.repository import Gtk, Gdk, Gio, GLib, GObject
 
 from trifle import models, views
 from trifle.views.utils import connect_once
-from trifle.utils import logger, _, get_data_path
+from trifle.utils import logger, get_data_path
 
 
 class Application(Gtk.Application):
@@ -105,11 +105,11 @@ class Application(Gtk.Application):
 
         def on_subscr_sync_done(synchronizer, data=None):
             for window in self.get_windows():
-                window.subscriptions.store.update()
+                window._builder.get_object('sub-view').store.update()
 
         def on_items_sync_done(synchronizer, data=None):
             for window in self.get_windows():
-                window.items.reading_list.update()
+                window._builder.get_object('items-view').reading_list.update()
 
             notification = views.notifications.notification
             unread = models.feeds.Store.unread_count()
@@ -117,17 +117,18 @@ class Application(Gtk.Application):
 
         logger.debug('Starting synchronization')
         # Items synchronization
-        ids = models.synchronizers.Id()
-        flags = models.synchronizers.Flags()
-        items = models.synchronizers.Items()
+        auth = self.login_view.model
+        ids = models.synchronizers.Id(auth=auth)
+        flags = models.synchronizers.Flags(auth=auth)
+        items = models.synchronizers.Items(auth=auth)
         connect_once(flags, 'sync-done', lambda *x: ids.sync())
         connect_once(ids, 'sync-done', lambda *x: items.sync())
         connect_once(items, 'sync-done', on_sync_done)
         connect_once(items, 'sync-done', on_items_sync_done)
         flags.sync()
         # Subscriptions synchronization
-        subscriptions = models.synchronizers.Subscriptions()
-        icons = models.synchronizers.Favicons()
+        subscriptions = models.synchronizers.Subscriptions(auth=auth)
+        icons = models.synchronizers.Favicons(auth=auth)
         connect_once(subscriptions, 'sync-done', lambda *x: icons.sync())
         connect_once(icons, 'sync-done', on_sync_done)
         connect_once(icons, 'sync-done', on_subscr_sync_done)
