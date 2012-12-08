@@ -7,6 +7,7 @@ from trifle.utils import logger, _, get_data_path
 
 class Application(Gtk.Application):
     last_sync = GObject.property(type=object)
+    login_view = GObject.property(type=views.windows.LoginDialog)
 
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(*args,
@@ -16,22 +17,13 @@ class Application(Gtk.Application):
         self.connect('startup', self.on_startup)
         self.connect('activate', self.on_activate)
         self.connect('shutdown', self.on_shutdown)
-        models.auth.keyring.connect('ask-password', self.on_login_dialog)
 
-    def ensure_login(self, callback, retries=5):
-        if retries < 0:
-            self.report_error(_('Could not login due to network error'))
-            return
-
-        if models.auth.auth.status['ABORTED']:
-            return
-        elif models.auth.auth.status['OK'] and models.auth.auth.token_valid():
-            return callback()
-        else:
-            if models.auth.auth.status['BAD_CREDENTIALS']:
-                models.auth.keyring.invalidate_credentials()
-            recall = lambda: self.ensure_login(callback, retries=retries - 1)
-            models.auth.auth.login(recall)
+    def ensure_login(self, callback):
+        if self.login_view is None:
+            props = {'modal': True, 'transient-for': self.get_active_window()}
+            self.login_view = views.windows.LoginDialog(**props)
+        connect_once(self.login_view, 'logged-in', lambda *a: callback())
+        self.login_view.ensure_login()
 
     @staticmethod
     def on_startup(self):
@@ -66,44 +58,45 @@ class Application(Gtk.Application):
         window = views.windows.ApplicationWindow()
         window.set_application(self)
         window.show_all()
+        self.ensure_login(lambda: None)
 
     @staticmethod
     def on_shutdown(self):
         models.utils.sqlite.force_commit()
 
     def on_show_prefs(self, action, data=None):
-        props = {'modal': True, 'transient_for': self.get_active_window()}
+        props = {'modal': True, 'transient-for': self.get_active_window()}
         dialog = views.windows.PreferencesDialog(**props)
         dialog.show_all()
 
     def on_show_about(self, action, data=None):
-        props = {'modal': True, 'transient_for': self.get_active_window()}
+        props = {'modal': True, 'transient-for': self.get_active_window()}
         dialog = views.windows.AboutDialog(**props)
         dialog.run()
         dialog.destroy()
 
     def on_subscribe(self, action, data=None):
-        def on_subscribe_url(dialog):
-            if dialog.url is None:
-                return
-            self.ensure_login(lambda: _on_subscribe_url(dialog))
+        # def on_subscribe_url(dialog):
+        #     if dialog.url is None:
+        #         return
+        #     self.ensure_login(lambda: _on_subscribe_url(dialog))
 
-        def _on_subscribe_url(dialog):
-            subs_model = self.window.subscriptions.store
-            subs_model.subscribe_to(dialog.url)
-            connect_once(subs_model, 'subscribed',  on_subscribed)
+        # def _on_subscribe_url(dialog):
+        #     subs_model = self.window.subscriptions.store
+        #     subs_model.subscribe_to(dialog.url)
+        #     connect_once(subs_model, 'subscribed',  on_subscribed)
 
-        def on_subscribed(model, success, data=None):
-            if not success:
-                logger.error('Could not subscribe to a feed')
-                self.report_error(_('Could not subscribe to a feed'))
-                return
-            self.on_sync(None)
+        # def on_subscribed(model, success, data=None):
+        #     if not success:
+        #         logger.error('Could not subscribe to a feed')
+        #         self.report_error(_('Could not subscribe to a feed'))
+        #         return
+        #     self.on_sync(None)
 
-        props = {'modal': True, 'transient_for': self.get_active_window()}
+        props = {'modal': True, 'transient-for': self.get_active_window()}
         dialog = views.windows.SubscribeDialog(**props)
         dialog.show_all()
-        dialog.connect('destroy', on_subscribe_url)
+        # dialog.connect('destroy', on_subscribe_url)
 
     on_sync = lambda s, *x: s.ensure_login(lambda: s._on_sync(*x))
     def _on_sync(self, action, data=None):
@@ -151,18 +144,16 @@ class Application(Gtk.Application):
             self.on_sync(None)
         return True
 
-    def on_login_dialog(self, keyring, callback):
+    def on_ask_password(self, keyring, callback):
         # TODO: Should not show login dialog when the internet is not available
         # Could not login, because credentials were incorrect
-        def on_login_destroy(*args):
+        def on_destroy(dialog, callback):
             callback()
-            delattr(self, 'login')
-        if not hasattr(self, 'login'):
-            props = {'modal': True, 'transient_for': self.get_active_window()}
-            self.login = views.windows.LoginDialog(**props)
-            self.login.show_all()
-            self.login.connect('destroy', on_login_destroy)
 
+        props = {'modal': True, 'transient_for': self.get_active_window()}
+        dialog = views.windows.LoginDialog(**props)
+        dialog.show_all()
+        dialog.connect('destroy', on_destroy, callback)
 
     def report_error(self, error):
         dfl = Gtk.DialogFlags.MODAL & Gtk.DialogFlags.DESTROY_WITH_PARENT

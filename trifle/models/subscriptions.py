@@ -4,7 +4,6 @@ from gi.repository import GObject
 from gi.repository import Soup
 import json
 
-from trifle.models.auth import auth
 from trifle.models import utils
 from trifle.models.utils import SubscriptionType
 from trifle.utils import logger

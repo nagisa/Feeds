@@ -122,42 +122,64 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
     ui_file = 'login-dialog.ui'
     top_object = 'login-dialog'
 
-    max_retries = GObject.property(type=GObject.TYPE_UINT)
-    retries = GObject.property(type=GObject.TYPE_UINT)
-    report_error = GObject.property(type=object)
+    model = GObject.property(type=GObject.Object)
+    keyring = GObject.property(type=models.auth.Keyring)
+    __gsignals__ = {
+        'logged-in': (GObject.SignalFlags.RUN_LAST, None, [])
+    }
 
     def __init__(self, *args, **kwargs):
         super(LoginDialog, self).__init__(*args, **kwargs)
-        models.auth.keyring.connect('ask-password', self.on_ask_password)
+        if self.keyring is None:
+            self.keyring = models.auth.GKeyring()
+        if self.model is None:
+            self.model = models.auth.Auth(keyring=self.keyring)
 
-    def ensure_login(self, callback):
-        self.retries = self.max_retries
-        if models.auth.auth.status['OK'] and models.auth.auth.token_valid():
-            return callback()
-        models.auth.auth.login(lambda: self.on_login(callback))
+        self.keyring.connect('ask-password', self.on_ask_password)
+        self.model.connect('notify::status', self.on_login_status_change)
+        self.connect('response', self.on_response)
 
-    def on_login(self, callback):
-        self.retries -= 1
-        if self.retries < 0:
-            if self.report_error is not None:
-                self.report_error('Could not login')
+    @GObject.property
+    def logged_in(self):
+        return self.model.status['OK'] and self.model.token_valid()
+
+    def ensure_login(self):
+        if self.logged_in:
+            # OK, good to go
+            self.emit('logged-in')
             return
+        if not self.model.status['PROGRESS']:
+            self.model.login()
 
-        if models.auth.auth.status['ABORTED']:
-            return
-        elif models.auth.auth.status['BAD_CREDENTIALS']:
-            models.auth.keyring.invalidate_credentials()
-            models.auth.auth.login(lambda: self.on_login(callback))
-
-    def on_ask_password(self, keyring, callback):
-        self.password_cb = callback
-        self.connect('response', self.on_response, callback)
+    def on_ask_password(self, keyring):
         self.show_all()
+        self._builder.get_object('login').set_sensitive(True)
+        self._builder.get_object('close').set_sensitive(True)
+        self._builder.get_object('progress-spinner').hide()
 
-    def on_response(self, dialog, r, callback):
+    def on_login_status_change(self, model, gprop, data=None):
+        if model.status['PROGRESS'] or model.status['ABORTED']:
+            return # Ignore all in-progress updates and fails due to user.
+        if model.status['BAD_CREDENTIALS'] or not model.status['OK']:
+            if model.status['BAD_CREDENTIALS']:
+                msg = _('The username or password you entered is incorrect')
+            else:
+                msg = _('Could not login')
+            self._builder.get_object('error-label').set_text(msg)
+            self._builder.get_object('error-bar').show()
+            self._builder.get_object('login').set_sensitive(True)
+            self._builder.get_object('close').set_sensitive(True)
+            self._builder.get_object('progress-spinner').hide()
+            self.show_all()
+        elif model.status['OK']:
+            self.notify('logged-in')
+            self.hide()
+
+
+    def on_response(self, dialog, r):
         if r in (Gtk.ResponseType.DELETE_EVENT, Gtk.ResponseType.CANCEL):
             # <ESC> or [Cancel] button pressed
-            callback(None, None)
+            self.keyring.credentials_response(None, None)
             self.hide()
             return
 
@@ -168,9 +190,20 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
             msg = _('All fields are required')
             self._builder.get_object('error-label').set_text(msg)
             self._builder.get_object('error-bar').show()
+            self._builder.get_object('login').set_sensitive(True)
+            self._builder.get_object('close').set_sensitive(True)
+            self._builder.get_object('progress-spinner').hide()
             return False
-        callback(user_entry.get_text(), passwd_entry.get_text())
-        self.hide()
+
+        self._builder.get_object('login').set_sensitive(False)
+        self._builder.get_object('close').set_sensitive(False)
+        self._builder.get_object('progress-spinner').show()
+        self._builder.get_object('error-bar').hide()
+        self.keyring.credentials_response(user_entry.get_text(),
+                                          passwd_entry.get_text())
+        if not self.model.status['PROGRESS']:
+            # We are not in progress, so we should start logging in
+            self.model.login()
 
     def on_activate(self, entry, data=None):
         self.emit('response', 0)
