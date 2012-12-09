@@ -12,6 +12,7 @@ class Subscriptions(Gtk.TreeStore):
     def __init__(self, *args, **kwargs):
         # SubscriptionType, id for item, icon_fpath, name
         super(Subscriptions, self).__init__(int, str, GdkPixbuf.Pixbuf, str)
+        self.set_sort_column_id(3, Gtk.SortType.ASCENDING)
 
     @property
     def labels(self):
