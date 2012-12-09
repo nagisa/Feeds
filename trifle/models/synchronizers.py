@@ -9,6 +9,7 @@ from trifle.utils import logger
 from trifle.models import settings
 from trifle.models import utils
 from trifle.models import base
+from trifle.models.utils import SubscriptionType
 
 
 class Id(base.SyncObject):
@@ -261,7 +262,8 @@ class Items(base.SyncObject):
 
 class Subscriptions(base.SyncObject):
     __gsignals__ = {
-        'subscribed': (GObject.SignalFlags.RUN_LAST, None, (bool,))
+        'subscribed': (GObject.SignalFlags.RUN_LAST, None, (bool,)),
+        'label-set': (GObject.SignalFlags.RUN_LAST, None, (bool,))
     }
 
     def sync(self):
@@ -313,6 +315,28 @@ class Subscriptions(base.SyncObject):
             self.emit('subscribed', False)
         res = json.loads(msg.response_body.data)
         self.emit('subscribed', 'streamId' in res)
+
+    def set_item_label(self, vals, label_id, value):
+        if vals[0] != SubscriptionType.SUBSCRIPTION:
+            logger.error('Adding label to non-subscription!')
+            return False
+
+        uri = utils.api_method('subscription/edit')
+        req_type = 'application/x-www-form-urlencoded'
+        label_id = 'user/-/{0}'.format(label_id)
+        action = 'a' if value else 'r'
+        item_id = utils.split_id(vals[1])[1]
+        data = utils.urlencode({'T': self.auth.edit_token, 's': item_id,
+                                'ac': 'edit', action: label_id})
+        msg = self.auth.message('POST', uri)
+        msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
+        utils.session.queue_message(msg, self.on_sub_edit, None)
+
+    def on_sub_edit(self, session, msg, data=None):
+        if not 200 <= msg.status_code < 400:
+            logger.error('Edit request returned {0}'.format(msg.status_code))
+            return False
+        self.emit('label-set', 200 <= msg.status_code < 400)
 
 
 class Favicons(base.SyncObject):

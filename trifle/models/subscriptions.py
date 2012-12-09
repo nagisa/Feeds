@@ -1,10 +1,8 @@
 from gi.repository import Gtk
 from gi.repository import GdkPixbuf
-from gi.repository import Soup
 
 from trifle.models import utils
 from trifle.models.utils import SubscriptionType
-from trifle.utils import logger
 
 
 class Subscriptions(Gtk.TreeStore):
@@ -35,6 +33,7 @@ class Subscriptions(Gtk.TreeStore):
     def update(self):
         theme = Gtk.IconTheme.get_default()
         flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
+
         q = '''SELECT subscriptions.id, subscriptions.url, subscriptions.title,
                       labels.id, labels.name
                FROM subscriptions
@@ -88,26 +87,3 @@ class Subscriptions(Gtk.TreeStore):
                 result[label[1]] = (label[3], label[1] in (i for i, in r))
             return result
 
-    def set_item_label(self, itr, label_id, value):
-        if self[itr][0] != SubscriptionType.SUBSCRIPTION:
-            logger.error('Adding label to non-subscription!')
-            return False
-
-        uri = utils.api_method('subscription/edit')
-        req_type = 'application/x-www-form-urlencoded'
-
-        label_id = 'user/-/{0}'.format(label_id)
-        action = 'a' if value else 'r'
-        item_id = utils.split_id(self[itr][1])[1]
-        data = utils.urlencode({'T': auth.edit_token, 's': item_id,
-                                'ac': 'edit', action: label_id})
-
-        msg = auth.message('POST', uri)
-        msg.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
-        utils.session.queue_message(msg, self.on_sub_edit, None)
-
-    def on_sub_edit(self, session, msg, data=None):
-        if not 200 <= msg.status_code < 400:
-            logger.error('Edit request returned {0}'.format(msg.status_code))
-            return False
-        self.sync()

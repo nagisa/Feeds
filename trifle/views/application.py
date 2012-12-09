@@ -7,7 +7,7 @@ from trifle.utils import logger, get_data_path
 
 class Application(Gtk.Application):
     last_sync = GObject.property(type=object)
-    login_view = GObject.property(type=views.windows.LoginDialog)
+    _login_view = None
 
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(*args,
@@ -18,9 +18,14 @@ class Application(Gtk.Application):
         self.connect('activate', self.on_activate)
         self.connect('shutdown', self.on_shutdown)
 
+    @GObject.property(type=views.windows.LoginDialog)
+    def login_view(self):
+        if self._login_view is None:
+            self._login_view = views.windows.LoginDialog(modal=True)
+        return self._login_view
+
+
     def ensure_login(self, callback):
-        if self.login_view is None:
-            self.login_view = views.windows.LoginDialog(modal=True)
         connect_once(self.login_view, 'logged-in', lambda *a: callback())
         self.login_view.set_transient_for(self.get_active_window())
         self.login_view.ensure_login()
@@ -58,7 +63,6 @@ class Application(Gtk.Application):
         window = views.windows.ApplicationWindow()
         window.set_application(self)
         window.show_all()
-        self.ensure_login(lambda: None)
 
     @staticmethod
     def on_shutdown(self):
