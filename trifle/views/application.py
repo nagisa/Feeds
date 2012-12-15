@@ -142,11 +142,3 @@ class Application(Gtk.Application):
         dialog = views.windows.LoginDialog(**props)
         dialog.show_all()
         dialog.connect('destroy', on_destroy, callback)
-
-    def report_error(self, error):
-        dfl = Gtk.DialogFlags.MODAL & Gtk.DialogFlags.DESTROY_WITH_PARENT
-        dialog = Gtk.MessageDialog(self.window, dfl, Gtk.MessageType.ERROR,
-                                   Gtk.ButtonsType.OK, error)
-        dialog.run()
-        dialog.destroy()
-
