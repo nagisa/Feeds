@@ -27,10 +27,10 @@ class Store(ItemsStore):
         self.set_sort_column_id(-2, Gtk.SortType.DESCENDING) # Unsorted
         self.handler_block(self.row_ch_handler)
 
-        query = '''SELECT items.id, items.title, summary, href, time,
-                   unread, starred, s.url, s.title, s.id, label_id FROM items
-                   LEFT JOIN subscriptions AS s ON s.id=items.subscription
-                   LEFT JOIN labels_fk ON labels_fk.item_id=s.id
+        query = '''SELECT I.id, I.title, summary, href, time, unread, starred,
+                   S.url, S.title, S.id, label_id FROM items AS I
+                   LEFT JOIN subscriptions AS S ON S.id=I.subscription
+                   LEFT JOIN labels_fk AS L ON L.item_id=S.id
                    ORDER BY time DESC'''
         items = utils.sqlite.execute(query).fetchall()
         existing_ids = {r[0]: key for key, r in enumerate(self)}
@@ -38,9 +38,11 @@ class Store(ItemsStore):
             cols = list(item)
             cols[4] = int(cols[4] // 1E6)
             if item[0] in existing_ids:
-                self[existing_ids[item[0]]][1:10] = cols[1:10]
+                iter = self.get_iter(existing_ids[item[0]])
+                v = zip(*filter(lambda x: x[1] is not None, enumerate(cols)))
+                self.set(iter, *v)
             else:
-                cols.append(False)
+                cols.append(False) # We need it to set all columns
                 self.append(cols)
 
         self.handler_unblock(self.row_ch_handler)
