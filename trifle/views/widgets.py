@@ -252,7 +252,6 @@ class CategoriesView(Gtk.TreeView):
 
 
 class SubscriptionsView(Gtk.TreeView):
-
     def __init__(self, *args, **kwargs):
         self.store = models.subscriptions.Subscriptions()
         super(SubscriptionsView, self).__init__(self.store, *args, **kwargs)

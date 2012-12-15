@@ -24,7 +24,6 @@ class Application(Gtk.Application):
             self._login_view = views.windows.LoginDialog(modal=True)
         return self._login_view
 
-
     def ensure_login(self, callback):
         connect_once(self.login_view, 'logged-in', lambda *a: callback())
         self.login_view.set_transient_for(self.get_active_window())

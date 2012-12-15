@@ -25,7 +25,7 @@ class Keyring(GObject.Object):
 
     @property
     def has_credentials(self):
-        return self.username and self.password
+        return bool(self.username) and bool(self.password)
 
     def load_credentials(self, callback):
         if self.has_credentials:

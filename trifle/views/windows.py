@@ -160,7 +160,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
     def on_login_status_change(self, model, gprop, data=None):
         if model.status['PROGRESS'] or model.status['ABORTED']:
             return # Ignore all in-progress updates and fails due to user.
-        if model.status['BAD_CREDENTIALS'] or not model.status['OK']:
+        elif model.status['BAD_CREDENTIALS'] or not model.status['OK']:
             if model.status['BAD_CREDENTIALS']:
                 msg = _('The username or password you entered is incorrect')
             else:
@@ -172,7 +172,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
             self._builder.get_object('progress-spinner').hide()
             self.show_all()
         elif model.status['OK']:
-            self.notify('logged-in')
+            self.emit('logged-in')
             self.hide()
 
     def on_response(self, dialog, r):
