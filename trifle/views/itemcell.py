@@ -5,7 +5,7 @@ from gi.repository import GLib
 from gi.repository import Pango
 from gi.repository import PangoCairo
 
-from trifle import models
+from trifle import models, utils
 from trifle.views import utils
 
 
@@ -85,7 +85,9 @@ class ItemCellRenderer(Gtk.CellRenderer):
     @staticmethod
     def render_text(view, context, text, size=1, width=None, height=None,
                     bold=False, align=None, color=None):
-
+        if text is None:
+            utils.logger.error('Cannot render without text!')
+            return 0, 0
         layout = view.create_pango_layout(text)
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         if width is not None:
