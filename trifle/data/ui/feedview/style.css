@@ -5,8 +5,6 @@ section, summary {
 
 audio, canvas, video {
     display: inline-block;
-    *display: inline;
-    *zoom: 1;
 }
 
 audio:not([controls]) {
@@ -44,52 +42,58 @@ article {
     overflow: hidden;
 }
 
+hr {
+    height: 1px;
+    background: rgba(127, 127, 127, .3);
+    border: none;
+}
+
 /* Content styles */
-p {
-    margin: 0 0 1em 0;
+article>* {
+    margin: 1em 0;
+}
+
+/* TODO: Consider doing something about these ineffective selectors */
+article>:first-child,
+article>:last-child {
+    margin: 0;
 }
 
 h1, h2 {
-    font-size: 1.5em !important;
-    margin: 0;
+    font-size: 1.25em;
+    margin: 0.8em 0;
 }
 
 h3 {
-    font-size: 1.17em !important;
-    margin: 0;
+    font-size: 1.125em;
+    margin: 0.888888888em 0;
 }
 
 h4 {
-    font-size: 1em !important;
-    margin: 0;
+    font-size: 1em;
 }
 
 h5 {
-    font-size: 0.83em !important;
-    margin: 0;
+    font-size: 0.925em;
+    margin: 1.081081081em 0;
 }
 
 h6 {
-    font-size: 0.75em !important;
-    margin: 0;
+    font-size: 0.85em;
+    margin: 1.17647058823529em 0;
 }
 
 ul, ol {
     margin: 0;
-    padding: 0 0 0 2em;
+    padding: 0;
+    list-style-position: inside;
 }
+
 
 img {
     max-width: 100%;
     height: auto;
-}
 
-*:link {
-    text-decoration: none;
-}
-
-*:link:hover {
-    text-decoration: underline;
 }
 
 pre {
@@ -97,36 +101,29 @@ pre {
     white-space: pre;
     word-wrap: normal;
     overflow: auto;
-    font-size: 0.85em !important;
-}
+    line-height: 1.25em;
 
-tr {
-    border: 1px solid #E8E8E8;
-    border-bottom: none;
-    border-left: none;
-}
-
-tr:nth-child(odd) {
-    background: #F3F3F3;
-}
-
-td, th {
-    border-left: 1px solid #E8E8E8 !important;
-    padding: .25em .5em !important;
-}
-
-th {
-    font-weight: bold !important;
 }
 
 table {
-    border-bottom: 1px solid #E8E8E8;
     border-collapse: collapse;
-    border-spacing: 0;
+}
+
+td, th {
+    border: 1px solid rgba(127, 127, 127, .3);
+    padding: .25em;
+}
+
+th {
+    font-weight: bold;
+}
+
+tr:nth-child(2n){
+    background: rgba(127, 127, 127, .05);
 }
 
 b, strong {
-    font-weight: bold !important;
+    font-weight: bold;
 }
 
 blockquote {
@@ -157,46 +154,44 @@ sub {
 }
 
 fieldset {
-    border: 1px solid #c0c0c0;
+    border: 1px solid rgba(127, 127, 127, .3);
     margin: 0 2px;
     padding: 0.35em 0.625em 0.75em;
 }
 
 #trifle_statusbar {
-    background-image: -webkit-linear-gradient(bottom,
-                                              rgba(255, 255, 255, .8) 0%,
-                                              rgba(238, 238, 238, .8) 100%);
-    font-size: .75em;
+    background: inherit;
+    font-size: .85em;
     line-height: 1em;
-    border-radius: 0 5px 0 0;
-    border: #c0c0c0 solid;
-    border-width: 1px 1px 0 0;
+    border-top: rgba(127, 127, 127, .3) solid;
+    border-width: 1px 0 0;
     position:fixed;
-    bottom: 0px;
-    left: 0px;
-    padding: .25em .5em;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: .125em .5em .25em;
     opacity: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 80%;
     overflow: hidden;
-    -webkit-transition: all 50ms 0.2s;
+    -webkit-transition: opacity 50ms 0.5s;
 }
 
 #trifle_statusbar.visible {
-    -webkit-transition: all 0 0;
+    -webkit-transition: opacity 0 0;
     opacity: 1;
 }
 
 #trifle_iframe {
     display: block;
-    width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0.3em;
     background: -webkit-repeating-linear-gradient(.5rad, transparent,
                                                   transparent 20px,
-                                                  rgba(0, 0, 0, .05) 20px,
-                                                  rgba(0, 0, 0, .05) 40px);
+                                                  rgba(127, 127, 127, .05) 20px,
+                                                  rgba(127, 127, 127, .05) 40px) -15px;
+    background-size: 150% 100%;
+    border: solid 1px rgba(127, 127, 127, .1);
 }
