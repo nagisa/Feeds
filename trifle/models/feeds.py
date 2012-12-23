@@ -4,13 +4,25 @@ from gi.repository import GObject
 from gi.repository import Gtk
 
 from trifle.models import utils, synchronizers
-from trifle.models.base import ItemsStore
+from trifle.models.utils import ItemsColumn as Col
 
 
-class Store(ItemsStore):
+class Store(Gtk.ListStore):
     def __init__(self, *args, **kwargs):
-        # We will use this boolean flag to keep track of forced visibility
-        super(Store, self).__init__(GObject.TYPE_BOOLEAN, *args, **kwargs)
+        cols = (object, # Item ID
+                GObject.TYPE_STRING, # Title
+                GObject.TYPE_STRING, # Summary
+                GObject.TYPE_STRING, # Link to document
+                GObject.TYPE_UINT64, # Timestamp
+                GObject.TYPE_BOOLEAN, # Is item unread
+                GObject.TYPE_BOOLEAN, # Is item starred
+                GObject.TYPE_STRING, # Subscription URI
+                GObject.TYPE_STRING, # Subscription Title
+                GObject.TYPE_STRING, # Subscription ID
+                GObject.TYPE_STRING, # Label ID
+                GObject.TYPE_BOOLEAN) # Forced visibility
+        super(Store, self).__init__(*(cols + args), **kwargs)
+        # Items with forced visibility
         self.forced = set()
 
         if not os.path.exists(utils.content_dir):
@@ -33,41 +45,40 @@ class Store(ItemsStore):
                    LEFT JOIN labels_fk AS L ON L.item_id=S.id
                    ORDER BY time DESC'''
         items = utils.sqlite.execute(query).fetchall()
-        existing_ids = {r[0]: self.get_iter(key) for key, r in enumerate(self)}
+        exists = {r[Col.ID]: self.get_iter(key) for key, r in enumerate(self)}
         for item in items:
-            cols = list(item)
-            if item[0] in existing_ids:
-                v = zip(*filter(lambda x: x[1] is not None, enumerate(cols)))
-                self.set(existing_ids[item[0]], *v)
+            if item[0] in exists:
+                v = zip(*filter(lambda x: x[1] is not None, enumerate(item)))
+                self.set(exists[item[Col.ID]], *v)
             else:
-                cols.append(False) # Needed for correct length
-                self.append(cols)
+                self.append(item + (False,))
         # Remove items we do not have anymore
-        for removed_id in set(existing_ids.keys()) - set(i[0] for i in items):
-            self.remove(existing_ids[removed_id])
+        for removed_id in set(exists.keys()) - set(i[Col.ID] for i in items):
+            self.remove(exists[removed_id])
 
         self.handler_unblock(self.row_ch_handler)
-        self.set_sort_column_id(4, Gtk.SortType.DESCENDING)
+        self.set_sort_column_id(Col.TIMESTAMP, Gtk.SortType.DESCENDING)
 
     def unforce_all(self):
         if len(self.forced) == 0:
             return
-        for row in (row for row in self if row[0] in self.forced):
-            self.forced.remove(row[0])
-            row[11] = False
+        for row in (row for row in self if row[Col.ID] in self.forced):
+            self.forced.remove(row[Col.ID])
+            row[Col.FORCE_VISIBLE] = False
             if len(self.forced) == 0:
                 break
 
     @staticmethod
     def on_changed(self, path, itr):
         row = self[itr]
-        if row[11] == True and row[0] not in self.forced:
-            self.forced.add(row[0])
+        if row[Col.FORCE_VISIBLE] == True:
+            self.forced.add(row[Col.ID])
         query = '''UPDATE items SET unread=?, starred=? WHERE id=?'''
-        utils.sqlite.execute(query, (row[5], row[6], row[0],))
-        self.add_flag(row[0], synchronizers.Flags.flags['read'], not row[5])
-        self.add_flag(row[0], synchronizers.Flags.flags['kept-unread'], row[5])
-        self.add_flag(row[0], synchronizers.Flags.flags['starred'], row[6])
+        utils.sqlite.execute(query, (row[Col.UNREAD], row[Col.STARRED],
+                                     row[Col.ID],))
+        self.add_flag(row[0], utils.StateIds.READ, not row[Col.UNREAD])
+        self.add_flag(row[0], utils.StateIds.KEPT_UNREAD, row[Col.UNREAD])
+        self.add_flag(row[0], utils.StateIds.STARRED, row[Col.STARRED])
         utils.sqlite.commit()
 
     def add_flag(self, item_id, flag, value):

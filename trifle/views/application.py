@@ -96,7 +96,7 @@ class Application(Gtk.Application):
 
         def on_items_sync_done(synchronizer, data=None):
             for window in self.get_windows():
-                window._builder.get_object('items-view').reading_list.update()
+                window._builder.get_object('items-view').main_model.update()
 
             notification = views.notifications.notification
             unread = models.feeds.Store.unread_count()

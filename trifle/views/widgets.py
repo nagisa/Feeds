@@ -324,22 +324,27 @@ class ItemsView(Gtk.TreeView):
     category = GObject.property(type=GObject.TYPE_STRING)
     subscription = GObject.property(type=GObject.TYPE_STRING)
     sub_is_feed = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
-    sub_filt = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+
+    main_model = GObject.property(type=models.feeds.Store, default=False)
+    category_model = GObject.property(type=GObject.Object, default=False)
 
     def __init__(self, *args, **kwargs):
-        # Initialize models and filters
-        self.reading_list = models.feeds.Store()
-        self.reading_list.update()
-
         super(ItemsView, self).__init__(None, *args, **kwargs)
+
         self.set_properties(headers_visible=False, fixed_height_mode=True,
-                            search_column=1)
+                            search_column=models.utils.ItemsColumn.TITLE,
+                            main_model=models.feeds.Store())
         self.get_style_context().add_class('trifle-items-view')
 
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer)
-        column.set_attributes(renderer, title=1, summary=2, time=4, unread=5,
-                              source=7, source_title=8)
+        column.set_attributes(renderer,
+                              title=models.utils.ItemsColumn.TITLE,
+                              summary=models.utils.ItemsColumn.SUMMARY,
+                              time=models.utils.ItemsColumn.TIMESTAMP,
+                              unread=models.utils.ItemsColumn.UNREAD,
+                              source=models.utils.ItemsColumn.SUB_URI,
+                              source_title=models.utils.ItemsColumn.SUB_TITLE)
         column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
         self.append_column(column)
 
@@ -347,36 +352,48 @@ class ItemsView(Gtk.TreeView):
         self.connect('notify::subscription', self.subscription_change)
         self.connect('notify::category', self.either_change)
         self.connect('notify::subscription', self.either_change)
+        self.connect('map', self.on_map)
+
+    # Do not add @staticmethod here. If added, Builder fails to recognise this
+    # class as widget. Somehow.
+    def on_map(self, self_again):
+        self.main_model.update()
 
     @staticmethod
     def either_change(self, gprop):
-        self.reading_list.unforce_all()
+        self.main_model.unforce_all()
 
     @staticmethod
     def category_change(self, gprop):
+
         if self.category in ('unread', 'starred'):
-            self.reading_list
-            filt = models.utils.TreeModelFilter(child_model=self.reading_list)
-            key = 5 if self.category == 'unread' else 6
-            compr = lambda m, i, d: m[i][key] or m[i][11]
-            filt.set_visible_func(compr)
+            if self.category == 'unread':
+                cat_col = models.utils.ItemsColumn.UNREAD
+            else:
+                cat_col = models.utils.ItemsColumn.STARRED
+            visible_col = models.utils.ItemsColumn.FORCE_VISIBLE
+
+            visible_func = lambda m, i, d: m[i][cat_col] or m[i][visible_col]
+            filt = models.utils.TreeModelFilter(child_model=self.main_model)
+            filt.set_visible_func(visible_func)
             self.set_model(filt)
+            self.category_model = filt
         else:
-            self.set_model(self.reading_list)
-        self.sub_filt = False
+            self.set_model(self.main_model)
+            self.category_model = self.main_model
 
     @staticmethod
     def subscription_change(self, gprop):
-        m = self.get_model().get_model() if self.sub_filt else self.get_model()
-        filt = models.utils.TreeModelFilter(child_model=m)
         if self.sub_is_feed:
-            filt_key, sub = 9, models.utils.split_id(self.subscription)[1]
+            key = models.utils.ItemsColumn.SUB_ID
+            subscr = models.utils.split_id(self.subscription)[1]
         else:
-            filt_key, sub = 10, self.subscription
-        compr = lambda m, i, d: m[i][filt_key] == d
-        filt.set_visible_func(compr, sub)
+            key, subscr = models.utils.ItemsColumn.LBL_ID, self.subscription
+
+        visible_func = lambda m, i, d: m[i][d[0]] == d[1]
+        filt = models.utils.TreeModelFilter(child_model=self.category_model)
+        filt.set_visible_func(compr, (key, subscr))
         self.set_model(filt)
-        self.sub_filt = True
 
     def set_category(self, value):
         self.category = value

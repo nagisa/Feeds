@@ -11,7 +11,17 @@ import ctypes
 
 from trifle.utils import get_data_path, VERSION, CACHE_DIR, logger
 
+# Constants
 SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
+
+ItemsColumn = namedtuple('ItemsColumn', 'ID TITLE SUMMARY LINK TIMESTAMP '\
+                         'UNREAD STARRED SUB_URI SUB_TITLE SUB_ID LBL_ID '\
+                         'FORCE_VISIBLE')(*range(12))
+
+StateIds = namedtuple('Flags', 'READ KEPT_UNREAD STARRED')(
+                               'user/-/state/com.google/read',
+                               'user/-/state/com.google/kept-unread',
+                               'user/-/state/com.google/starred')
 
 
 class SQLite(sqlite3.Connection):

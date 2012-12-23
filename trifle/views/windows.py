@@ -3,6 +3,7 @@ from gi.repository import Gtk, GObject, Gio
 from trifle import models
 from trifle.utils import VERSION, _, logger
 from trifle.views import utils
+from trifle.models.utils import ItemsColumn
 
 
 class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
@@ -36,31 +37,30 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
 
         toolbar = self._builder.get_object('toolbar')
         item_view = self._builder.get_object('item-view')
-        item_view.item_id = row[0]
-        toolbar.set_properties(timestamp=row[4], title=row[1], uri=row[3],
-                               unread=False, starred=row[6])
-        row[11], row[5] = True, False
+        item_view.item_id = row[ItemsColumn.ID]
+        toolbar.set_properties(timestamp=row[ItemsColumn.TIMESTAMP],
+                               title=row[ItemsColumn.TITLE],
+                               uri=row[ItemsColumn.LINK],
+                               unread=False, starred=row[ItemsColumn.STARRED])
+        row[ItemsColumn.FORCE_VISIBLE], row[ItemsColumn.UNREAD] = True, False
 
     def on_star(self, toolbar, gprop):
-        item_view = self._builder.get_object('item-view')
-        items = self._builder.get_object('items-view')
-        item_id = item_view.item_id
-        for row in items.reading_list:
-            if row[0] == item_id:
-                row[11], row[6] = True, toolbar.starred
-                return
-        logger.error("Couldn't set star for item {0}, it doesn't exist"
-                                                             .format(item_id))
+        self._on_item_status(ItemsColumn.STARRED, toolbar.starred)
 
     def on_keep_unread(self, toolbar, gprop):
+        self._on_item_status(ItemsColumn.UNREAD, toolbar.unread)
+
+    # Convenience method for on_star and on_keep_unread
+    def _on_item_status(self, column, value):
         item_view = self._builder.get_object('item-view')
         items = self._builder.get_object('items-view')
         item_id = item_view.item_id
-        for row in items.reading_list:
-            if row[0] == item_id:
-                row[11], row[5] = True, toolbar.unread
+        for row in items.main_model:
+            if row[ItemsColumn.ID] == item_id:
+                row[ItemsColumn.FORCE_VISIBLE] = True
+                row[column] = value
                 return
-        logger.error("Couldn't make item {0} unread, it doesn't exist"
+        logger.error("Couldn't set status for item {0}, it doesn't exist"
                                                              .format(item_id))
 
     # TODO: These doesn't work correctly.

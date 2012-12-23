@@ -85,10 +85,6 @@ class Id(base.SyncObject):
 
 
 class Flags(base.SyncObject):
-    flags = {'read': 'user/-/state/com.google/read',
-             'kept-unread': 'user/-/state/com.google/kept-unread',
-             'starred': 'user/-/state/com.google/starred'}
-
     def __init__(self, *args, **kwargs):
         super(Flags, self).__init__(*args, **kwargs)
         self.sync_status = 0
@@ -102,7 +98,7 @@ class Flags(base.SyncObject):
         req_type = 'application/x-www-form-urlencoded'
         query = 'SELECT item_id, id FROM flags WHERE flag=? AND remove=?'
 
-        for flag, st in itertools.product(self.flags.values(), [True, False]):
+        for flag, st in itertools.product(utils.StateIds, [True, False]):
             result = utils.sqlite.execute(query, (flag, st,)).fetchall()
             if len(result) == 0:
                 continue
