@@ -27,23 +27,24 @@ class Store(ItemsStore):
         self.set_sort_column_id(-2, Gtk.SortType.DESCENDING) # Unsorted
         self.handler_block(self.row_ch_handler)
 
-        query = '''SELECT I.id, I.title, summary, href, time, unread, starred,
-                   S.url, S.title, S.id, label_id FROM items AS I
+        query = '''SELECT I.id, I.title, summary, href, time/1000000, unread,
+                   starred, S.url, S.title, S.id, label_id FROM items AS I
                    LEFT JOIN subscriptions AS S ON S.id=I.subscription
                    LEFT JOIN labels_fk AS L ON L.item_id=S.id
                    ORDER BY time DESC'''
         items = utils.sqlite.execute(query).fetchall()
-        existing_ids = {r[0]: key for key, r in enumerate(self)}
+        existing_ids = {r[0]: self.get_iter(key) for key, r in enumerate(self)}
         for item in items:
             cols = list(item)
-            cols[4] = int(cols[4] // 1E6)
             if item[0] in existing_ids:
-                iter = self.get_iter(existing_ids[item[0]])
                 v = zip(*filter(lambda x: x[1] is not None, enumerate(cols)))
-                self.set(iter, *v)
+                self.set(existing_ids[item[0]], *v)
             else:
-                cols.append(False) # We need it to set all columns
+                cols.append(False) # Needed for correct length
                 self.append(cols)
+        # Remove items we do not have anymore
+        for removed_id in set(existing_ids.keys()) - set(i[0] for i in items):
+            self.remove(existing_ids[removed_id])
 
         self.handler_unblock(self.row_ch_handler)
         self.set_sort_column_id(4, Gtk.SortType.DESCENDING)
