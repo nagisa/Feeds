@@ -372,7 +372,6 @@ class ItemsView(Gtk.TreeView):
             else:
                 cat_col = models.utils.ItemsColumn.STARRED
             visible_col = models.utils.ItemsColumn.FORCE_VISIBLE
-
             visible_func = lambda m, i, d: m[i][cat_col] or m[i][visible_col]
             filt = models.utils.TreeModelFilter(child_model=self.main_model)
             filt.set_visible_func(visible_func)
@@ -392,7 +391,7 @@ class ItemsView(Gtk.TreeView):
 
         visible_func = lambda m, i, d: m[i][d[0]] == d[1]
         filt = models.utils.TreeModelFilter(child_model=self.category_model)
-        filt.set_visible_func(compr, (key, subscr))
+        filt.set_visible_func(visible_func, (key, subscr))
         self.set_model(filt)
 
     def set_category(self, value):
