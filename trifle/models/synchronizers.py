@@ -1,15 +1,18 @@
-from gi.repository import GObject, Soup
+from gi.repository import Gio
+from gi.repository import GLib
+from gi.repository import GObject
+from gi.repository import Soup
 import itertools
 import json
 import os
 import random
 import re
 
-from trifle.utils import logger
+from trifle.models import base
 from trifle.models import settings
 from trifle.models import utils
-from trifle.models import base
 from trifle.models.utils import SubscriptionType
+from trifle.utils import logger
 
 
 class Id(base.SyncObject):
@@ -204,11 +207,18 @@ class Items(base.SyncObject):
 
     def save_content(self, item_id, content):
         fpath = os.path.join(utils.content_dir, str(item_id))
-        if content is None and os.path.isfile(fpath):
-            os.remove(fpath)
+        f = Gio.File.new_for_path(fpath)
+        if content is None:
+            def deleted(f, result, data):
+                f.delete_finish(result)
+            f.delete_async(GLib.PRIORITY_DEFAULT_IDLE, None, deleted, item_id)
         else:
-            with open(fpath, 'w') as f:
-                f.write(content)
+            # TODO: Switch to async version when
+            # https://bugzilla.gnome.org/show_bug.cgi?id=690525 is fixed.
+            s, t = f.replace_contents(bytes(content, 'utf-8'), None, False,
+                                      Gio.FileCreateFlags.NONE, None)
+            if not s:
+                logger.error('Failed to write content for {0}'.format(item_id))
 
     def process_item(self, item):
         """
@@ -347,8 +357,8 @@ class Favicons(base.SyncObject):
         query = 'SELECT url FROM subscriptions'
         for site_uri, in utils.sqlite.execute(query).fetchall():
             if not site_uri.startswith('http') or (self.has_icon(site_uri)
-               and not random.randint(0, 200) == 0):
-                # Resync only 0.5% of icons. It's unlikely that icon changes
+               and not random.randint(0, 1000) == 0):
+                # Resync only 0.1% of icons. It's unlikely that icon changes
                 # or becomes available
                continue
             msg = utils.Message('GET', uri.format(utils.quote(site_uri)))
@@ -360,12 +370,25 @@ class Favicons(base.SyncObject):
 
     def on_response(self, session, msg, site_uri):
         self.sync_status -= 1
-        with open(utils.icon_name(site_uri), 'wb') as f:
-            if not (200 <= msg.status_code < 400) or msg.status_code == 204:
-                logger.warning('Could not get icon for {0}'.format(site_uri))
-                # Save an empty file so we know that we don't have an icon
-            else:
-                f.write(msg.response_body.flatten().get_data())
+        f = Gio.File.new_for_path(utils.icon_name(site_uri))
+        if not (200 <= msg.status_code < 400) or msg.status_code == 204:
+            logger.warning('Could not get icon for {0}'.format(site_uri))
+            def created(f, result, data):
+                # We're fine with both this operation succeeding and failing.
+                # Thus we do not call create_finish
+                pass
+            # Save an empty file so we know that we don't have an icon
+            f.create_async(Gio.FileCreateFlags.NONE,
+                           GLib.PRIORITY_DEFAULT_IDLE, None, created, None)
+        else:
+            # TODO: Switch to async version when
+            # https://bugzilla.gnome.org/show_bug.cgi?id=690525 is fixed.
+            s, t = f.replace_contents(msg.response_body.flatten().get_data(),
+                                      None, False, Gio.FileCreateFlags.NONE,
+                                      None)
+            if not s:
+                logger.error('Failed to write content for {0}'.format(item_id))
+
         if self.sync_status == 0:
             logger.debug('Favicons synchronization completed')
             self.emit('sync-done')
