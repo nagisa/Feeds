@@ -132,7 +132,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
     def __init__(self, *args, **kwargs):
         super(LoginDialog, self).__init__(*args, **kwargs)
         if self.keyring is None:
-            self.keyring = models.auth.GKeyring()
+            self.keyring = models.auth.SecretKeyring()
         if self.model is None:
             self.model = models.auth.Auth(keyring=self.keyring)
 

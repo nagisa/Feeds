@@ -123,12 +123,6 @@ def split_chunks(itr, chunk_size, fillvalue=None):
     return itertools.zip_longest(*items, fillvalue=fillvalue)
 
 
-def run_callbacks(lst):
-    copy = lst[:]
-    del lst[:]
-    [a() for a in copy]
-
-
 def short_id(item_id):
     if '/' not in item_id:
         # It's probably is not a long id, sorry

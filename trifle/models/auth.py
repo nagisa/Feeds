@@ -3,107 +3,83 @@
 # But libsecret doesn't have introspection yet.
 
 from collections import defaultdict
-from gi.repository import GObject
-from gi.repository import Soup
+from gi.repository import Gio
 from gi.repository import GLib
-from gi.repository import GnomeKeyring
+from gi.repository import GObject
+from gi.repository import Secret
+from gi.repository import Soup
 
-from trifle.models import utils
+from trifle.models import utils, settings
 from trifle.utils import logger
+from trifle.views.utils import connect_once
 
 
 class Keyring(GObject.Object):
     __gsignals__ = {
-        'ask-password': (GObject.SignalFlags.ACTION, None, [])
+        'ask-password': (GObject.SignalFlags.ACTION, None, []),
+        'password-loaded': (GObject.SignalFlags.RUN_LAST, None, [])
     }
     username = GObject.property(type=str)
     password = GObject.property(type=str)
 
     def __init__(self, *args, **kwargs):
         super(Keyring, self).__init__(*args, **kwargs)
-        self.load_callbacks = []
+        settings.settings.bind('username', self, 'username',
+                               Gio.SettingsBindFlags.DEFAULT)
 
     @property
     def has_credentials(self):
         return bool(self.username) and bool(self.password)
 
-    def load_credentials(self, callback):
+    def load_credentials(self):
         if self.has_credentials:
-            callback()
+            self.emit('password-loaded')
         else:
-            self.load_callbacks.append(callback)
             self.emit('ask-password')
 
     def credentials_response(self, username, password):
         self.set_credentials(username, password)
-        utils.run_callbacks(self.load_callbacks)
+        self.emit('password-loaded')
 
     def set_credentials(self, username, password):
         self.set_properties(username=username, password=password)
         return True
 
-    def invalidate_credentials(self):
-        self.set_properties(username=None, password=None)
+
+SCHEMA = Secret.Schema.new('apps.trifle', Secret.SchemaFlags.NONE, {
+                              'app': Secret.SchemaAttributeType.STRING,
+                              'user': Secret.SchemaAttributeType.STRING})
 
 
-class GKeyring(Keyring):
-    @property
-    def keyring(self):
-        if GnomeKeyring.is_available():
-            return GnomeKeyring.get_default_keyring_sync()[1]
-        return None
+class SecretKeyring(Keyring):
+    def load_credentials(self):
 
-    def load_credentials(self, callback):
-        keyring = self.keyring
-        if self.has_credentials:
-            callback()
-        elif keyring is None:
-            # We degrade to a simple session keyring
-            return super(GKeyring, self).load_credentials(callback)
-        else:
-            self.load_callbacks.append(callback)
-            Attribute = GnomeKeyring.Attribute
-            queryset = Attribute.list_new()
-            Attribute.list_append_string(queryset, 'application', 'trifle')
-            itemtype = GnomeKeyring.ItemType.NETWORK_PASSWORD
-            status, result = GnomeKeyring.find_items_sync(itemtype, queryset)
-            if len(result) > 1:
-                logger.warning('More than one trifle passwords found')
-
-            if status == GnomeKeyring.Result.OK:
-                self.password = result[0].secret
-                for attribute in Attribute.list_to_glist(result[0].attributes):
-                    if attribute.name == 'user':
-                        self.username = attribute.get_string()
-                utils.run_callbacks(self.load_callbacks)
+        def loaded(source, result, data):
+            password = Secret.password_lookup_finish(result)
+            if password is None:
+                # We fallback to session storage
+                return super(SecretKeyring, self).load_credentials()
             else:
-                # We again degrade to simple session keyring
-                cback = lambda: utils.run_callbacks(self.load_callbacks)
-                return super(GKeyring, self).load_credentials(cback)
+                self.password = password
+                self.emit('password-loaded')
+
+        if self.has_credentials:
+            self.emit('password-loaded')
+        else:
+            attrs = {'app': 'trifle', 'user': self.username}
+            Secret.password_lookup(SCHEMA, attrs, None, loaded, None)
 
     def set_credentials(self, username, password):
-        Attribute = GnomeKeyring.Attribute
-        attributes = Attribute.list_new()
-        Attribute.list_append_string(attributes, 'application', 'trifle')
-        Attribute.list_append_string(attributes, 'user', username)
-        itemtype = GnomeKeyring.ItemType.NETWORK_PASSWORD
-        status, _ = GnomeKeyring.item_create_sync(self.keyring,
-                                                  itemtype,
-                                                  'Trifle Password',
-                                                  attributes, password, True)
+        def stored(source, result, data):
+            if not Secret.password_store_finish(result):
+                logger.error('Could not store password into keyring')
 
-        return super(GKeyring, self).set_credentials(username, password) or \
-               status == GnomeKeyring.Result.OK
+        attrs = {'app': 'trifle', 'user': username}
+        Secret.password_store(SCHEMA, attrs, None, 'Trifle password',
+                              password, None, stored, None)
 
-    def invalidate_credentials(self):
-        Attribute = GnomeKeyring.Attribute
-        queryset = Attribute.list_new()
-        Attribute.list_append_string(queryset, 'application', 'trifle')
-        itemtype = GnomeKeyring.ItemType.NETWORK_PASSWORD
-        status, results = GnomeKeyring.find_items_sync(itemtype, queryset)
-        for result in results:
-            GnomeKeyring.item_delete_sync(result.keyring, result.item_id)
-        super(GKeyring, self).invalidate_credentials()
+        super(SecretKeyring, self).set_credentials(username, password)
+        return True
 
 
 class Auth(GObject.Object):
@@ -125,7 +101,9 @@ class Auth(GObject.Object):
         self.status.update({'PROGRESS': True, 'ABORTED': False,
                             'BAD_CREDENTIALS': False, 'OK': False})
         self.notify('status')
-        self.keyring.load_credentials(self.on_credentials)
+        self.keyring.load_credentials()
+        connect_once(self.keyring, 'password-loaded',
+                     lambda *x: self.on_credentials())
 
     def on_credentials(self):
         if not self.keyring.has_credentials:
