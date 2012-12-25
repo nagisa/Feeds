@@ -5,12 +5,22 @@ from trifle.utils import get_data_path, logger, _, ngettext
 
 class BuiltMixin:
     def __new__(cls, *args, **kwargs):
+        # Avoid getting __init__ called during building.
+        cls_init = None
+        if hasattr(cls, '__init__'):
+            cls_init = cls.__init__
+            delattr(cls, '__init__')
+
         builder = Gtk.Builder(translation_domain='trifle')
         path = get_data_path('ui', cls.ui_file)
         builder.add_from_file(path)
         parent = builder.get_object(cls.top_object)
         builder.connect_signals(parent)
         parent._builder = builder
+
+        # But let it be executed when initializing object from python
+        if cls_init is not None:
+            cls.__init__ = cls_init
         return parent
 
 
@@ -23,7 +33,7 @@ def parse_font(string):
     font = Pango.font_description_from_string(string)
     if font is None:
         return (None, None)
-    return(font.get_family(), font.get_size() / Pango.SCALE)
+    return (font.get_family(), font.get_size() / Pango.SCALE)
 
 
 def time_ago(timestamp):

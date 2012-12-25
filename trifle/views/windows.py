@@ -124,6 +124,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
 
     model = GObject.property(type=GObject.Object)
     keyring = GObject.property(type=models.auth.Keyring)
+
     __gsignals__ = {
         'logged-in': (GObject.SignalFlags.RUN_LAST, None, [])
     }
