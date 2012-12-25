@@ -1,7 +1,4 @@
 # -*- encoding: utf-8 -*-
-# Problem: https://live.gnome.org/GnomeGoals/LibsecretMigration
-# But libsecret doesn't have introspection yet.
-
 from collections import defaultdict
 from gi.repository import Gio
 from gi.repository import GLib
@@ -101,9 +98,11 @@ class Auth(GObject.Object):
         self.status.update({'PROGRESS': True, 'ABORTED': False,
                             'BAD_CREDENTIALS': False, 'OK': False})
         self.notify('status')
-        self.keyring.load_credentials()
+        # connect be above, because password-loaded can be emmited during The
+        # call and we won't get it.
         connect_once(self.keyring, 'password-loaded',
                      lambda *x: self.on_credentials())
+        self.keyring.load_credentials()
 
     def on_credentials(self):
         if not self.keyring.has_credentials:
