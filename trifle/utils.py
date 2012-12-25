@@ -1,11 +1,10 @@
+from gi.repository import GLib
 import os
 import logging
 import gettext
 
-# Directories
-# Spec: http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-CACHE_DIR = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
-CACHE_DIR = os.path.join(CACHE_DIR, 'trifle')
+# http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+CACHE_DIR = os.path.join(GLib.get_user_cache_dir(), 'trifle')
 
 VERSION_INFO = (1, 0)
 VERSION = '.'.join(str(part) for part in VERSION_INFO)
