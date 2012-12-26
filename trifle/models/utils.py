@@ -145,15 +145,6 @@ def split_id(combined_ids):
         return tuple(unquote(i) for i in combined_ids.split('/'))
 
 
-def item_content(item_id):
-    fpath = os.path.join(content_dir, str(item_id))
-    if os.path.isfile(fpath):
-        with open(fpath, 'r') as f:
-            return f.read()
-    else:
-        return None
-
-
 unescape = HTMLParser().unescape
 session = Soup.SessionAsync(max_conns=50, max_conns_per_host=8)
 content_dir = os.path.join(CACHE_DIR, 'content')

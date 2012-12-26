@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from gi.repository import Gdk
 from gi.repository import Gio
+from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Pango
 from gi.repository import WebKit
-import datetime
 import base64
+import datetime
+import os
 
 from trifle.arguments import arguments
 from trifle.utils import get_data_path, _, logger
@@ -88,6 +90,7 @@ class ItemView(WebKit.WebView):
     item_id = GObject.property(type=object)
     font = GObject.property(type=GObject.TYPE_STRING)
     monospace = GObject.property(type=GObject.TYPE_STRING)
+    load_cancellable = GObject.property(type=Gio.Cancellable)
 
     def __init__(self, *args, **kwargs):
         # TODO: Change to DOCUMENT_VIEWER after we start caching remote
@@ -169,14 +172,30 @@ class ItemView(WebKit.WebView):
         self.get_settings().set_properties(default_monospace_font_size=size,
                                            monospace_font_family=family)
 
-    @staticmethod
-    def on_item_change(self, param):
+    def on_item_change(self, view, param):
+        if self.load_cancellable is not None:
+            self.load_cancellable.cancel()
+        self.load_cancellable = Gio.Cancellable()
+
+        fpath = os.path.join(models.utils.content_dir, str(self.item_id))
+        f = Gio.File.new_for_path(fpath)
+        f.load_contents_async(self.load_cancellable, self.on_content_loaded,
+                              None)
+
+    def on_content_loaded(self, f, result, data):
+        try:
+            content = f.load_contents_finish(result)[1].decode('utf-8')
+        except GLib.GError as e:
+            if e.code == GLib.FileError.AGAIN: # Cancelled
+                return
+            else:
+                raise
+
         # Scroll to (0, 0)
         self.get_hadjustment().set_value(0)
         self.get_vadjustment().set_value(0)
         # Set new data
         dom = self.get_dom_document()
-        content = models.utils.item_content(self.item_id)
         dom.get_element_by_id('trifle_content').set_inner_html(content)
         # IFrame repacement
         iframes = dom.get_elements_by_tag_name('iframe')
