@@ -183,7 +183,8 @@ class ItemView(WebKit.WebView):
         while iframes.item(0) is not None:
             iframe = iframes.item(0)
             uri = iframe.get_src()
-            repl = dom.get_element_by_id('trifle_iframe').clone_node(True)
+            repl = dom.create_element('a')
+            repl.get_class_list().add('trifle_iframe')
             repl.set_href(uri)
             repl.set_inner_text(uri)
             iframe.get_parent_node().replace_child(repl, iframe)

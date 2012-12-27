@@ -1,21 +1,3 @@
-article, aside, details, figcaption, figure, footer, header, hgroup, nav,
-section, summary {
-    display: block;
-}
-
-audio, canvas, video {
-    display: inline-block;
-}
-
-audio:not([controls]) {
-    display: none;
-    height: 0;
-}
-
-[hidden] {
-    display: none;
-}
-
 a:focus {
     outline: thin dotted;
 }
@@ -28,11 +10,6 @@ abbr[title] {
     border-bottom: 1px dotted;
 }
 
-body {
-    margin: 1em;
-    line-height: 1.4em;
-}
-
 #trifle_replacements {
     display: none;
 }
@@ -40,6 +17,8 @@ body {
 article {
     display: block;
     overflow: hidden;
+    line-height: 1.4em;
+    text-align: justify;
 }
 
 hr {
@@ -52,15 +31,6 @@ hr {
 }
 
 /* Content styles */
-article>* {
-    margin: 1em 0;
-}
-
-/* TODO: Consider doing something about these ineffective selectors */
-article>:first-child,
-article>:last-child {
-    margin: 0;
-}
 
 h1, h2 {
     font-size: 1.266em;
@@ -177,15 +147,15 @@ fieldset {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
-    -webkit-transition: opacity 50ms 0.5s;
+    -webkit-transition: opacity 0 0.5s;
 }
 
 #trifle_statusbar.visible {
-    -webkit-transition: opacity 0 0;
+    -webkit-transition: opacity 0 0.25s;
     opacity: 1;
 }
 
-#trifle_iframe {
+.trifle_iframe {
     display: block;
     white-space: nowrap;
     overflow: hidden;
