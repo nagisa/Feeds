@@ -6,10 +6,11 @@ from trifle.utils import get_data_path, logger, _, ngettext
 class BuiltMixin:
     def __new__(cls, *args, **kwargs):
         # Avoid getting __init__ called during building.
-        cls_init = None
-        if hasattr(cls, '__init__'):
+        try:
             cls_init = cls.__init__
             delattr(cls, '__init__')
+        except AttributeError:
+            cls_init = None
 
         builder = Gtk.Builder(translation_domain='trifle')
         path = get_data_path('ui', cls.ui_file)
@@ -18,7 +19,7 @@ class BuiltMixin:
         builder.connect_signals(parent)
         parent._builder = builder
 
-        # But let it be executed when initializing object from python
+        # But let it be executed when initializing object normally
         if cls_init is not None:
             cls.__init__ = cls_init
         return parent
