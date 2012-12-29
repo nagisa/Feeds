@@ -1,6 +1,5 @@
 from collections import namedtuple
 from gi.repository import Soup, Gtk, GdkPixbuf, GLib
-from html.parser import HTMLParser
 from urllib.parse import urljoin, urlencode, quote, unquote
 from xml.sax.saxutils import escape
 import hashlib
@@ -224,9 +223,11 @@ def process_items(data):
             href = item['alternate'][0]['href']
         except KeyError:
             href = item['origin']['htmlUrl']
+
         title = item.get('title', None)
         if title is not None:
-            title = title.replace('\n', ' ')
+            title = lxml.html.fragments_fromstring(title)[0]
+
         return {'title': title, 'summary': summary, 'href': href,
                 'author': item.get('author', None), 'time': time,
                 'subscription': item['origin']['streamId']}, content
@@ -246,7 +247,6 @@ def process_items(data):
     return resp
 
 
-unescape = HTMLParser().unescape
 session = Soup.SessionAsync(max_conns=50, max_conns_per_host=8)
 content_dir = os.path.join(CACHE_DIR, 'content')
 favicon_dir = os.path.join(CACHE_DIR, 'favicons')
