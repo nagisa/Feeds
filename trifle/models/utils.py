@@ -9,7 +9,8 @@ import os
 import sqlite3
 import ctypes
 import json
-import re
+import lxml.html
+import lxml.html.clean
 
 from trifle.utils import get_data_path, VERSION, CACHE_DIR, logger
 
@@ -157,7 +158,6 @@ def item_content(item_id):
 
 
 def process_items(data):
-
     def process_item(item):
         """
         Should return a (dictionary, content,) pair.
@@ -171,37 +171,65 @@ def process_items(data):
         # WAY guaranteed that any of these fields exists at all.
         # This idiocy should make this method bigger than a manpage for
         # understanding teenage girls' thought processes.
-        def strip(text):
-            if not text:
-                return text
-            text = strip.html_re.sub('', text).strip()
-            return strip.space_re.sub('', text)
-        strip.html_re = re.compile('<.+?>')
-        strip.space_re = re.compile('[\t\n\r]+')
+        content = item['content']['content'] if 'content' in item else \
+                  item['summary']['content'] if 'summary' in item else ''
 
-        result = {}
-        result['subscription'] = item['origin']['streamId']
-        result['author'] = item.get('author', None)
-        # How could they even think of putting html into feed title?!
-        result['title'] = strip(item.get('title', None))
+        fragments = lxml.html.fragments_fromstring(content)
+        main = lxml.html.HtmlElement()
+        main.tag='div'
+        # Put fragments all under one element for easier parsing
+        if len(fragments) > 0 and isinstance(fragments[0], str):
+            main.text = fragments[0]
+            del fragments[0]
+        for key, fragment in enumerate(fragments):
+            if isinstance(fragment, lxml.html.HtmlElement):
+                main.append(fragment)
+            else:
+                main[-1].tail = fragment
 
-        result['time'] = int(item['timestampUsec'])
-        if result['time'] >= int(item.get('updated', -1)) * 1E6:
-            result['time'] = item['updated'] * 1E6
+        # Get summary text before all the modifications.
+        summary = main.text_content().replace('\n', ' ').strip()[:250]
 
+        # Replace all iframes with regular link
+        for iframe in main.xpath('//iframe'):
+            src = iframe.get('src')
+            if not src:
+                iframe.getparent().remove(iframe)
+            else:
+                link = lxml.html.HtmlElement(src, attrib = {
+                                             'href': src,
+                                             'class':'trifle_iframe'})
+                link.tag='a'
+                iframe.getparent().replace(iframe, link)
+
+        # Remove following attributes
+        remove = ('width', 'height', 'color', 'size', 'align', 'background',
+                  'bgcolor', 'border', 'cellpadding', 'cellspacing',)
+        xpath = '//*[{0}]'.format(' or '.join('@'+a for a in remove))
+        for el in main.xpath(xpath):
+            attrib = el.attrib
+            for attr in remove:
+                if attr in attrib:
+                    attrib.pop(attr)
+
+        content = lxml.html.tostring(main, encoding='unicode')
+        cleaner = lxml.html.clean.Cleaner()
+        cleaner.remove_tags = ['font']
+        content = cleaner.clean_html(content)
+
+        time = int(item['timestampUsec'])
+        if time >= int(item.get('updated', -1)) * 1E6:
+            time = item['updated'] * 1E6
         try:
-            result['href'] = item['alternate'][0]['href']
+            href = item['alternate'][0]['href']
         except KeyError:
-            result['href'] = item['origin']['htmlUrl']
-
-        content = item['summary']['content'] if 'summary' in item else \
-                  item['content']['content'] if 'content' in item else ''
-        result['summary'] = strip(content)[:512]
-
-        for k in ['author', 'title', 'summary']:
-            result[k] = unescape(result[k]) if result[k] else result[k]
-
-        return result, content
+            href = item['origin']['htmlUrl']
+        title = item.get('title', None)
+        if title is not None:
+            title = title.replace('\n', ' ')
+        return {'title': title, 'summary': summary, 'href': href,
+                'author': item.get('author', None), 'time': time,
+                'subscription': item['origin']['streamId']}, content
 
     data = json.loads(data)
     resp = []
@@ -213,7 +241,6 @@ def process_items(data):
         fpath = os.path.join(content_dir, str(sid))
         with open(fpath, 'w') as f:
             f.write(content)
-
         metadata.update({'id': sid})
         resp.append(metadata)
     return resp

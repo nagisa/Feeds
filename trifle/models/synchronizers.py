@@ -162,7 +162,7 @@ class Items(base.SyncObject):
         ids = ids.fetchall()
         if len(ids) == 0:
             logger.debug('Items doesn\'t need synchronization')
-            self.post_sync()
+            self.emit('sync-done')
             return False
 
         chunks = utils.split_chunks((('i', i) for i, in ids), 250, ('', ''))

@@ -178,16 +178,6 @@ class ItemView(WebKit.WebView):
         dom = self.get_dom_document()
         content = models.utils.item_content(self.item_id)
         dom.get_element_by_id('trifle_content').set_inner_html(content)
-        # IFrame repacement
-        iframes = dom.get_elements_by_tag_name('iframe')
-        while iframes.item(0) is not None:
-            iframe = iframes.item(0)
-            uri = iframe.get_src()
-            repl = dom.create_element('a')
-            repl.get_class_list().add('trifle_iframe')
-            repl.set_href(uri)
-            repl.set_inner_text(uri)
-            iframe.get_parent_node().replace_child(repl, iframe)
         self.show()
 
     def on_inspector(self, insp, view):
