@@ -234,6 +234,9 @@ class Subscriptions(base.SyncObject):
         q = '; DELETE FROM '.join(('subscriptions', 'labels', 'labels_fk'))
         utils.sqlite.executescript('DELETE FROM ' + q)
         res = json.loads(msg.response_body.data)['subscriptions']
+        # Filter out all items without htmlUrl in them. They likely
+        # are dead feeds even GReader doesn't handle.
+        res = list(filter(lambda r: 'htmlUrl' in r, res))
 
         # Reinsert items
         q = '''INSERT INTO subscriptions(id, url, title)
@@ -243,7 +246,7 @@ class Subscriptions(base.SyncObject):
         lid = lambda x: x['id'].split('/', 2)[-1]
         # Reinsert labels
         q = 'INSERT OR IGNORE INTO labels(id, name) VALUES (?, ?)'
-        values = ((lid(l), l['label']) for s in res for l in s['categories'])
+        values = {(lid(l), l['label']) for s in res for l in s['categories']}
         utils.sqlite.executemany(q, values)
 
         # Estabilish foreign keys via labels_fk
