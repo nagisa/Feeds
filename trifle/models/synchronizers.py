@@ -1,9 +1,11 @@
-from gi.repository import GObject, Soup
+from gi.repository import GObject
+from gi.repository import Gtk
+from gi.repository import Soup
 import itertools
 import json
 import os
 import random
-import re
+import concurrent.futures
 
 from trifle.utils import logger
 from trifle.models import settings
@@ -141,12 +143,14 @@ class Items(base.SyncObject):
     def __init__(self, *args, **kwargs):
         super(Items, self).__init__(*args, **kwargs)
         self.sync_status = 0
+        self.pool = concurrent.futures.ProcessPoolExecutor(4)
+        self.futures = []
 
     def sync(self):
         if self.sync_status > 0:
             logger.warning('Items are already being synchronized')
             return
-        self.sync_status = 0
+        self.sync_status, futures = 0, []
         logger.debug('Synchronizing items')
         uri = utils.api_method('stream/items/contents')
         req_type = 'application/x-www-form-urlencoded'
@@ -168,29 +172,32 @@ class Items(base.SyncObject):
             message = self.auth.message('POST', uri)
             message.set_request(req_type, utils.Soup.MemoryUse.COPY, data,
                                 len(data))
-            utils.session.queue_message(message, self.process_response, None)
-        self.connect('notify::sync-status', self.post_sync)
+            utils.session.queue_message(message, self.on_response, None)
+        self.connect('notify::sync-status', self.on_sync_status_change)
 
-    def process_response(self, session, message, data=None):
+    def on_response(self, session, message, data=None):
         status = message.status_code
         if not 200 <= status < 400:
             logger.error('Items synchronization failed {0}'.format(status))
-        else:
-            data = json.loads(message.response_body.data)
-            for item in data['items']:
-                sid = utils.short_id(item['id'])
-                metadata, content = self.process_item(item)
-                metadata.update({'id': sid})
-                self.save_content(sid, content)
-                query = '''UPDATE items SET title=:title, author=:author,
-                           summary=:summary, href=:href, time=:time,
-                           subscription=:subscription WHERE id=:id'''
-                utils.sqlite.execute(query, metadata)
+            return
+
+        f = self.pool.submit(utils.process_items, message.response_body.data)
+        self.futures.append(f)
         self.sync_status -= 1
 
-    def post_sync(self, *args):
+    def on_sync_status_change(self, *args):
         if self.sync_status != 0:
             return
+        # Wait for all processing to finish.
+        while concurrent.futures.wait(self.futures, timeout=0.05)[1]:
+            Gtk.main_iteration_do(False)
+        res = itertools.chain(*(future.result() for future in self.futures))
+        query = '''UPDATE items SET title=:title, author=:author,
+                   summary=:summary, href=:href, time=:time,
+                   subscription=:subscription WHERE id=:id'''
+        utils.sqlite.executemany(query, res)
+
+        logger.debug('Items synchronization completed')
         utils.sqlite.commit()
         self.emit('sync-done')
 
@@ -199,61 +206,10 @@ class Items(base.SyncObject):
         query = 'SELECT id FROM items WHERE to_delete=1'
         ids = utils.sqlite.execute(query).fetchall()
         utils.sqlite.execute('DELETE FROM items WHERE to_delete=1')
-        for i, in ids:
-            self.save_content(i, None)
-
-    def save_content(self, item_id, content):
-        fpath = os.path.join(utils.content_dir, str(item_id))
-        if content is None and os.path.isfile(fpath):
-            os.remove(fpath)
-        else:
-            with open(fpath, 'w') as f:
-                f.write(content)
-
-    def process_item(self, item):
-        """
-        Should return a (dictionary, content,) pair.
-        Dictionary should contain subscription, time, href, author, title and
-        summary fields.
-        If any of values doesn't exist, they'll be replaced with meaningful
-        defaults. For example "Unknown" for author or "Untitled item" for
-        title
-        """
-        # After a lot of fiddling around I realized one thing. We are IN NO
-        # WAY guaranteed that any of these fields exists at all.
-        # This idiocy should make this method bigger than a manpage for
-        # understanding teenage girls' thought processes.
-        def strip(text):
-            if not text:
-                return text
-            text = strip.html_re.sub('', text).strip()
-            return strip.space_re.sub('', text)
-        strip.html_re = re.compile('<.+?>')
-        strip.space_re = re.compile('[\t\n\r]+')
-
-        result = {}
-        result['subscription'] = item['origin']['streamId']
-        result['author'] = item.get('author', None)
-        # How could they even think of putting html into feed title?!
-        result['title'] = strip(item.get('title', None))
-
-        result['time'] = int(item['timestampUsec'])
-        if result['time'] >= int(item.get('updated', -1)) * 1E6:
-            result['time'] = item['updated'] * 1E6
-
-        try:
-            result['href'] = item['alternate'][0]['href']
-        except KeyError:
-            result['href'] = item['origin']['htmlUrl']
-
-        content = item['summary']['content'] if 'summary' in item else \
-                  item['content']['content'] if 'content' in item else ''
-        result['summary'] = strip(content)[:512]
-
-        for k in ['author', 'title', 'summary']:
-            result[k] = utils.unescape(result[k]) if result[k] else result[k]
-
-        return result, content
+        for item_id, in ids:
+            fpath = os.path.join(utils.content_dir, str(item_id))
+            if os.path.isfile(fpath):
+                os.remove(fpath)
 
 
 class Subscriptions(base.SyncObject):

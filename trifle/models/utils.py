@@ -8,6 +8,8 @@ import itertools
 import os
 import sqlite3
 import ctypes
+import json
+import re
 
 from trifle.utils import get_data_path, VERSION, CACHE_DIR, logger
 
@@ -152,6 +154,69 @@ def item_content(item_id):
             return f.read()
     else:
         return None
+
+
+def process_items(data):
+
+    def process_item(item):
+        """
+        Should return a (dictionary, content,) pair.
+        Dictionary should contain subscription, time, href, author, title and
+        summary fields.
+        If any of values doesn't exist, they'll be replaced with meaningful
+        defaults. For example "Unknown" for author or "Untitled item" for
+        title
+        """
+        # After a lot of fiddling around I realized one thing. We are IN NO
+        # WAY guaranteed that any of these fields exists at all.
+        # This idiocy should make this method bigger than a manpage for
+        # understanding teenage girls' thought processes.
+        def strip(text):
+            if not text:
+                return text
+            text = strip.html_re.sub('', text).strip()
+            return strip.space_re.sub('', text)
+        strip.html_re = re.compile('<.+?>')
+        strip.space_re = re.compile('[\t\n\r]+')
+
+        result = {}
+        result['subscription'] = item['origin']['streamId']
+        result['author'] = item.get('author', None)
+        # How could they even think of putting html into feed title?!
+        result['title'] = strip(item.get('title', None))
+
+        result['time'] = int(item['timestampUsec'])
+        if result['time'] >= int(item.get('updated', -1)) * 1E6:
+            result['time'] = item['updated'] * 1E6
+
+        try:
+            result['href'] = item['alternate'][0]['href']
+        except KeyError:
+            result['href'] = item['origin']['htmlUrl']
+
+        content = item['summary']['content'] if 'summary' in item else \
+                  item['content']['content'] if 'content' in item else ''
+        result['summary'] = strip(content)[:512]
+
+        for k in ['author', 'title', 'summary']:
+            result[k] = unescape(result[k]) if result[k] else result[k]
+
+        return result, content
+
+    data = json.loads(data)
+    resp = []
+    for item in data['items']:
+        sid = short_id(item['id'])
+        metadata, content = process_item(item)
+        # There's no need to replace this one with asynchronous operation as
+        # we do everything here in another process anyway.
+        fpath = os.path.join(content_dir, str(sid))
+        with open(fpath, 'w') as f:
+            f.write(content)
+
+        metadata.update({'id': sid})
+        resp.append(metadata)
+    return resp
 
 
 unescape = HTMLParser().unescape
