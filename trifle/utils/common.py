@@ -49,7 +49,7 @@ def time_ago(timestamp):
         hour_fmt = ngettext('{0} hour ago', '{0} hours ago', hours)
         return hour_fmt.format(hours)
     else:
-        days = int(hours / 24)
+        days = int(seconds / 86400)
         day_fmt = ngettext('{0} day ago', '{0} days ago', days)
         return day_fmt.format(days)
 
