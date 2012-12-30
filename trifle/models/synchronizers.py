@@ -2,11 +2,11 @@ from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Soup
+import concurrent.futures
 import itertools
 import json
 import os
 import random
-import concurrent.futures
 
 from trifle.models import settings
 from trifle.models import base
@@ -87,7 +87,7 @@ class Id(base.SyncObject):
         if all(self.sync_status.get(key, False) for key in self.states.keys()):
             logger.debug('IDs synchronizaton completed')
             sqlite.commit()
-            self.emit('sync-done')
+            GLib.idle_add(self.emit, 'sync-done')
 
 
 class Flags(base.SyncObject):
@@ -124,13 +124,13 @@ class Flags(base.SyncObject):
         if self.sync_status == 0:
             # In case we didn't have any flags to synchronize
             logger.debug('There were no flags to synchronize')
-            self.emit('sync-done')
+            GLib.idle_add(self.emit, 'sync-done')
 
     def on_response(self, session, message, data):
         self.sync_status -= 1
         if self.sync_status == 0:
             logger.debug('Flags synchronizaton completed')
-            self.emit('sync-done')
+            GLib.idle_add(self.emit, 'sync-done')
 
         status = message.status_code
         if not 200 <= status < 400:
@@ -164,7 +164,7 @@ class Items(base.SyncObject):
         ids = ids.fetchall()
         if len(ids) == 0:
             logger.debug('Items doesn\'t need synchronization')
-            self.emit('sync-done')
+            GLib.idle_add(self.emit, 'sync-done')
             return False
 
         chunks = split_chunks((('i', i) for i, in ids), 250, ('', ''))
@@ -269,7 +269,7 @@ class Subscriptions(base.SyncObject):
         values = ((s['id'], lid(l)) for s in res for l in s['categories'])
         sqlite.executemany(q, values)
         logger.debug('Subscriptions synchronization completed')
-        self.emit('sync-done')
+        GLib.idle_add(self.emit, 'sync-done')
 
     def subscribe_to(self, url):
         uri = api_method('subscription/quickadd')
@@ -282,9 +282,9 @@ class Subscriptions(base.SyncObject):
     def on_quickadd(self, session, msg, data=None):
         if not 200 <= msg.status_code < 400:
             logger.error('Add request returned {0}'.format(msg.status_code))
-            self.emit('subscribed', False)
+            GLib.idle_add(self.emit, 'subscribed', False)
         res = json.loads(msg.response_body.data)
-        self.emit('subscribed', 'streamId' in res)
+        GLib.idle_add(self.emit, 'subscribed', 'streamId' in res)
 
     def set_item_label(self, vals, label_id, value):
         if vals[0] != SubscriptionType.SUBSCRIPTION:
@@ -306,7 +306,7 @@ class Subscriptions(base.SyncObject):
         if not 200 <= msg.status_code < 400:
             logger.error('Edit request returned {0}'.format(msg.status_code))
             return False
-        self.emit('label-set', 200 <= msg.status_code < 400)
+        GLib.idle_add(self.emit, 'label-set', 200 <= msg.status_code < 400)
 
 
 class Favicons(base.SyncObject):
@@ -330,7 +330,7 @@ class Favicons(base.SyncObject):
             self.sync_status += 1
         if self.sync_status == 0:
             logger.debug('Favicons synchronization completed')
-            self.emit('sync-done')
+            GLib.idle_add(self.emit, 'sync-done')
 
     def on_response(self, session, msg, site_uri):
         self.sync_status -= 1
@@ -342,7 +342,7 @@ class Favicons(base.SyncObject):
                 f.write(msg.response_body.flatten().get_data())
         if self.sync_status == 0:
             logger.debug('Favicons synchronization completed')
-            self.emit('sync-done')
+            GLib.idle_add(self.emit, 'sync-done')
 
     def has_icon(self, site_uri):
         return os.path.isfile(icon_name(site_uri))

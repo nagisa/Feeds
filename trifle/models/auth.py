@@ -30,13 +30,13 @@ class Keyring(GObject.Object):
 
     def load_credentials(self):
         if self.has_credentials:
-            self.emit('password-loaded')
+            GLib.idle_add(self.emit, 'password-loaded')
         else:
-            self.emit('ask-password')
+            GLib.idle_add(self.emit, 'ask-password')
 
     def credentials_response(self, username, password):
         self.set_credentials(username, password)
-        self.emit('password-loaded')
+        GLib.idle_add(self.emit, 'password-loaded')
 
     def set_credentials(self, username, password):
         self.set_properties(username=username, password=password)
@@ -58,10 +58,10 @@ class SecretKeyring(Keyring):
                 return super(SecretKeyring, self).load_credentials()
             else:
                 self.password = password
-                self.emit('password-loaded')
+                GLib.idle_add(self.emit, 'password-loaded')
 
         if self.has_credentials:
-            self.emit('password-loaded')
+            GLib.idle_add(self.emit, 'password-loaded')
         else:
             attrs = {'app': 'trifle', 'user': self.username}
             Secret.password_lookup(SCHEMA, attrs, None, loaded, None)

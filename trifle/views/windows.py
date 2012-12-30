@@ -1,4 +1,7 @@
-from gi.repository import Gtk, GObject, Gio
+from gi.repository import Gio
+from gi.repository import GLib
+from gi.repository import GObject
+from gi.repository import Gtk
 from gettext import gettext as _
 
 from trifle import models
@@ -146,7 +149,7 @@ class LoginDialog(BuiltMixin, Gtk.Dialog):
     def ensure_login(self):
         if self.logged_in:
             # OK, good to go
-            self.emit('logged-in')
+            GLib.idle_add(self.emit, 'logged-in')
             return
         if not self.model.status['PROGRESS']:
             self.model.login()
@@ -172,7 +175,7 @@ class LoginDialog(BuiltMixin, Gtk.Dialog):
             self._builder.get_object('progress-spinner').hide()
             self.show_all()
         elif model.status['OK']:
-            self.emit('logged-in')
+            GLib.idle_add(self.emit, 'logged-in')
             self.hide()
 
     def on_response(self, dialog, r):
@@ -205,7 +208,7 @@ class LoginDialog(BuiltMixin, Gtk.Dialog):
             self.model.login()
 
     def on_activate(self, entry, data=None):
-        self.emit('response', 0)
+        GLib.idle_add(self.emit, 'response', 0)
 
 
 class SubscribeDialog(BuiltMixin, Gtk.Dialog):
@@ -252,11 +255,11 @@ class SubscribeDialog(BuiltMixin, Gtk.Dialog):
             self._builder.get_object('error-label').set_text(msg)
             self._builder.get_object('progress').hide()
         else:
-            self.emit('subscribed')
+            GLib.idle_add(self.emit, 'subscribed')
             self.destroy()
 
     def on_activate(self, entry, data=None):
-        self.emit('response', 0)
+        GLib.idle_add(self.emit, 'response', 0)
 
 GObject.type_register(ApplicationWindow)
 GObject.type_register(PreferencesDialog)
