@@ -226,7 +226,7 @@ def process_items(data):
 
         title = item.get('title', None)
         if title is not None:
-            title = lxml.html.fragments_fromstring(title)[0]
+            title = lxml.html.fromstring(title).text_content().strip()
 
         return {'title': title, 'summary': summary, 'href': href,
                 'author': item.get('author', None), 'time': time,
