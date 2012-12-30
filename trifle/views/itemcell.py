@@ -6,7 +6,6 @@ from gi.repository import Pango
 from gi.repository import PangoCairo
 
 from trifle import models, utils
-from trifle.views import utils
 
 
 class ItemCellRenderer(Gtk.CellRenderer):
@@ -76,7 +75,7 @@ class ItemCellRenderer(Gtk.CellRenderer):
 
     @staticmethod
     def render_icon(context, uri, size, x, y):
-        pixbuf = models.utils.icon_pixbuf(uri)
+        pixbuf = utils.icon_pixbuf(uri)
         if pixbuf is None:
             return
         Gdk.cairo_set_source_pixbuf(context, pixbuf, x, y)

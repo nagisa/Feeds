@@ -1,2 +1,2 @@
-from trifle.models import auth, feeds, subscriptions, utils, settings, \
-                          synchronizers, base
+from trifle.models import (auth, feeds, subscriptions, settings, base,
+                           synchronizers)

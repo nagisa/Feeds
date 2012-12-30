@@ -1,7 +1,8 @@
 from gi.repository import Notify, GObject
+from gettext import gettext as _, ngettext
 
 from trifle import models
-from trifle.utils import logger, ngettext, _
+from trifle.utils import logger
 
 
 class Notification(Notify.Notification):

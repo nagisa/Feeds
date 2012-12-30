@@ -1,8 +1,11 @@
-from gi.repository import Gtk, Gdk, Gio, GLib, GObject
+from gi.repository import Gdk
+from gi.repository import Gio
+from gi.repository import GLib
+from gi.repository import GObject
+from gi.repository import Gtk
 
 from trifle import models, views
-from trifle.views.utils import connect_once
-from trifle.utils import logger, get_data_path
+from trifle.utils import logger, get_data_path, connect_once, sqlite
 
 
 class Application(Gtk.Application):
@@ -65,7 +68,7 @@ class Application(Gtk.Application):
 
     @staticmethod
     def on_shutdown(self):
-        models.utils.sqlite.force_commit()
+        sqlite.force_commit()
 
     def on_show_prefs(self, action, data=None):
         props = {'modal': True, 'transient-for': self.get_active_window()}

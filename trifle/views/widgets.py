@@ -7,12 +7,14 @@ from gi.repository import Pango
 from gi.repository import WebKit
 import datetime
 import base64
+from gettext import gettext as _
 
 from trifle.arguments import arguments
-from trifle.utils import get_data_path, _, logger
+from trifle.utils import (get_data_path, logger, parse_font, ItemsColumn,
+                          TreeModelFilter, split_id)
 from trifle import models
 
-from trifle.views import utils, toolitems
+from trifle.views import toolitems
 from trifle.views.itemcell import ItemCellRenderer
 
 
@@ -159,13 +161,13 @@ class ItemView(WebKit.WebView):
 
     @staticmethod
     def on_font(self, gprop):
-        family, size = utils.parse_font(self.font)
+        family, size = parse_font(self.font)
         self.get_settings().set_properties(default_font_family=family,
                                            default_font_size=size)
 
     @staticmethod
     def on_monospace(self, gprop):
-        family, size = utils.parse_font(self.monospace)
+        family, size = parse_font(self.monospace)
         self.get_settings().set_properties(default_monospace_font_size=size,
                                            monospace_font_family=family)
 
@@ -323,19 +325,19 @@ class ItemsView(Gtk.TreeView):
         super(ItemsView, self).__init__(None, *args, **kwargs)
 
         self.set_properties(headers_visible=False, fixed_height_mode=True,
-                            search_column=models.utils.ItemsColumn.TITLE,
+                            search_column=ItemsColumn.TITLE,
                             main_model=models.feeds.Store())
         self.get_style_context().add_class('trifle-items-view')
 
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer)
         column.set_attributes(renderer,
-                              title=models.utils.ItemsColumn.TITLE,
-                              summary=models.utils.ItemsColumn.SUMMARY,
-                              time=models.utils.ItemsColumn.TIMESTAMP,
-                              unread=models.utils.ItemsColumn.UNREAD,
-                              source=models.utils.ItemsColumn.SUB_URI,
-                              source_title=models.utils.ItemsColumn.SUB_TITLE)
+                              title=ItemsColumn.TITLE,
+                              summary=ItemsColumn.SUMMARY,
+                              time=ItemsColumn.TIMESTAMP,
+                              unread=ItemsColumn.UNREAD,
+                              source=ItemsColumn.SUB_URI,
+                              source_title=ItemsColumn.SUB_TITLE)
         column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
         self.append_column(column)
 
@@ -359,12 +361,12 @@ class ItemsView(Gtk.TreeView):
 
         if self.category in ('unread', 'starred'):
             if self.category == 'unread':
-                cat_col = models.utils.ItemsColumn.UNREAD
+                cat_col = ItemsColumn.UNREAD
             else:
-                cat_col = models.utils.ItemsColumn.STARRED
-            visible_col = models.utils.ItemsColumn.FORCE_VISIBLE
+                cat_col = ItemsColumn.STARRED
+            visible_col = ItemsColumn.FORCE_VISIBLE
             visible_func = lambda m, i, d: m[i][cat_col] or m[i][visible_col]
-            filt = models.utils.TreeModelFilter(child_model=self.main_model)
+            filt = TreeModelFilter(child_model=self.main_model)
             filt.set_visible_func(visible_func)
             self.set_model(filt)
             self.category_model = filt
@@ -375,13 +377,13 @@ class ItemsView(Gtk.TreeView):
     @staticmethod
     def subscription_change(self, gprop):
         if self.sub_is_feed:
-            key = models.utils.ItemsColumn.SUB_ID
-            subscr = models.utils.split_id(self.subscription)[1]
+            key = ItemsColumn.SUB_ID
+            subscr = split_id(self.subscription)[1]
         else:
-            key, subscr = models.utils.ItemsColumn.LBL_ID, self.subscription
+            key, subscr = ItemsColumn.LBL_ID, self.subscription
 
         visible_func = lambda m, i, d: m[i][d[0]] == d[1]
-        filt = models.utils.TreeModelFilter(child_model=self.category_model)
+        filt = TreeModelFilter(child_model=self.category_model)
         filt.set_visible_func(visible_func, (key, subscr))
         self.set_model(filt)
 

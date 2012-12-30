@@ -1,1 +1,1 @@
-from trifle.views import utils, notifications, widgets, windows, itemcell
+from trifle.views import notifications, widgets, windows, itemcell

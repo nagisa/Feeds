@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from trifle.utils import _
+from gettext import gettext as _
 
 parser = ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true',

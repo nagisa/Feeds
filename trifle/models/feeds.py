@@ -3,8 +3,8 @@ import os
 from gi.repository import GObject
 from gi.repository import Gtk
 
-from trifle.models import utils, synchronizers
-from trifle.models.utils import ItemsColumn as Col
+from trifle.models import synchronizers
+from trifle.utils import ItemsColumn as Col, CONTENT_PATH, sqlite, StateIds
 
 
 class Store(Gtk.ListStore):
@@ -25,15 +25,15 @@ class Store(Gtk.ListStore):
         # Items with forced visibility
         self.forced = set()
 
-        if not os.path.exists(utils.content_dir):
-            os.makedirs(utils.content_dir)
+        if not os.path.exists(CONTENT_PATH):
+            os.makedirs(CONTENT_PATH)
 
         self.row_ch_handler = self.connect('row-changed', self.on_changed)
 
     @staticmethod
     def unread_count():
         query = 'SELECT COUNT(unread) FROM items WHERE unread=1'
-        return utils.sqlite.execute(query).fetchone()[0]
+        return sqlite.execute(query).fetchone()[0]
 
     def update(self):
         self.set_sort_column_id(-2, Gtk.SortType.DESCENDING) # Unsorted
@@ -44,7 +44,7 @@ class Store(Gtk.ListStore):
                    LEFT JOIN subscriptions AS S ON S.id=I.subscription
                    LEFT JOIN labels_fk AS L ON L.item_id=S.id
                    ORDER BY time DESC'''
-        items = utils.sqlite.execute(query).fetchall()
+        items = sqlite.execute(query).fetchall()
         exists = {r[Col.ID]: self.get_iter(key) for key, r in enumerate(self)}
         for item in items:
             if item[0] in exists:
@@ -74,16 +74,16 @@ class Store(Gtk.ListStore):
         if row[Col.FORCE_VISIBLE] == True:
             self.forced.add(row[Col.ID])
         query = '''UPDATE items SET unread=?, starred=? WHERE id=?'''
-        utils.sqlite.execute(query, (row[Col.UNREAD], row[Col.STARRED],
+        sqlite.execute(query, (row[Col.UNREAD], row[Col.STARRED],
                                      row[Col.ID],))
-        self.add_flag(row[0], utils.StateIds.READ, not row[Col.UNREAD])
-        self.add_flag(row[0], utils.StateIds.KEPT_UNREAD, row[Col.UNREAD])
-        self.add_flag(row[0], utils.StateIds.STARRED, row[Col.STARRED])
-        utils.sqlite.commit()
+        self.add_flag(row[0], StateIds.READ, not row[Col.UNREAD])
+        self.add_flag(row[0], StateIds.KEPT_UNREAD, row[Col.UNREAD])
+        self.add_flag(row[0], StateIds.STARRED, row[Col.STARRED])
+        sqlite.commit()
 
     def add_flag(self, item_id, flag, value):
         query = '''INSERT OR REPLACE INTO flags(item_id, flag, remove, id)
                    VALUES (:id, :flag, :remove,
                    (SELECT id FROM flags WHERE item_id=:id AND flag=:flag))'''
-        utils.sqlite.execute(query, {'id': item_id, 'flag': flag,
+        sqlite.execute(query, {'id': item_id, 'flag': flag,
                                      'remove': not value})

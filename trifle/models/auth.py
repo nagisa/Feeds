@@ -6,9 +6,9 @@ from gi.repository import GObject
 from gi.repository import Secret
 from gi.repository import Soup
 
-from trifle.models import utils, settings
-from trifle.utils import logger
-from trifle.views.utils import connect_once
+from trifle.models import settings
+from trifle.utils import (logger, connect_once, session, api_method,
+                          AuthMessage, Message)
 
 
 class Keyring(GObject.Object):
@@ -92,7 +92,7 @@ class Auth(GObject.Object):
         self.status = defaultdict(bool)
 
     def message(self, *args, **kwargs):
-        return utils.AuthMessage(self, *args, **kwargs)
+        return AuthMessage(self, *args, **kwargs)
 
     def login(self):
         self.status.update({'PROGRESS': True, 'ABORTED': False,
@@ -113,10 +113,10 @@ class Auth(GObject.Object):
         uri = 'https://www.google.com/accounts/ClientLogin'
         data = 'service=reader&accountType=GOOGLE&Email={0}&Passwd={1}'
         data = data.format(self.keyring.username, self.keyring.password)
-        message = utils.Message('POST', uri)
+        message = Message('POST', uri)
         req_type = 'application/x-www-form-urlencoded'
         message.set_request(req_type, Soup.MemoryUse.COPY, data, len(data))
-        utils.session.queue_message(message, self.on_login, None)
+        session.queue_message(message, self.on_login, None)
 
     def on_login(self, session, message, data):
         status = message.status_code
@@ -129,8 +129,8 @@ class Auth(GObject.Object):
             for line in message.response_body.data.splitlines():
                 if line.startswith('Auth'):
                     self.login_token = line[5:]
-                    message = self.message('GET', utils.api_method('token'))
-                    utils.session.queue_message(message, self.on_token, None)
+                    message = self.message('GET', api_method('token'))
+                    session.queue_message(message, self.on_token, None)
                     break
 
     def on_token(self, session, message, data=None):

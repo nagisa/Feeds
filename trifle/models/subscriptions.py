@@ -1,8 +1,8 @@
 from gi.repository import Gtk
 from gi.repository import GdkPixbuf
 
-from trifle.models import utils
-from trifle.models.utils import SubscriptionType
+from trifle.utils import (SubscriptionType as SubType, sqlite, combine_ids,
+                          split_id, icon_pixbuf)
 
 
 class Subscriptions(Gtk.TreeStore):
@@ -14,7 +14,7 @@ class Subscriptions(Gtk.TreeStore):
 
     @property
     def labels(self):
-        return filter(lambda x: x[0] == SubscriptionType.LABEL, self)
+        return filter(lambda x: x[0] == SubType.LABEL, self)
 
     @property
     def subscriptions(self):
@@ -22,13 +22,13 @@ class Subscriptions(Gtk.TreeStore):
             """ Yields all subscriptions in model, including those under
             labels"""
             for item in list(self):
-                if item[0] == SubscriptionType.SUBSCRIPTION:
+                if item[0] == SubType.SUBSCRIPTION:
                     yield item
                 else:
                     for sub in item.iterchildren():
                         yield sub
 
-        return filter(lambda x: x[0] == SubscriptionType.SUBSCRIPTION, subs())
+        return filter(lambda x: x[0] == SubType.SUBSCRIPTION, subs())
 
     def update(self):
         theme = Gtk.IconTheme.get_default()
@@ -39,7 +39,7 @@ class Subscriptions(Gtk.TreeStore):
                FROM subscriptions
                LEFT JOIN labels_fk ON labels_fk.item_id = subscriptions.id
                LEFT JOIN labels ON labels.id=labels_fk.label_id'''
-        result = set(utils.sqlite.execute(q).fetchall())
+        result = set(sqlite.execute(q).fetchall())
 
         # Add and update labels, will not show labels without subscriptions
         old_labels = dict((item[1], item) for item in self.labels)
@@ -49,7 +49,7 @@ class Subscriptions(Gtk.TreeStore):
         for label_id, label_title in new_labels:
             if label_id not in old_labels:
                 old_labels[label_id] = self[self.append(None)]
-            values = {0: SubscriptionType.LABEL, 1: label_id, 2: label_icon,
+            values = {0: SubType.LABEL, 1: label_id, 2: label_icon,
                       3: label_title}
             self.set(old_labels[label_id].iter, values)
             removed_labels[label_id] = False
@@ -60,12 +60,12 @@ class Subscriptions(Gtk.TreeStore):
         old_s = dict((item[1], item) for item in self.subscriptions)
         removed_s = old_s.copy()
         for subid, suburl, subtitle, lblid, lbltitle in result:
-            label_sub_id = utils.combine_ids(lblid, subid)
+            label_sub_id = combine_ids(lblid, subid)
             if label_sub_id not in old_s:
                 iter = old_labels[lblid].iter if lblid in old_labels else None
                 old_s[label_sub_id] = self[self.append(iter)]
-            values = {0: SubscriptionType.SUBSCRIPTION, 1: label_sub_id,
-                      2: utils.icon_pixbuf(suburl), 3: subtitle}
+            values = {0: SubType.SUBSCRIPTION, 1: label_sub_id,
+                      2: icon_pixbuf(suburl), 3: subtitle}
             self.set(old_s[label_sub_id].iter, values)
             removed_s[label_sub_id] = False
         for removed in (row for key, row in removed_s.items() if row):
@@ -73,7 +73,7 @@ class Subscriptions(Gtk.TreeStore):
 
     def get_item_labels(self, itr):
         row = self[itr]
-        if row[0] == SubscriptionType.LABEL:
+        if row[0] == SubType.LABEL:
             return None
         else:
             result = {}
@@ -81,8 +81,8 @@ class Subscriptions(Gtk.TreeStore):
                        LEFT JOIN labels_fk
                        ON labels_fk.item_id = subscriptions.id
                        WHERE subscriptions.id=?'''
-            label_id, sub_id = utils.split_id(row[1])
-            r = utils.sqlite.execute(query, (sub_id,)).fetchall()
+            label_id, sub_id = split_id(row[1])
+            r = sqlite.execute(query, (sub_id,)).fetchall()
             for label in self.labels:
                 result[label[1]] = (label[3], label[1] in (i for i, in r))
             return result

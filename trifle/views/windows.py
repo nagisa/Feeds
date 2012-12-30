@@ -1,12 +1,11 @@
 from gi.repository import Gtk, GObject, Gio
+from gettext import gettext as _
 
 from trifle import models
-from trifle.utils import VERSION, _, logger
-from trifle.views import utils
-from trifle.models.utils import ItemsColumn
+from trifle.utils import VERSION, logger, ItemsColumn, BuiltMixin, connect_once
 
 
-class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
+class ApplicationWindow(BuiltMixin, Gtk.ApplicationWindow):
     ui_file = 'window.ui'
     top_object = 'main-window'
 
@@ -77,7 +76,7 @@ class ApplicationWindow(utils.BuiltMixin, Gtk.ApplicationWindow):
     #     models.settings.settings['vertical-pos'] = paned_side.props.position
 
 
-class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
+class PreferencesDialog(BuiltMixin, Gtk.Dialog):
     ui_file = 'preferences-dialog.ui'
     top_object = 'preferences-dialog'
 
@@ -104,7 +103,7 @@ class PreferencesDialog(utils.BuiltMixin, Gtk.Dialog):
             self.destroy()
 
 
-class AboutDialog(utils.BuiltMixin, Gtk.AboutDialog):
+class AboutDialog(BuiltMixin, Gtk.AboutDialog):
     ui_file = 'about-dialog.ui'
     top_object = 'about-dialog'
 
@@ -112,7 +111,7 @@ class AboutDialog(utils.BuiltMixin, Gtk.AboutDialog):
         self.set_properties(version=VERSION, **kwargs)
 
 
-class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
+class LoginDialog(BuiltMixin, Gtk.Dialog):
     """
     This view will ensure, that user becomes logged in. It may fail in some
     cases tough:
@@ -209,7 +208,7 @@ class LoginDialog(utils.BuiltMixin, Gtk.Dialog):
         self.emit('response', 0)
 
 
-class SubscribeDialog(utils.BuiltMixin, Gtk.Dialog):
+class SubscribeDialog(BuiltMixin, Gtk.Dialog):
     ui_file = 'subscribe-dialog.ui'
     top_object = 'subscribe-dialog'
     login_view = GObject.property(type=GObject.Object)
@@ -241,8 +240,8 @@ class SubscribeDialog(utils.BuiltMixin, Gtk.Dialog):
         auth = self.login_view.model
         subscriptions = models.synchronizers.Subscriptions(auth=auth)
         callback = lambda *a: subscriptions.subscribe_to(uri.get_text())
-        utils.connect_once(self.login_view, 'logged-in', callback)
-        utils.connect_once(subscriptions, 'subscribed', self.on_subscribed)
+        connect_once(self.login_view, 'logged-in', callback)
+        connect_once(subscriptions, 'subscribed', self.on_subscribed)
         self.login_view.set_transient_for(self)
         self.login_view.ensure_login()
 
