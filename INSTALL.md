@@ -3,6 +3,15 @@
 Check if there's no package named `trifle` in official and/or unofficial
 (AUR, PPA) repositories available. Install from there if available.
 
+## Dependencies
+
+* python >= 3.2
+* python-lxml
+* libsecret
+* gtk3
+* libwebkit3
+* libnotify
+
 ## Building and installing
 
 ```sh
