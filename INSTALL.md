@@ -7,6 +7,7 @@ Check if there's no package named `trifle` in official and/or unofficial
 
 * python >= 3.2
 * python-lxml
+* python-gobject
 * libsecret
 * gtk3
 * libwebkit3

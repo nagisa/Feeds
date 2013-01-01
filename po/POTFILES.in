@@ -8,16 +8,14 @@ trifle.desktop.in
 trifle/__init__.py
 trifle/__main__.py
 trifle/arguments.py
-trifle/utils.py
 trifle/models/__init__.py
 trifle/models/auth.py
 trifle/models/feeds.py
 trifle/models/settings.py
 trifle/models/subscriptions.py
-trifle/models/utils.py
 trifle/views/__init__.py
 trifle/views/application.py
 trifle/views/notifications.py
-trifle/views/utils.py
 trifle/views/widgets.py
 trifle/views/windows.py
+trifle/utils/common.py

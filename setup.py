@@ -44,7 +44,7 @@ if __name__ == '__main__':
         description='A lightweight Google Reader for GNOME',
         license='GNU GPL v2',
         packages=['trifle'] + ['trifle.{0}'.format(module) for module in
-                               'views models tests'.split()],
+                               'views models tests utils'.split()],
         package_data={
             'trifle': recursive_include('trifle', 'data', ('xml', 'svg', 'ui',
                                         'html', 'css', 'sql'))},
@@ -55,5 +55,3 @@ if __name__ == '__main__':
         scripts=['trifle.py'],
         #man_pages=['man/trifle.1']
     )
-
-

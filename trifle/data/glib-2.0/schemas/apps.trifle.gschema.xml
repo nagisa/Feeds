@@ -44,5 +44,11 @@ restore it on next session
 restore it on next session
             </description>
         </key>
+        <key name="username" type="s">
+            <default>''</default>
+            <summary>Username of current user</summary>
+            <description>This is used for searching for password in keyring
+            </description>
+        </key>
     </schema>
 </schemalist>
