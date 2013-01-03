@@ -33,7 +33,7 @@ class SQLite(sqlite3.Connection):
 
 _sqlite_path = os.path.join(const.CACHE_PATH, 'metadata')
 _init_sqlite = not os.path.exists(_sqlite_path)
-if _init_sqlite:
+if _init_sqlite and not os.path.exists(os.path.dirname(_sqlite_path)):
     os.makedirs(os.path.dirname(_sqlite_path))
 sqlite = SQLite(_sqlite_path)
 if _init_sqlite:
