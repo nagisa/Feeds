@@ -59,6 +59,17 @@ def process_item(item):
             if attr in attrib:
                 attrib.pop(attr)
 
+    # Re-level headers. Make sure highest header level is h1 and they decrease
+    # by steps of one.
+    all_header_tags = ('h1', 'h2', 'h3', 'h4', 'h5', 'h6')
+    # //h1|//h2|//h3|//h4...
+    used_headers = main.xpath('|'.join('//' + tag for tag in all_header_tags))
+    used_header_tags = {header.tag for header in used_headers}
+    header_tag_mapping = dict(zip(sorted(used_header_tags), all_header_tags))
+    for header in used_headers:
+        header.tag = header_tag_mapping[header.tag]
+
+
     content = lxml.html.tostring(main, encoding='unicode')
     cleaner = lxml.html.clean.Cleaner()
     cleaner.remove_tags = ['font']
