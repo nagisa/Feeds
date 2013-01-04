@@ -62,7 +62,7 @@ class Id(base.SyncObject):
             self.set_flag(data, id_list)
 
         self.sync_status[data] = True
-        self.notify('sync-status')
+        GLib.idle_add(self.notify, 'sync-status')
 
     def ensure_ids(self, id_list):
         # We'll insert any ids we don't yet have in our database
