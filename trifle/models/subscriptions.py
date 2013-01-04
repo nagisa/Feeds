@@ -45,6 +45,7 @@ class Subscriptions(Gtk.TreeStore):
             # Was it removed?
             if row[Col.ID] not in labels:
                 self.remove(row.iter)
+                continue;
             # Update it
             row[Col.NAME] = labels.pop(row[Col.ID])
             labels_iter[row[Col.ID]] = row.iter
@@ -58,11 +59,12 @@ class Subscriptions(Gtk.TreeStore):
         subscriptions = {combine_ids(i[3], i[0]): (i[1], i[2]) for i in result}
         for row in self.subscriptions:
             # Was it removed?
-            if row[Col.ID] not in subscription:
+            if row[Col.ID] not in subscriptions:
                 self.remove(row.iter)
+                continue;
             # Update it
             data = subscriptions.pop(row[Col.ID])
-            row[Col.NAME], row[Col.ICON] = data[0], icon_pixbuf(data[1])
+            row[Col.NAME], row[Col.ICON] = data[1], icon_pixbuf(data[0])
         # These are not added yet
         for combined_id, d in subscriptions.items():
             iter = self.append(labels_iter.get(split_id(combined_id)[0], None))
