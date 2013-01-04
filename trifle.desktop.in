@@ -8,3 +8,4 @@ Icon=trifle
 Terminal=false
 Type=Application
 _Keywords=rss;atom;google;reader;news;feed;trifle;
+X-GNOME-UsesNotifications=true

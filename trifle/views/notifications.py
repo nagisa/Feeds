@@ -14,6 +14,7 @@ class Notification(Notify.Notification):
         super(Notification, self).update(summary, body, self.icon)
 
     def show(self):
+        self.set_hint_string("desktop-entry", "trifle")
         if models.settings.settings['notifications']:
             self.visible = True
             super(Notification, self).show()
