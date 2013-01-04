@@ -2,7 +2,7 @@ from gi.repository import Gtk
 from gi.repository import GdkPixbuf
 
 from trifle.utils import (SubscriptionType as SubType, sqlite, combine_ids,
-                          split_id, icon_pixbuf)
+                          split_id, icon_pixbuf, SubscriptionColumn as Col)
 
 
 class Subscriptions(Gtk.TreeStore):
@@ -10,25 +10,22 @@ class Subscriptions(Gtk.TreeStore):
     def __init__(self, *args, **kwargs):
         # SubscriptionType, id for item, icon_fpath, name
         super(Subscriptions, self).__init__(int, str, GdkPixbuf.Pixbuf, str)
-        self.set_sort_column_id(3, Gtk.SortType.ASCENDING)
+        self.set_sort_column_id(Col.NAME, Gtk.SortType.ASCENDING)
 
     @property
     def labels(self):
-        return filter(lambda x: x[0] == SubType.LABEL, self)
+        return filter(lambda x: x[Col.TYPE] == SubType.LABEL, self)
 
     @property
     def subscriptions(self):
-        def subs():
-            """ Yields all subscriptions in model, including those under
-            labels"""
-            for item in list(self):
-                if item[0] == SubType.SUBSCRIPTION:
-                    yield item
-                else:
-                    for sub in item.iterchildren():
-                        yield sub
-
-        return filter(lambda x: x[0] == SubType.SUBSCRIPTION, subs())
+        """ Yields all subscriptions in model, including those under
+        labels"""
+        for item in self:
+            if item[Col.TYPE] == SubType.SUBSCRIPTION:
+                yield item
+            else:
+                for sub in item.iterchildren():
+                    yield sub
 
     def update(self):
         theme = Gtk.IconTheme.get_default()
@@ -41,35 +38,36 @@ class Subscriptions(Gtk.TreeStore):
                LEFT JOIN labels ON labels.id=labels_fk.label_id'''
         result = set(sqlite.execute(q).fetchall())
 
-        # Add and update labels, will not show labels without subscriptions
-        old_labels = dict((item[1], item) for item in self.labels)
-        removed_labels = old_labels.copy()
-        new_labels = set((item[3], item[4],) for item in result if item[3])
         label_icon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
-        for label_id, label_title in new_labels:
-            if label_id not in old_labels:
-                old_labels[label_id] = self[self.append(None)]
-            values = {0: SubType.LABEL, 1: label_id, 2: label_icon,
-                      3: label_title}
-            self.set(old_labels[label_id].iter, values)
-            removed_labels[label_id] = False
-        for removed in (row for key, row in removed_labels.items() if row):
-            self.remove(removed.iter)
+        labels = {item[3]: item[4] for item in result if item[3] is not None}
+        labels_iter = {}
+        for row in self.labels:
+            # Was it removed?
+            if row[Col.ID] not in labels:
+                self.remove(row.iter)
+            # Update it
+            row[Col.NAME] = labels.pop(row[Col.ID])
+            labels_iter[row[Col.ID]] = row.iter
+        # These are not added yet
+        for label_id, label_name in labels.items():
+            iter = self.append(None)
+            labels_iter[label_id] = iter
+            self.set(iter, {Col.TYPE: SubType.LABEL, Col.ID: label_id,
+                            Col.ICON: label_icon, Col.NAME: label_name})
 
-        # Add and update subscriptions
-        old_s = dict((item[1], item) for item in self.subscriptions)
-        removed_s = old_s.copy()
-        for subid, suburl, subtitle, lblid, lbltitle in result:
-            label_sub_id = combine_ids(lblid, subid)
-            if label_sub_id not in old_s:
-                iter = old_labels[lblid].iter if lblid in old_labels else None
-                old_s[label_sub_id] = self[self.append(iter)]
-            values = {0: SubType.SUBSCRIPTION, 1: label_sub_id,
-                      2: icon_pixbuf(suburl), 3: subtitle}
-            self.set(old_s[label_sub_id].iter, values)
-            removed_s[label_sub_id] = False
-        for removed in (row for key, row in removed_s.items() if row):
-            self.remove(removed.iter)
+        subscriptions = {combine_ids(i[3], i[0]): (i[1], i[2]) for i in result}
+        for row in self.subscriptions:
+            # Was it removed?
+            if row[Col.ID] not in subscription:
+                self.remove(row.iter)
+            # Update it
+            data = subscriptions.pop(row[Col.ID])
+            row[Col.NAME], row[Col.ICON] = data[0], icon_pixbuf(data[1])
+        # These are not added yet
+        for combined_id, d in subscriptions.items():
+            iter = self.append(labels_iter.get(split_id(combined_id)[0], None))
+            self.set(iter, {Col.ID: combined_id, Col.ICON: icon_pixbuf(d[0]),
+                            Col.TYPE: SubType.SUBSCRIPTION, Col.NAME: d[1]})
 
     def get_item_labels(self, itr):
         row = self[itr]

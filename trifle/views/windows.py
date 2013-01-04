@@ -15,9 +15,7 @@ class ApplicationWindow(BuiltMixin, Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         self.set_wmclass('Trifle', 'Trifle')
 
-    @staticmethod
-    def on_realize(self):
-        self.maximize() # Should we really do that by default?
+        self.set_wmclass('Trifle', 'Trifle')
 
     def on_toolbar_category(self, toolbar, gprop):
         self._builder.get_object('items-view').set_category(toolbar.category)

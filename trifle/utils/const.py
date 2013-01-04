@@ -13,6 +13,9 @@ FAVICON_PATH = os.path.join(CACHE_PATH, 'favicons')
 
 SubscriptionType = namedtuple('SubscriptionType', 'LABEL SUBSCRIPTION')(0, 1)
 
+SubscriptionColumn = namedtuple('SubscriptionColumn',
+                                'TYPE ID ICON NAME')(*range(4))
+
 ItemsColumn = namedtuple('ItemsColumn', 'ID TITLE SUMMARY LINK TIMESTAMP '\
                          'UNREAD STARRED SUB_URI SUB_TITLE SUB_ID LBL_ID '\
                          'FORCE_VISIBLE')(*range(12))
