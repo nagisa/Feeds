@@ -8,9 +8,41 @@ from trifle import models, views
 from trifle.utils import logger, get_data_path, connect_once, sqlite
 
 
+def ensure_login(func):
+    # Decorator to be used only in Application for now
+    def wrap(self, *args, **kwargs):
+        cb = lambda *a: func(self, *args, **kwargs)
+        connect_once(self.login_view, 'logged-in', cb)
+        self.login_view.set_transient_for(self.get_active_window())
+        self.login_view.ensure_login()
+    return wrap
+
+
 class Application(Gtk.Application):
     last_sync = GObject.property(type=object)
     _login_view = None
+    _items_model = None
+    _subscr_model = None
+
+    @GObject.property(type=views.windows.LoginDialog)
+    def login_view(self):
+        if self._login_view is None:
+            self._login_view = views.windows.LoginDialog(modal=True)
+        return self._login_view
+
+    @GObject.property(type=models.feeds.Store)
+    def items_model(self):
+        if self._items_model is None:
+            self._items_model = models.feeds.Store()
+            self._items_model.update()
+        return self._items_model
+
+    @GObject.property(type=models.subscriptions.Subscriptions)
+    def subscr_model(self):
+        if self._subscr_model is None:
+            self._subscr_model = models.subscriptions.Subscriptions()
+            self._subscr_model.update()
+        return self._subscr_model
 
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(*args,
@@ -20,17 +52,6 @@ class Application(Gtk.Application):
         self.connect('startup', self.on_startup)
         self.connect('activate', self.on_activate)
         self.connect('shutdown', self.on_shutdown)
-
-    @GObject.property(type=views.windows.LoginDialog)
-    def login_view(self):
-        if self._login_view is None:
-            self._login_view = views.windows.LoginDialog(modal=True)
-        return self._login_view
-
-    def ensure_login(self, callback):
-        connect_once(self.login_view, 'logged-in', lambda *a: callback())
-        self.login_view.set_transient_for(self.get_active_window())
-        self.login_view.ensure_login()
 
     @staticmethod
     def on_startup(self):
@@ -54,16 +75,19 @@ class Application(Gtk.Application):
         if models.settings.settings['start-refresh']:
             self.on_sync(None)
 
-    @staticmethod
-    def on_activate(self):
+        # Load application styles
         css_provider = Gtk.CssProvider()
         css_provider.load_from_path(get_data_path('ui', 'trifle-style.css'))
         ctx = Gtk.StyleContext()
         ctx.add_provider_for_screen(Gdk.Screen.get_default(), css_provider,
                                     Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-        window = views.windows.ApplicationWindow()
+    @staticmethod
+    def on_activate(self):
+        window = views.windows.ApplicationWindow(items_model=self.items_model,
+                                                 sub_model=self.subscr_model)
         window.set_application(self)
+
         window.show_all()
 
     @staticmethod
@@ -88,18 +112,16 @@ class Application(Gtk.Application):
         dialog.show_all()
         dialog.connect('subscribed', lambda *a: self.on_sync(None))
 
-    on_sync = lambda s, *x: s.ensure_login(lambda: s._on_sync(*x))
-    def _on_sync(self, action, data=None):
+    @ensure_login
+    def on_sync(self, action, data=None):
         def on_sync_done(synchronizer, data=None):
             self.last_sync = GLib.get_monotonic_time()
 
         def on_subscr_sync_done(synchronizer, data=None):
-            for window in self.get_windows():
-                window._builder.get_object('sub-view').store.update()
+            self.subscr_model.update()
 
         def on_items_sync_done(synchronizer, data=None):
-            for window in self.get_windows():
-                window._builder.get_object('items-view').main_model.update()
+            self.items_model.update()
 
             notification = views.notifications.notification
             unread = models.feeds.Store.unread_count()

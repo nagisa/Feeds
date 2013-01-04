@@ -5,21 +5,27 @@ from gi.repository import Gtk
 from gettext import gettext as _
 
 from trifle import models
-from trifle.utils import VERSION, logger, ItemsColumn, BuiltMixin, connect_once
+from trifle.utils import (VERSION, logger, ItemsColumn, BuiltMixin,
+                          connect_once, SubscriptionType)
 
 
 class ApplicationWindow(BuiltMixin, Gtk.ApplicationWindow):
     ui_file = 'window.ui'
     top_object = 'main-window'
 
-    def __init__(self, *args, **kwargs):
-        self.set_wmclass('Trifle', 'Trifle')
+    def __init__(self, *args, items_model, sub_model, **kwargs):
+        # Set models
+        self._builder.get_object('items-view').main_model = items_model
+        self._builder.get_object('items-view').category = 'reading-list'
+        self._builder.get_object('sub-view').set_model(sub_model)
 
         self.set_wmclass('Trifle', 'Trifle')
 
     def on_toolbar_category(self, toolbar, gprop):
-        self._builder.get_object('items-view').set_category(toolbar.category)
-        self._builder.get_object('sub-view').on_cat_change(toolbar.category)
+        self._builder.get_object('items-view').category = toolbar.category
+        # Unselect all selected subscription filters, because changing a
+        # category clears subscription filter.
+        self._builder.get_object('sub-view').get_selection().unselect_all()
 
     def on_subscr_change(self, selection):
         model, itr = selection.get_selected()
@@ -27,7 +33,7 @@ class ApplicationWindow(BuiltMixin, Gtk.ApplicationWindow):
             row = model[itr]
             items = self._builder.get_object('items-view')
             items.set_properties(subscription=row[1],
-                                 sub_is_feed = row[0] == 1)
+                                 is_label = row[0] == SubscriptionType.LABEL)
 
     def on_item_change(self, selection):
         model, itr = selection.get_selected()

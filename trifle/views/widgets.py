@@ -266,8 +266,7 @@ class CategoriesView(Gtk.TreeView):
 
 class SubscriptionsView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
-        self.store = models.subscriptions.Subscriptions()
-        super(SubscriptionsView, self).__init__(self.store, *args, **kwargs)
+        super(SubscriptionsView, self).__init__(*args, **kwargs)
         self.set_properties(headers_visible=False)
         self.set_level_indentation(-12)
 
@@ -281,13 +280,8 @@ class SubscriptionsView(Gtk.TreeView):
         column.add_attribute(title_renderer, 'text', 3)
         self.append_column(column)
 
-        self.connect('realize', self.on_realize)
 #         self.connect('popup-menu', SubscriptionsView.on_popup_menu)
 #         self.connect('button-press-event', SubscriptionsView.on_button_press)
-
-    @staticmethod
-    def on_realize(self):
-        self.store.update()
 
     def on_cat_change(self, treeview):
         self.get_selection().unselect_all()
@@ -336,10 +330,10 @@ class SubscriptionsView(Gtk.TreeView):
 class ItemsView(Gtk.TreeView):
     category = GObject.property(type=GObject.TYPE_STRING)
     subscription = GObject.property(type=GObject.TYPE_STRING)
-    sub_is_feed = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+    is_label = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
 
-    main_model = GObject.property(type=models.feeds.Store, default=False)
-    category_model = GObject.property(type=GObject.Object, default=False)
+    main_model = GObject.property(type=models.feeds.Store, default=None)
+    category_model = GObject.property(type=GObject.Object, default=None)
 
     def __init__(self, *args, **kwargs):
         super(ItemsView, self).__init__(None, *args, **kwargs)
@@ -365,20 +359,11 @@ class ItemsView(Gtk.TreeView):
         self.connect('notify::subscription', self.subscription_change)
         self.connect('notify::category', self.either_change)
         self.connect('notify::subscription', self.either_change)
-        self.connect('map', self.on_map)
 
-    # Do not add @staticmethod here. If added, Builder fails to recognise this
-    # class as widget. Somehow.
-    def on_map(self, self_again):
-        self.main_model.update()
-
-    @staticmethod
-    def either_change(self, gprop):
+    def either_change(self, w, gprop):
         self.main_model.unforce_all()
 
-    @staticmethod
-    def category_change(self, gprop):
-
+    def category_change(self, w, gprop):
         if self.category in ('unread', 'starred'):
             if self.category == 'unread':
                 cat_col = ItemsColumn.UNREAD
@@ -394,21 +379,17 @@ class ItemsView(Gtk.TreeView):
             self.set_model(self.main_model)
             self.category_model = self.main_model
 
-    @staticmethod
-    def subscription_change(self, gprop):
-        if self.sub_is_feed:
+    def subscription_change(self, w, gprop):
+        if self.is_label:
+            key, subscr = ItemsColumn.LBL_ID, self.subscription
+        else:
             key = ItemsColumn.SUB_ID
             subscr = split_id(self.subscription)[1]
-        else:
-            key, subscr = ItemsColumn.LBL_ID, self.subscription
 
         visible_func = lambda m, i, d: m[i][d[0]] == d[1]
         filt = TreeModelFilter(child_model=self.category_model)
         filt.set_visible_func(visible_func, (key, subscr))
         self.set_model(filt)
-
-    def set_category(self, value):
-        self.category = value
 
 GObject.type_register(MainToolbar)
 GObject.type_register(ItemView)
