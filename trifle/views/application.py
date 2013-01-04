@@ -105,13 +105,20 @@ class Application(Gtk.Application):
             unread = models.feeds.Store.unread_count()
             notification.notify_unread_count(unread)
 
+        def on_flags_sync_done(synchronizer, data=None):
+            def cb(*args):
+                ids.sync()
+                return False
+            # Delay next stage so servers can clean up their caches.
+            GLib.timeout_add_seconds(1, cb)
+
         logger.debug('Starting synchronization')
-        # Items synchronization
         auth = self.login_view.model
+        # Items synchronization
         ids = models.synchronizers.Id(auth=auth)
         flags = models.synchronizers.Flags(auth=auth)
         items = models.synchronizers.Items(auth=auth)
-        connect_once(flags, 'sync-done', lambda *x: ids.sync())
+        connect_once(flags, 'sync-done', on_flags_sync_done)
         connect_once(ids, 'sync-done', lambda *x: items.sync())
         connect_once(items, 'sync-done', on_sync_done)
         connect_once(items, 'sync-done', on_items_sync_done)
