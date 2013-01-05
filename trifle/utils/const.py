@@ -3,7 +3,7 @@ from gi.repository import GLib
 import os
 import sys
 
-VERSION_INFO = (1, 0)
+VERSION_INFO = (2, 0)
 VERSION = '.'.join(str(part) for part in VERSION_INFO)
 # http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 CACHE_PATH = os.path.join(GLib.get_user_cache_dir(), 'trifle')

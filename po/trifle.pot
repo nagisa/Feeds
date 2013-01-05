@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-10-13 19:32+0300\n"
+"POT-Creation-Date: 2013-01-05 12:51+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,25 +16,35 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: ../trifle.desktop.in.h:1
-msgid "Trifle"
+#: ../trifle.desktop.in.h:1 ../trifle/data/ui/about-dialog.ui.h:2
+#: ../trifle/data/ui/window.ui.h:1 ../trifle/views/notifications.py:38
+msgid "Feeds"
 msgstr ""
 
 #: ../trifle.desktop.in.h:2
 msgid "Feeds Reader"
 msgstr ""
 
-#: ../trifle.desktop.in.h:3 ../trifle/data/ui/about-dialog.ui.h:2
+#: ../trifle.desktop.in.h:3 ../trifle/data/ui/about-dialog.ui.h:4
 msgid "Google Reader for GNOME"
 msgstr ""
 
+#: ../trifle.desktop.in.h:4
+msgid "rss;atom;google;reader;news;feed;trifle;"
+msgstr ""
+
 #: ../trifle/data/ui/about-dialog.ui.h:1
+msgid "About"
+msgstr ""
+
+#: ../trifle/data/ui/about-dialog.ui.h:3
 msgid "Copyright © 2012 Simonas Kazlauskas"
 msgstr ""
 
 #: ../trifle/data/ui/login-dialog.ui.h:1
-msgid "Login with your Google account"
+msgid "Login"
 msgstr ""
 
 #: ../trifle/data/ui/login-dialog.ui.h:2
@@ -46,27 +56,75 @@ msgid "Password"
 msgstr ""
 
 #: ../trifle/data/ui/preferences-dialog.ui.h:1
-msgid "Show notifications"
+msgid "Preferences"
 msgstr ""
 
 #: ../trifle/data/ui/preferences-dialog.ui.h:2
-msgid "Refresh on startup"
+msgid "Show notifications"
 msgstr ""
 
 #: ../trifle/data/ui/preferences-dialog.ui.h:3
-msgid "Refresh every"
+msgid "Refresh on startup"
 msgstr ""
 
 #: ../trifle/data/ui/preferences-dialog.ui.h:4
-msgid "Cache up to"
+msgid "Refresh every"
 msgstr ""
 
 #: ../trifle/data/ui/preferences-dialog.ui.h:5
+msgid "Never"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:6
+msgid "5 minutes"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:7
+msgid "10 minutes"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:8
+msgid "30 minutes"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:9
+msgid "1 hour"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:10
+msgid "Cache up to"
+msgstr ""
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:11
 msgid "items"
 msgstr ""
 
 #: ../trifle/data/ui/subscribe-dialog.ui.h:1
-msgid "Subscribe to URL"
+msgid "Subscribe…"
+msgstr ""
+
+#: ../trifle/data/ui/subscribe-dialog.ui.h:2
+msgid "Subscription URI"
+msgstr ""
+
+#: ../trifle/data/ui/app-menu.ui.h:1
+msgid "Su_bscribe a feed"
+msgstr ""
+
+#: ../trifle/data/ui/app-menu.ui.h:2
+msgid "_Synchronize"
+msgstr ""
+
+#: ../trifle/data/ui/app-menu.ui.h:3
+msgid "Prefere_nces"
+msgstr ""
+
+#: ../trifle/data/ui/app-menu.ui.h:4
+msgid "_About"
+msgstr ""
+
+#: ../trifle/data/ui/app-menu.ui.h:5
+msgid "_Quit"
 msgstr ""
 
 #: ../trifle/arguments.py:6
@@ -74,97 +132,82 @@ msgid "Show debug messages"
 msgstr ""
 
 #: ../trifle/arguments.py:8
+msgid "More verbose messages"
+msgstr ""
+
+#: ../trifle/arguments.py:10
 msgid "Display WebKit developers tool upon start"
 msgstr ""
 
-#: ../trifle/models/feeds.py:255
-msgid "Stranger"
+#: ../trifle/views/notifications.py:32
+msgid "Unread item is available"
+msgid_plural "{0} unread items are available"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ../trifle/views/widgets.py:41
+msgid "All"
 msgstr ""
 
-#: ../trifle/models/feeds.py:259
-msgid "Untitled"
-msgstr ""
-
-#: ../trifle/views/application.py:88
-msgid "You have an unread item"
-msgstr ""
-
-#: ../trifle/views/application.py:113
-msgid "Could not subscribe to a feed"
-msgstr ""
-
-#: ../trifle/views/notifications.py:8 ../trifle/views/windows.py:15
-msgid "Feeds"
-msgstr ""
-
-#: ../trifle/views/utils.py:35
-msgid "{0} ago"
-msgstr ""
-
-#: ../trifle/views/utils.py:39
-msgid "From the future"
-msgstr ""
-
-#: ../trifle/views/utils.py:41
-msgid "Just now"
-msgstr ""
-
-#: ../trifle/views/utils.py:44
-msgid "{0} minute"
-msgstr ""
-
-#: ../trifle/views/utils.py:49
-msgid "{0} hour"
-msgstr ""
-
-#: ../trifle/views/utils.py:54
-msgid "{0} day"
-msgstr ""
-
-#: ../trifle/views/widgets.py:36
-msgid "Star"
-msgstr ""
-
-#: ../trifle/views/widgets.py:40
-msgid "Keep unread"
-msgstr ""
-
-#: ../trifle/views/widgets.py:64
-msgid "Search {0} items"
-msgstr ""
-
-#: ../trifle/views/widgets.py:220
-msgid "All items"
-msgstr ""
-
-#: ../trifle/views/widgets.py:221
+#: ../trifle/views/widgets.py:42 ../trifle/views/widgets.py:259
 msgid "Unread"
 msgstr ""
 
-#: ../trifle/views/widgets.py:222
+#: ../trifle/views/widgets.py:43 ../trifle/views/widgets.py:260
 msgid "Starred"
 msgstr ""
 
-#: ../trifle/views/windows.py:72
-msgid "Never"
+#. Item status buttons [Make unread] [Make starred]
+#: ../trifle/views/widgets.py:48
+msgid "Mark as unread"
 msgstr ""
 
-#: ../trifle/views/windows.py:72
-msgid "5 minutes"
+#: ../trifle/views/widgets.py:51
+msgid "Toggle star"
 msgstr ""
 
-#: ../trifle/views/windows.py:73
-msgid "10 minutes"
+#: ../trifle/views/widgets.py:258
+msgid "All items"
 msgstr ""
 
-#: ../trifle/views/windows.py:73
-msgid "30 minutes"
+#: ../trifle/views/windows.py:172
+msgid "The username or password you entered is incorrect"
 msgstr ""
 
-#: ../trifle/views/windows.py:74
-msgid "1 hour"
+#: ../trifle/views/windows.py:174
+msgid "Could not login"
 msgstr ""
 
-#: ../trifle/views/windows.py:133
+#: ../trifle/views/windows.py:196 ../trifle/views/windows.py:238
 msgid "All fields are required"
 msgstr ""
+
+#: ../trifle/views/windows.py:257
+msgid "Could not subscribe to a feed"
+msgstr ""
+
+#: ../trifle/utils/common.py:40
+msgid "From the future"
+msgstr ""
+
+#: ../trifle/utils/common.py:42
+msgid "Just now"
+msgstr ""
+
+#: ../trifle/utils/common.py:45
+msgid "{0} minute ago"
+msgid_plural "{0} minutes ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ../trifle/utils/common.py:49
+msgid "{0} hour ago"
+msgid_plural "{0} hours ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ../trifle/utils/common.py:53
+msgid "{0} day ago"
+msgid_plural "{0} days ago"
+msgstr[0] ""
+msgstr[1] ""

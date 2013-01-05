@@ -5,7 +5,7 @@
         <section>
             <item>
                 <attribute name="action">app.subscribe</attribute>
-                <attribute name="label" translatable="yes">_Subscribe a feed</attribute>
+                <attribute name="label" translatable="yes">Su_bscribe a feed</attribute>
             </item>
             <item>
                 <attribute name="action">app.synchronize</attribute>
@@ -21,7 +21,7 @@
         <section>
             <item>
                 <attribute name="action">app.about</attribute>
-                <attribute name="label" translatable="yes">_About Feeds</attribute>
+                <attribute name="label" translatable="yes">_About</attribute>
             </item>
             <item>
                 <attribute name="action">app.quit</attribute>

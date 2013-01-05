@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-10-13 23:27+0300\n"
+"POT-Creation-Date: 2013-01-05 12:44+0200\n"
 "PO-Revision-Date: 2012-10-13 21:36+0300\n"
 "Last-Translator: Simonas Kazlauskas <simonas+trans kazlauskas.me>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,26 +16,39 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n"
+"%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: ../trifle.desktop.in.h:1
-msgid "Trifle"
-msgstr "Trifle"
+#: ../trifle.desktop.in.h:1 ../trifle/data/ui/about-dialog.ui.h:2
+#: ../trifle/data/ui/window.ui.h:1 ../trifle/views/notifications.py:38
+msgid "Feeds"
+msgstr "Prenumeratos"
 
 #: ../trifle.desktop.in.h:2
 msgid "Feeds Reader"
-msgstr "Naujienų skaitytuvas"
+msgstr "Naujienų skaityklė"
 
-#: ../trifle.desktop.in.h:3 ../trifle/data/ui/about-dialog.ui.h:2
+#: ../trifle.desktop.in.h:3 ../trifle/data/ui/about-dialog.ui.h:4
 msgid "Google Reader for GNOME"
 msgstr "Google Reader GNOME aplinkai"
 
+#: ../trifle.desktop.in.h:4
+msgid "rss;atom;google;reader;news;feed;trifle;"
+msgstr ""
+"rss;atom;google;reader;skaityklė;skaitytuvas;naujienos;news;feed;"
+"prenumeratos;trifle"
+
 #: ../trifle/data/ui/about-dialog.ui.h:1
+msgid "About"
+msgstr "_Apie"
+
+#: ../trifle/data/ui/about-dialog.ui.h:3
 msgid "Copyright © 2012 Simonas Kazlauskas"
 msgstr "Visos teisės saugomos © 2012 Simonas Kazlauskas"
 
 #: ../trifle/data/ui/login-dialog.ui.h:1
-msgid "Login with your Google account"
-msgstr "Prisijunk su savo Google paskyra"
+msgid "Login"
+msgstr "Prisijungti"
 
 #: ../trifle/data/ui/login-dialog.ui.h:2
 msgid "Username"
@@ -46,133 +59,162 @@ msgid "Password"
 msgstr "Slaptažodis"
 
 #: ../trifle/data/ui/preferences-dialog.ui.h:1
+msgid "Preferences"
+msgstr "Nustatymai"
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:2
 msgid "Show notifications"
 msgstr "Rodyti pranešimus"
 
-#: ../trifle/data/ui/preferences-dialog.ui.h:2
+#: ../trifle/data/ui/preferences-dialog.ui.h:3
 msgid "Refresh on startup"
 msgstr "Atnaujinti įjungimo metu"
 
-#: ../trifle/data/ui/preferences-dialog.ui.h:3
+#: ../trifle/data/ui/preferences-dialog.ui.h:4
 msgid "Refresh every"
 msgstr "Atnaujinti kas"
 
-#: ../trifle/data/ui/preferences-dialog.ui.h:4
+#: ../trifle/data/ui/preferences-dialog.ui.h:5
+msgid "Never"
+msgstr "Niekada"
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:6
+msgid "5 minutes"
+msgstr "5 minutes"
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:7
+msgid "10 minutes"
+msgstr "10 minučių"
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:8
+msgid "30 minutes"
+msgstr "30 minučių"
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:9
+msgid "1 hour"
+msgstr "1 valandą"
+
+#: ../trifle/data/ui/preferences-dialog.ui.h:10
 msgid "Cache up to"
 msgstr "Saugoti iki"
 
-#: ../trifle/data/ui/preferences-dialog.ui.h:5
+#: ../trifle/data/ui/preferences-dialog.ui.h:11
 msgid "items"
 msgstr "naujienų"
 
 #: ../trifle/data/ui/subscribe-dialog.ui.h:1
-msgid "Subscribe to URL"
-msgstr "Prenumeratos URL"
+msgid "Subscribe…"
+msgstr "Prenumeruoti…"
+
+#: ../trifle/data/ui/subscribe-dialog.ui.h:2
+msgid "Subscription URI"
+msgstr "Prenumeratos URI"
+
+#: ../trifle/data/ui/app-menu.ui.h:1
+msgid "Su_bscribe a feed"
+msgstr "Pre_numeruoti"
+
+#: ../trifle/data/ui/app-menu.ui.h:2
+msgid "_Synchronize"
+msgstr "_Sinchronizuoti"
+
+#: ../trifle/data/ui/app-menu.ui.h:3
+msgid "Prefere_nces"
+msgstr "_Nustatymai"
+
+#: ../trifle/data/ui/app-menu.ui.h:4
+msgid "_About"
+msgstr "_Apie"
+
+#: ../trifle/data/ui/app-menu.ui.h:5
+msgid "_Quit"
+msgstr "Iš_eiti"
 
 #: ../trifle/arguments.py:6
 msgid "Show debug messages"
 msgstr "Rodyti derinimo žinutes"
 
 #: ../trifle/arguments.py:8
+msgid "More verbose messages"
+msgstr "Išsamesnės žinutės"
+
+#: ../trifle/arguments.py:10
 msgid "Display WebKit developers tool upon start"
 msgstr "Paleidimo metu įjungti WebKit kūrėjo įrankius"
 
-#: ../trifle/models/feeds.py:255
-msgid "Stranger"
-msgstr "Nepažįstamasis"
+#: ../trifle/views/notifications.py:32
+msgid "Unread item is available"
+msgid_plural "{0} unread items are available"
+msgstr[0] "Yra neperskaityta naujiena"
+msgstr[1] "Yra {0} neperskaitytos naujienų"
+msgstr[2] "Yra {0} neperskaitytų naujienų"
 
-#: ../trifle/models/feeds.py:259
-msgid "Untitled"
-msgstr "Nepavadintas"
+#: ../trifle/views/widgets.py:41
+msgid "All"
+msgstr "Viskas"
 
-#: ../trifle/views/application.py:88
-msgid "You have an unread item"
-msgid_plural "You have {0} unread items"
-msgstr[0] "Turi neperskaitytą naujieną"
-msgstr[1] "Turi {0} neperskaitytų naujienų"
-
-#: ../trifle/views/application.py:113
-msgid "Could not subscribe to a feed"
-msgstr "Nepavyko užsisakyti prenumeratos"
-
-#: ../trifle/views/notifications.py:8 ../trifle/views/windows.py:15
-msgid "Feeds"
-msgstr "Prenumeratos"
-
-#: ../trifle/views/utils.py:35
-msgid "{0} ago"
-msgstr "prieš {0}"
-
-#: ../trifle/views/utils.py:39
-msgid "From the future"
-msgstr "Iš ateities"
-
-#: ../trifle/views/utils.py:41
-msgid "Just now"
-msgstr "Ką tik"
-
-#: ../trifle/views/utils.py:44
-msgid "{0} minute"
-msgid_plural "{0} minutes"
-msgstr[0] "{0} minutę"
-msgstr[1] "{0} minutes"
-
-#: ../trifle/views/utils.py:49
-msgid "{0} hour"
-msgid_plural "{0} hours"
-msgstr[0] "{0} valandą"
-msgstr[1] "{0} valandas"
-
-#: ../trifle/views/utils.py:54
-msgid "{0} day"
-msgid_plural "{0} days"
-msgstr[0] "{0} dieną"
-msgstr[1] "{0} dienas"
-
-#: ../trifle/views/widgets.py:36
-msgid "Star"
-msgstr "Žvaigždutė"
-
-#: ../trifle/views/widgets.py:40
-msgid "Keep unread"
-msgstr "Laikyti neperskaitytą"
-
-#: ../trifle/views/widgets.py:64
-msgid "Search {0} items"
-msgstr "Ieškoti {0} naujienose"
-
-#: ../trifle/views/widgets.py:220
-msgid "All items"
-msgstr "Visos naujienos"
-
-#: ../trifle/views/widgets.py:221
+#: ../trifle/views/widgets.py:42 ../trifle/views/widgets.py:259
 msgid "Unread"
-msgstr "Neperskaitytos"
+msgstr "Neperskaityta"
 
-#: ../trifle/views/widgets.py:222
+#: ../trifle/views/widgets.py:43 ../trifle/views/widgets.py:260
 msgid "Starred"
 msgstr "Su žvaigždute"
 
-#: ../trifle/views/windows.py:72
-msgid "Never"
-msgstr "Niekada"
+#. Item status buttons [Make unread] [Make starred]
+#: ../trifle/views/widgets.py:48
+msgid "Mark as unread"
+msgstr "Pažymėti kaip neperskaitytą"
 
-#: ../trifle/views/windows.py:72
-msgid "5 minutes"
-msgstr "5 minutes"
+#: ../trifle/views/widgets.py:51
+msgid "Toggle star"
+msgstr "Perjungti žvaigždutę"
 
-#: ../trifle/views/windows.py:73
-msgid "10 minutes"
-msgstr "10 minučių"
+#: ../trifle/views/widgets.py:258
+msgid "All items"
+msgstr "Visos naujienos"
 
-#: ../trifle/views/windows.py:73
-msgid "30 minutes"
-msgstr "30 minučių"
+#: ../trifle/views/windows.py:172
+msgid "The username or password you entered is incorrect"
+msgstr "Įvestas vartotojo vardas ir slaptažodis yra neteisingi"
 
-#: ../trifle/views/windows.py:74
-msgid "1 hour"
-msgstr "1 valandą"
+#: ../trifle/views/windows.py:174
+msgid "Could not login"
+msgstr "Nepavyko prisijungti"
 
-#: ../trifle/views/windows.py:133
+#: ../trifle/views/windows.py:196 ../trifle/views/windows.py:238
 msgid "All fields are required"
 msgstr "Visi laukai yra privalomi"
+
+#: ../trifle/views/windows.py:257
+msgid "Could not subscribe to a feed"
+msgstr "Nepavyko užsisakyti prenumeratos"
+
+#: ../trifle/utils/common.py:40
+msgid "From the future"
+msgstr "Iš ateities"
+
+#: ../trifle/utils/common.py:42
+msgid "Just now"
+msgstr "Ką tik"
+
+#: ../trifle/utils/common.py:45
+msgid "{0} minute ago"
+msgid_plural "{0} minutes ago"
+msgstr[0] "Prieš {0} minutę"
+msgstr[1] "Prieš {0} minutes"
+msgstr[2] "Prieš {0} minučių"
+
+#: ../trifle/utils/common.py:49
+msgid "{0} hour ago"
+msgid_plural "{0} hours ago"
+msgstr[0] "Prieš {0} valandą"
+msgstr[1] "Prieš {0} valandas"
+msgstr[2] "Prieš {0} valandų"
+
+#: ../trifle/utils/common.py:53
+msgid "{0} day ago"
+msgid_plural "{0} days ago"
+msgstr[0] "Prieš {0} dieną"
+msgstr[1] "Prieš {0} dienas"
+msgstr[2] "Prieš {0} dienų"
