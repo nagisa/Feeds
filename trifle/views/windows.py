@@ -47,7 +47,8 @@ class ApplicationWindow(BuiltMixin, Gtk.ApplicationWindow):
         toolbar.set_properties(timestamp=row[ItemsColumn.TIMESTAMP],
                                title=row[ItemsColumn.TITLE],
                                uri=row[ItemsColumn.LINK],
-                               unread=False, starred=row[ItemsColumn.STARRED])
+                               unread=False, starred=row[ItemsColumn.STARRED],
+                               us_sensitive=True)
         row[ItemsColumn.FORCE_VISIBLE], row[ItemsColumn.UNREAD] = True, False
 
     def on_star(self, toolbar, gprop):

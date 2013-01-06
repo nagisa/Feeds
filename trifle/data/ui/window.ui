@@ -6,23 +6,107 @@
     <property name="title" translatable="yes">Feeds</property>
     <property name="hide_titlebar_when_maximized">True</property>
     <property name="icon_name">trifle</property>
+
     <child>
       <object class="GtkBox" id="base-box">
-        <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
 
         <child>
           <object class="trifle+views+widgets+MainToolbar" id="toolbar">
-            <signal name="notify::category" handler="on_toolbar_category" swapped="no"/>
-            <signal name="notify::starred" handler="on_star" swapped="no"/>
-            <signal name="notify::unread" handler="on_keep_unread" swapped="no"/>
+            <property name="icon-size">2</property>
+            <property name="toolbar-style">GTK_TOOLBAR_TEXT</property>
+            <property name="show-arrow">False</property>
+            <signal name="notify::category" handler="on_toolbar_category" swapped="no" />
+            <signal name="notify::starred" handler="on_star" swapped="no" />
+            <signal name="notify::unread" handler="on_keep_unread" swapped="no" />
+            <style>
+              <class name="menubar" />
+              <class name="trifle-toolbar" />
+            </style>
+
+            <child>
+              <object class="trifle+views+toolitems+ToolLinkedButtonBox" id="category-buttons-toolitem">
+                <property name="margin-right">5</property>
+                <property name="name">categories</property>
+
+                <child>
+                  <object class="GtkRadioButton" id="all-category">
+                    <property name="label" translatable="yes">All</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="name">reading-list</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="unread-category">
+                    <property name="label" translatable="yes">Unread</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="group">all-category</property>
+                    <property name="name">unread</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="starred-category">
+                    <property name="label" translatable="yes">Starred</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="group">all-category</property>
+                    <property name="name">starred</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkToolItem" id="mark-unread-toolitem">
+                <property name="margin-right">5</property>
+                <property name="name">unread</property>
+
+                <child>
+                  <object class="GtkToggleButton" id="mark-unread">
+                    <property name="label" translatable="yes">Mark as unread</property>
+                    <property name="sensitive">False</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkToolItem" id="toggle-star-toolitem">
+                <property name="margin-right">5</property>
+                <property name="name">star</property>
+
+                <child>
+                  <object class="GtkToggleButton" id="toggle-star">
+                    <property name="label" translatable="yes">Toggle star</property>
+                    <property name="sensitive">False</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <child>
+              <object class="trifle+views+toolitems+ToolLinkButton" id="title-toolitem">
+                <property name="margin-right">5</property>
+                <property name="halign">GTK_ALIGN_CENTER</property>
+                <property name="no_show_all">True</property>
+                <property name="name">title</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkToolItem" id="date-toolitem">
+                <property name="name">date</property>
+                <child>
+                  <object class="GtkLabel" id="date-label">
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
-        </child>
+        </child> <!-- MainToolbar#toolbar -->
 
         <child>
           <object class="GtkPaned" id="paned">
-            <property name="visible">True</property>
             <property name="can_focus">True</property>
             <style>
               <class name="sidebar"/>
@@ -30,7 +114,6 @@
 
             <child>
               <object class="GtkPaned" id="paned-side">
-                <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="orientation">vertical</property>
                 <style>
@@ -41,7 +124,6 @@
                   <object class="GtkScrolledWindow" id="items">
                     <property name="width_request">250</property>
                     <property name="height_request">300</property>
-                    <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="margin_bottom">2</property>
 
@@ -61,12 +143,11 @@
                     <property name="resize">True</property>
                     <property name="shrink">False</property>
                   </packing>
-                </child>
+                </child> <!-- GtkScrolledWindow#items -->
 
                 <child>
                   <object class="GtkScrolledWindow" id="subscriptions">
                     <property name="height_request">150</property>
-                    <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="margin_top">2</property>
                     <style>
@@ -88,20 +169,19 @@
                     <property name="resize">False</property>
                     <property name="shrink">False</property>
                   </packing>
-                </child>
+                </child> <!-- GtkScrolledWindow#subscriptions -->
 
               </object>
               <packing>
                 <property name="resize">False</property>
                 <property name="shrink">False</property>
               </packing>
-            </child>
+            </child> <!-- GtkPaned#paned-side -->
 
             <child>
               <object class="GtkScrolledWindow" id="item">
                 <property name="width_request">425</property>
                 <property name="height_request">300</property>
-                <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="shadow_type">out</property>
                 <style>
@@ -111,7 +191,6 @@
                   <object class="trifle+views+widgets+ItemView" id="item-view">
                     <property name="font">sans-serif 12</property>
                     <property name="no_show_all">True</property>
-                    <property name="visible">False</property>
                     <property name="monospace">monospace 10</property>
                     <style>
                       <class name="view"/>
@@ -123,17 +202,19 @@
                 <property name="resize">True</property>
                 <property name="shrink">False</property>
               </packing>
-            </child>
-
+            </child> <!-- GtkScrolledWindow#item -->
           </object>
+
           <packing>
             <property name="expand">True</property>
             <property name="fill">True</property>
             <property name="position">1</property>
           </packing>
-        </child>
+        </child> <!-- GtkPaned#paned -->
+
       </object>
-    </child>
+    </child> <!-- GtkBox#base-box -->
+
   </object>
 </interface>
 <!-- vim: set sw=2 sts=2 ts=8: -->

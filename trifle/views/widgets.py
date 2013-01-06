@@ -27,65 +27,55 @@ class MainToolbar(Gtk.Toolbar):
     category = GObject.property(type=GObject.TYPE_STRING)
     unread = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
     starred = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+    us_sensitive = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
+    # Privateish property
+    date_str = GObject.property(type=GObject.TYPE_STRING)
 
     def __init__(self, *args, **kwargs):
-        super(MainToolbar, self).__init__(*args, show_arrow=False,
-                                         toolbar_style=Gtk.ToolbarStyle.TEXT,
-                                         icon_size=2,
-                                         **kwargs)
-        self.get_style_context().add_class('menubar')
-        self.get_style_context().add_class('trifle-toolbar')
+        super(MainToolbar, self).__init__(*args, **kwargs)
 
-        # Category buttons [All|Unread|Starred]
-        ids = ['reading-list', 'unread', 'starred']
-        buttons = [Gtk.RadioButton(_('All'), draw_indicator=False),
-                   Gtk.RadioButton(_('Unread'), draw_indicator=False),
-                   Gtk.RadioButton(_('Starred'), draw_indicator=False)]
-        categories = toolitems.ToolLinkedButtons(margin_right=5)
-        for k, b in zip(ids, buttons): categories.add_button(k, b)
-
-        # Item status buttons [Make unread] [Make starred]
-        unread = Gtk.ToggleToolButton(label=_('Mark as unread'),
-                                           margin_right=5)
-
-        starred = Gtk.ToggleToolButton(label=_('Toggle star'),
-                                            margin_right=5)
-
-        # Item title button
-        args = {'margin_right': 5, 'no_show_all': True,
-                'halign': Gtk.Align.CENTER}
-        self.title_button = toolitems.ToolLinkButton(**args)
-        self.title_button.set_expand(True)
-
-        # Item date label
-        self.date_label = toolitems.ToolLabel()
-
-        self.insert(categories, -1)
-        self.insert(unread, -1)
-        self.insert(starred, -1)
-        self.insert(self.title_button, -1)
-        self.insert(self.date_label, -1)
-
-        categories.bind_property('current-id', self, 'category')
-        unread.bind_property('active', self, 'unread',
-                                  GObject.BindingFlags.BIDIRECTIONAL)
-        starred.bind_property('active', self, 'starred',
-                                   GObject.BindingFlags.BIDIRECTIONAL)
-        self.bind_property('title', self.title_button, 'label')
-        self.bind_property('uri', self.title_button, 'uri')
+        # self.connect('show', self.on_show)
         self.connect('notify::timestamp', self.on_timestamp_change)
-        self.connect('notify::title', self.on_title_change)
+
+    def do_add(self, toolitem):
+        # Add it anyway
+        Gtk.Toolbar.do_add(self, toolitem)
+        # And do our thing
+        name = toolitem.get_property('name')
+        widget = toolitem.get_child()
+
+        if name == 'categories':
+            toolitem.bind_property('current-name', self, 'category')
+        elif name == 'unread':
+            widget.bind_property('active', self, 'unread',
+                                 GObject.BindingFlags.BIDIRECTIONAL)
+            widget.bind_property('sensitive', self, 'us_sensitive',
+                                 GObject.BindingFlags.BIDIRECTIONAL)
+        elif name == 'star':
+            widget.bind_property('active', self, 'starred',
+                                 GObject.BindingFlags.BIDIRECTIONAL)
+            widget.bind_property('sensitive', self, 'us_sensitive',
+                                 GObject.BindingFlags.BIDIRECTIONAL)
+        elif name == 'title':
+            self.bind_property('title', widget, 'label')
+            self.bind_property('uri', widget, 'uri')
+            toolitem.set_expand(True)
+            widget.connect('notify::label', self.on_title_changed, toolitem)
+        elif name == 'date':
+            self.bind_property('date_str', widget, 'label')
+        else:
+            logger.warning('Unknown widget added')
 
     @staticmethod
     def on_timestamp_change(self, param):
         time = datetime.datetime.fromtimestamp(self.timestamp)
-        self.date_label.label.set_text(time.strftime('%x %X'))
+        self.date_str = time.strftime('%x %X')
 
-    @staticmethod
-    def on_title_change(self, param):
-        label = self.title_button.get_child().get_child()
-        label.set_property('ellipsize', Pango.EllipsizeMode.END)
-        self.title_button.show()
+    def on_title_changed(self, linkbutton, param, toolitem):
+        linkbutton.get_child().set_property('ellipsize',
+                                            Pango.EllipsizeMode.END)
+        toolitem.show()
+        linkbutton.show_all()
 
 
 class ItemView(WebKit.WebView):
