@@ -216,37 +216,10 @@ class ItemView(WebKit.WebView):
         logger.debug(message)
         return True
 
-class CategoriesView(Gtk.TreeView):
-
-    def __init__(self, *args, **kwargs):
-        self._store = Gtk.ListStore(str, str, str)
-        super(CategoriesView, self).__init__(self._store, *args, **kwargs)
-        self.set_properties(headers_visible=False)
-
-        column = Gtk.TreeViewColumn("Categories")
-        icon = Gtk.CellRendererPixbuf()
-        title = Gtk.CellRendererText()
-        column.pack_start(icon, False)
-        column.pack_start(title, True)
-        column.add_attribute(icon, "icon-name", 0)
-        column.add_attribute(title, "text", 1)
-        self.append_column(column)
-
-        self.selection = self.get_selection()
-        i = self.append(Gtk.STOCK_JUSTIFY_FILL, _('All items'), 'reading-list')
-        self.append(Gtk.STOCK_INDEX, _('Unread'), 'unread')
-        self.append(Gtk.STOCK_ABOUT, _('Starred'), 'starred')
-        self.selection.select_iter(i)
-
-    def append(self, icon, title, tp):
-        return self._store.append((icon, title, tp,))
-
 
 class SubscriptionsView(Gtk.TreeView):
     def __init__(self, *args, **kwargs):
         super(SubscriptionsView, self).__init__(*args, **kwargs)
-        self.set_properties(headers_visible=False)
-        self.set_level_indentation(-12)
 
         column = Gtk.TreeViewColumn("Subscription")
         icon_renderer = Gtk.CellRendererPixbuf()
@@ -316,13 +289,7 @@ class ItemsView(Gtk.TreeView):
     category_model = GObject.property(type=GObject.Object, default=None)
 
     def __init__(self, *args, **kwargs):
-        super(ItemsView, self).__init__(None, *args, **kwargs)
-
-        self.set_properties(headers_visible=False, fixed_height_mode=True,
-                            search_column=ItemsColumn.TITLE,
-                            main_model=models.feeds.Store())
-        self.get_style_context().add_class('trifle-items-view')
-
+        super(ItemsView, self).__init__(*args, **kwargs)
         renderer = ItemCellRenderer()
         column = Gtk.TreeViewColumn("Item", renderer)
         column.set_attributes(renderer,
@@ -337,13 +304,13 @@ class ItemsView(Gtk.TreeView):
 
         self.connect('notify::category', self.category_change)
         self.connect('notify::subscription', self.subscription_change)
-        self.connect('notify::category', self.either_change)
-        self.connect('notify::subscription', self.either_change)
-
-    def either_change(self, w, gprop):
-        self.main_model.unforce_all()
 
     def category_change(self, w, gprop):
+        # Still not initialized fully.
+        if not self.main_model:
+            return
+
+        self.main_model.unforce_all()
         if self.category in ('unread', 'starred'):
             if self.category == 'unread':
                 cat_col = ItemsColumn.UNREAD
@@ -360,6 +327,11 @@ class ItemsView(Gtk.TreeView):
             self.category_model = self.main_model
 
     def subscription_change(self, w, gprop):
+        # Still not initialized fully.
+        if not self.main_model:
+            return
+
+        self.main_model.unforce_all()
         if self.is_label:
             key, subscr = ItemsColumn.LBL_ID, self.subscription
         else:
@@ -371,8 +343,8 @@ class ItemsView(Gtk.TreeView):
         filt.set_visible_func(visible_func, (key, subscr))
         self.set_model(filt)
 
+
 GObject.type_register(MainToolbar)
 GObject.type_register(ItemView)
-GObject.type_register(CategoriesView)
 GObject.type_register(SubscriptionsView)
 GObject.type_register(ItemsView)

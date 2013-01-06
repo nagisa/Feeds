@@ -130,6 +130,13 @@
                     <child>
                       <object class="trifle+views+widgets+ItemsView" id="items-view">
                         <property name="category">reading-list</property>
+                        <property name="headers-visible">False</property>
+                        <property name="fixed-height-mode">True</property>
+                        <property name="search-column">1</property>
+                        <style>
+                          <class name="trifle-items-view" />
+                        </style>
+
                         <child internal-child="selection">
                           <object class="GtkTreeSelection" id="items-selection">
                             <signal name="changed" handler="on_item_change" swapped="no"/>
@@ -156,6 +163,7 @@
 
                     <child>
                       <object class="trifle+views+widgets+SubscriptionsView" id="sub-view">
+                        <property name="headers-visible">False</property>
                         <child internal-child="selection">
                           <object class="GtkTreeSelection" id="subs-selection">
                             <signal name="changed" handler="on_subscr_change" swapped="no"/>
