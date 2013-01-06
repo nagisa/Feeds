@@ -13,7 +13,8 @@ import os
 
 from trifle.arguments import arguments
 from trifle.utils import (get_data_path, logger, parse_font, ItemsColumn,
-                          TreeModelFilter, split_id, CONTENT_PATH)
+                          TreeModelFilter, split_id, CONTENT_PATH,
+                          SubscriptionColumn)
 from trifle import models
 
 from trifle.views import toolitems
@@ -249,12 +250,14 @@ class SubscriptionsView(Gtk.TreeView):
 
         column = Gtk.TreeViewColumn("Subscription")
         icon_renderer = Gtk.CellRendererPixbuf()
+        column.pack_start(icon_renderer, False)
+        column.add_attribute(icon_renderer, 'pixbuf', SubscriptionColumn.ICON)
+
         title_renderer = Gtk.CellRendererText(ellipsize_set=True,
                                             ellipsize=Pango.EllipsizeMode.END)
-        column.pack_start(icon_renderer, False)
         column.pack_start(title_renderer, True)
-        column.add_attribute(icon_renderer, 'pixbuf', 2)
-        column.add_attribute(title_renderer, 'text', 3)
+        column.add_attribute(title_renderer, 'text', SubscriptionColumn.NAME)
+
         self.append_column(column)
 
 #         self.connect('popup-menu', SubscriptionsView.on_popup_menu)
