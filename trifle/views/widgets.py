@@ -28,14 +28,6 @@ class MainToolbar(Gtk.Toolbar):
     unread = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
     starred = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
     us_sensitive = GObject.property(type=GObject.TYPE_BOOLEAN, default=False)
-    # Privateish property
-    date_str = GObject.property(type=GObject.TYPE_STRING)
-
-    def __init__(self, *args, **kwargs):
-        super(MainToolbar, self).__init__(*args, **kwargs)
-
-        # self.connect('show', self.on_show)
-        self.connect('notify::timestamp', self.on_timestamp_change)
 
     def do_add(self, toolitem):
         # Add it anyway
@@ -49,12 +41,8 @@ class MainToolbar(Gtk.Toolbar):
         elif name == 'unread':
             widget.bind_property('active', self, 'unread',
                                  GObject.BindingFlags.BIDIRECTIONAL)
-            widget.bind_property('sensitive', self, 'us_sensitive',
-                                 GObject.BindingFlags.BIDIRECTIONAL)
         elif name == 'star':
             widget.bind_property('active', self, 'starred',
-                                 GObject.BindingFlags.BIDIRECTIONAL)
-            widget.bind_property('sensitive', self, 'us_sensitive',
                                  GObject.BindingFlags.BIDIRECTIONAL)
         elif name == 'title':
             self.bind_property('title', widget, 'label')
@@ -62,20 +50,19 @@ class MainToolbar(Gtk.Toolbar):
             toolitem.set_expand(True)
             widget.connect('notify::label', self.on_title_changed, toolitem)
         elif name == 'date':
-            self.bind_property('date_str', widget, 'label')
+            self.connect('notify::timestamp', self.on_timestamp_change, widget)
         else:
             logger.warning('Unknown widget added')
+        if name in ('unread', 'star',):
+            self.bind_property('us_sensitive', widget, 'sensitive')
 
-    @staticmethod
-    def on_timestamp_change(self, param):
+    def on_timestamp_change(self, toolbar, param, label):
         time = datetime.datetime.fromtimestamp(self.timestamp)
-        self.date_str = time.strftime('%x %X')
+        label.set_property('label', time.strftime('%x %X'))
 
-    def on_title_changed(self, linkbutton, param, toolitem):
-        linkbutton.get_child().set_property('ellipsize',
-                                            Pango.EllipsizeMode.END)
+    def on_title_changed(self, linkb, param, toolitem):
+        linkb.get_child().set_property('ellipsize', Pango.EllipsizeMode.END)
         toolitem.show()
-        linkbutton.show_all()
 
 
 class ItemView(WebKit.WebView):
