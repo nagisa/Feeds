@@ -101,13 +101,13 @@ class ItemView(WebKit.WebView):
         self.connect('style-updated', self.on_style)
         self.connect('notify::item-id', self.on_item_change)
         self.connect('console-message', self.on_console_message)
+        self.connect('context-menu', self.on_ctx_menu)
 
         # Load base template
         template_path = get_data_path('ui', 'feedview', 'template.html')
         self.load_uri('file://' + template_path)
 
-    @staticmethod
-    def on_show(self):
+    def on_show(self, *args):
         self.connect('navigation-policy-decision-requested', self.on_navigate)
         self.connect('notify::font', self.on_font)
         self.connect('notify::monospace', self.on_monospace)
@@ -122,8 +122,7 @@ class ItemView(WebKit.WebView):
             inspector.connect('inspect-web-view', self.on_inspector)
             inspector.inspect_coordinates(0, 0)
 
-    @staticmethod
-    def on_style(self):
+    def on_style(self, *args):
         ctx = self.get_style_context()
         text = ctx.get_color(Gtk.StateFlags.NORMAL).to_string()
         bg = ctx.get_background_color(Gtk.StateFlags.NORMAL).to_string()
@@ -140,20 +139,17 @@ class ItemView(WebKit.WebView):
         dom = self.get_dom_document()
         dom.get_element_by_id('trifle_userstyle').set_href(uri)
 
-    @staticmethod
-    def on_font(self, gprop):
+    def on_font(self, *args):
         family, size = parse_font(self.font)
         self.get_settings().set_properties(default_font_family=family,
                                            default_font_size=size)
 
-    @staticmethod
-    def on_monospace(self, gprop):
+    def on_monospace(self, *args):
         family, size = parse_font(self.monospace)
         self.get_settings().set_properties(default_monospace_font_size=size,
                                            monospace_font_family=family)
 
-    @staticmethod
-    def on_item_change(self, param):
+    def on_item_change(self, *args):
         if self.load_cancellable is not None:
             self.load_cancellable.cancel()
         self.load_cancellable = Gio.Cancellable()
@@ -180,6 +176,21 @@ class ItemView(WebKit.WebView):
         dom.get_element_by_id('trifle_content').set_inner_html(content)
         self.show()
 
+    def on_ctx_menu(self, view, menu, hit_test, kbd):
+        # Very hackish solution, there should be a better way!
+        ht_ctx = hit_test.get_property('context')
+        btn, time = 0, Gtk.get_current_event_time()
+        items = menu.get_children()
+        image, link = ht_ctx & ht_ctx.IMAGE, ht_ctx & ht_ctx.LINK
+        remove = {ht_ctx.IMAGE | ht_ctx.LINK: (1, 2, 6,), ht_ctx.LINK: (1, 2,),
+                  ht_ctx.IMAGE: (1,)}
+        if image or link:
+            for i in remove[image | link]:
+                menu.remove(items[i])
+        if image or link or ht_ctx & ht_ctx.SELECTION:
+            # Ain't positioning popup because it's too much pain in anus.
+            menu.popup(None, None, None, None, btn, time)
+
     def on_inspector(self, insp, view):
         insp_view = WebKit.WebView()
         insp_win = Gtk.Window()
@@ -189,8 +200,7 @@ class ItemView(WebKit.WebView):
         insp_win.present()
         return insp_view
 
-    @staticmethod
-    def on_hovering_over_link(self, title, uri, data=None):
+    def on_hovering_over_link(self, view, title, uri, data=None):
         dom = self.get_dom_document()
         statusbar = dom.get_element_by_id('trifle_statusbar')
         if uri is None:
