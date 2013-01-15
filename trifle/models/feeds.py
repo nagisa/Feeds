@@ -30,10 +30,8 @@ class Store(Gtk.ListStore):
 
         self.row_ch_handler = self.connect('row-changed', self.on_changed)
 
-    @staticmethod
-    def unread_count():
-        query = 'SELECT COUNT(unread) FROM items WHERE unread=1'
-        return sqlite.execute(query).fetchone()[0]
+    def unread_count(self):
+        return len(list(filter(lambda x: x[Col.UNREAD], self)))
 
     def update(self):
         self.set_sort_column_id(-2, Gtk.SortType.DESCENDING) # Unsorted
@@ -44,16 +42,22 @@ class Store(Gtk.ListStore):
                    LEFT JOIN subscriptions AS S ON S.id=I.subscription
                    LEFT JOIN labels_fk AS L ON L.item_id=S.id
                    ORDER BY time DESC'''
-        items = sqlite.execute(query).fetchall()
+        sqlite.execute(query).connect('finished', self.on_update_content)
+
+    def on_update_content(self, job, success):
+        if not success:
+            logger.error('Failed to get items from SQLite')
+            return
         exists = {r[Col.ID]: self.get_iter(key) for key, r in enumerate(self)}
-        for item in items:
+        for item in job.result:
             if item[0] in exists:
                 v = zip(*filter(lambda x: x[1] is not None, enumerate(item)))
                 self.set(exists[item[Col.ID]], *v)
             else:
                 self.append(item + (False,))
         # Remove items we do not have anymore
-        for removed_id in set(exists.keys()) - set(i[Col.ID] for i in items):
+        for removed_id in set(exists.keys()) - set(i[Col.ID] for i in
+                                                   job.result):
             self.remove(exists[removed_id])
 
         self.handler_unblock(self.row_ch_handler)

@@ -28,16 +28,22 @@ class Subscriptions(Gtk.TreeStore):
                     yield sub
 
     def update(self):
-        theme = Gtk.IconTheme.get_default()
-        flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
-
         q = '''SELECT subscriptions.id, subscriptions.url, subscriptions.title,
                       labels.id, labels.name
                FROM subscriptions
                LEFT JOIN labels_fk ON labels_fk.item_id = subscriptions.id
                LEFT JOIN labels ON labels.id=labels_fk.label_id'''
-        result = set(sqlite.execute(q).fetchall())
+        sqlite.execute(q).connect('finished', self.on_update_data)
 
+    def on_update_data(self, job, success):
+        if not success:
+            logger.error('Could not get data from SQLite')
+            return
+        result = set(job.result)
+        job.result = None
+
+        theme = Gtk.IconTheme.get_default()
+        flag = Gtk.IconLookupFlags.GENERIC_FALLBACK
         label_icon = theme.load_icon(Gtk.STOCK_DIRECTORY, 16, flag)
         labels = {item[3]: item[4] for item in result if item[3] is not None}
         labels_iter = {}
@@ -71,19 +77,19 @@ class Subscriptions(Gtk.TreeStore):
             self.set(iter, {Col.ID: combined_id, Col.ICON: icon_pixbuf(d[0]),
                             Col.TYPE: SubType.SUBSCRIPTION, Col.NAME: d[1]})
 
-    def get_item_labels(self, itr):
-        row = self[itr]
-        if row[0] == SubType.LABEL:
-            return None
-        else:
-            result = {}
-            query = '''SELECT labels_fk.label_id FROM subscriptions
-                       LEFT JOIN labels_fk
-                       ON labels_fk.item_id = subscriptions.id
-                       WHERE subscriptions.id=?'''
-            label_id, sub_id = split_id(row[1])
-            r = sqlite.execute(query, (sub_id,)).fetchall()
-            for label in self.labels:
-                result[label[1]] = (label[3], label[1] in (i for i, in r))
-            return result
+#     def get_item_labels(self, itr):
+#         row = self[itr]
+#         if row[0] == SubType.LABEL:
+#             return None
+#         else:
+#             result = {}
+#             query = '''SELECT labels_fk.label_id FROM subscriptions
+#                        LEFT JOIN labels_fk
+#                        ON labels_fk.item_id = subscriptions.id
+#                        WHERE subscriptions.id=?'''
+#             label_id, sub_id = split_id(row[1])
+#             r = sqlite.execute(query, (sub_id,)).fetchall()
+#             for label in self.labels:
+#                 result[label[1]] = (label[3], label[1] in (i for i, in r))
+#             return result
 

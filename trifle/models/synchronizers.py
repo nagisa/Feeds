@@ -2,7 +2,6 @@ from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Soup
-import concurrent.futures
 import itertools
 import json
 import os
@@ -100,17 +99,26 @@ class Flags(base.SyncObject):
             logger.error('Flags are already being synchronized')
             return False
         self.sync_status = 0
-        uri = api_method('edit-tag')
-        req_type = 'application/x-www-form-urlencoded'
         query = 'SELECT item_id, id FROM flags WHERE flag=? AND remove=?'
 
         for flag, st in itertools.product(StateIds, [True, False]):
-            result = sqlite.execute(query, (flag, st,)).fetchall()
-            if len(result) == 0:
-                continue
+            self.sync_status += 1
+            sqlite.execute(query, (flag, st)).connect('finished', self.on_data,
+                                                      (flag, st))
+
+    def on_data(self, job, success, data):
+        flag, st = data
+        self.sync_status -= 1
+        if not success:
+            logger.error('Could not get data from SQLite correctly')
+            return
+
+        if not len(job.result) == 0:
+            uri = api_method('edit-tag')
+            req_type = 'application/x-www-form-urlencoded'
 
             post = (('r' if st else 'a', flag,), ('T', self.auth.edit_token),)
-            chunks = split_chunks(result, 250, None)
+            chunks = split_chunks(job.result, 250, None)
             for chunk in chunks:
                 iids, ids = zip(*filter(lambda x: x is not None, chunk))
                 iids = tuple(zip(itertools.repeat('i'), iids))
@@ -152,28 +160,34 @@ class Items(base.SyncObject):
         if self.sync_status > 0:
             logger.warning('Items are already being synchronized')
             return
-        self.sync_status, futures = 0, []
+        self.sync_status = 0
         logger.debug('Synchronizing items')
-        uri = api_method('stream/items/contents')
-        req_type = 'application/x-www-form-urlencoded'
         self.dump_garbage()
+
+        job = sqlite.execute('SELECT id FROM items WHERE to_sync=1')
+        job.connect('finished', self.on_sync_ids)
+
+    def on_sync_ids(self, job, success):
+        if not success:
+            logger.error('Could not get data from SQLite')
+            return
+
+        if len(job.result) == 0:
+            logger.debug('Items doesn\'t need synchronization')
+            GLib.idle_add(self.emit, 'sync-done')
+            return
 
         # Somewhy when streaming items and asking more than 512 returns 400.
         # Asking anything in between 250 and 512 returns exactly 250 items.
-        ids = sqlite.execute('SELECT id FROM items WHERE to_sync=1')
-        ids = ids.fetchall()
-        if len(ids) == 0:
-            logger.debug('Items doesn\'t need synchronization')
-            GLib.idle_add(self.emit, 'sync-done')
-            return False
-
-        chunks = split_chunks((('i', i) for i, in ids), 250, ('', ''))
+        chunks = split_chunks((('i', i) for i, in job.result), 250, ('', ''))
         # Asynchronous job queue for items parsing
         # We will, unless we have a bug, have only one synchronization at time
         # thus it is safe to initialize it like that.
         executor = JobExecutor()
         executor.start()
 
+        uri = api_method('stream/items/contents')
+        req_type = 'application/x-www-form-urlencoded'
         for chunk in chunks:
             self.sync_status += 1
             data = urlencode(chunk)
@@ -197,21 +211,20 @@ class Items(base.SyncObject):
         self.sync_status -= 1
         if not success:
             try:
-                raise job.exception()
+                raise job.exception
             except:
                 logger.exception('Failed to parse item chunk')
         else:
             query = '''UPDATE items SET title=:title, author=:author,
                        summary=:summary, href=:href, time=:time,
                        subscription=:subscription WHERE id=:id'''
-            sqlite.executemany(query, job.result())
-            sqlite.commit()
-
+            sqlite.executemany(query, job.result)
 
     @staticmethod
     def on_sync_status(self, gprop, executor):
         if self.sync_status != 0:
             return
+        sqlite.commit()
         executor.stop()
         GLib.idle_add(self.emit, 'sync-done')
         logger.debug('Items synchronization completed')
@@ -219,12 +232,14 @@ class Items(base.SyncObject):
     def dump_garbage(self):
         """ Remove all items (and contents) marked with to_delete flag """
         query = 'SELECT id FROM items WHERE to_delete=1'
-        ids = sqlite.execute(query).fetchall()
+
+        def callback(job, success):
+            for item_id, in job.result:
+                fpath = os.path.join(CONTENT_PATH, str(item_id))
+                if os.path.isfile(fpath):
+                    os.remove(fpath)
+        sqlite.execute(query).connect('finished', callback)
         sqlite.execute('DELETE FROM items WHERE to_delete=1')
-        for item_id, in ids:
-            fpath = os.path.join(CONTENT_PATH, str(item_id))
-            if os.path.isfile(fpath):
-                os.remove(fpath)
 
 
 class Subscriptions(base.SyncObject):
@@ -317,9 +332,12 @@ class Favicons(base.SyncObject):
             os.makedirs(FAVICON_PATH)
 
     def sync(self):
-        uri = 'https://getfavicon.appspot.com/{0}?defaulticon=none'
         query = 'SELECT url FROM subscriptions'
-        for site_uri, in sqlite.execute(query).fetchall():
+        sqlite.execute(query).connect('finished', self.on_site_uris)
+
+    def on_site_uris(self, job, success):
+        uri = 'https://getfavicon.appspot.com/{0}?defaulticon=none'
+        for site_uri, in job.result:
             if not site_uri.startswith('http') or (self.has_icon(site_uri)
                and not random.randint(0, 200) == 0):
                 # Resync only 0.5% of icons. It's unlikely that icon changes

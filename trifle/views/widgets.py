@@ -320,7 +320,6 @@ class ItemsView(Gtk.TreeView):
         if not self.main_model:
             return
 
-        self.main_model.unforce_all()
         if self.category in ('unread', 'starred'):
             if self.category == 'unread':
                 cat_col = ItemsColumn.UNREAD
@@ -336,12 +335,15 @@ class ItemsView(Gtk.TreeView):
             self.set_model(self.main_model)
             self.category_model = self.main_model
 
+        # Should be at the end of the function
+        # Or rather there should be no selection when this is called.
+        self.main_model.unforce_all()
+
     def subscription_change(self, w, gprop):
         # Still not initialized fully.
         if not self.main_model:
             return
 
-        self.main_model.unforce_all()
         if self.is_label:
             key, subscr = ItemsColumn.LBL_ID, self.subscription
         else:
@@ -352,6 +354,10 @@ class ItemsView(Gtk.TreeView):
         filt = TreeModelFilter(child_model=self.category_model)
         filt.set_visible_func(visible_func, (key, subscr))
         self.set_model(filt)
+
+        # Should be at the end of the function
+        # Or rather there should be no selection when this is called.
+        self.main_model.unforce_all()
 
 
 GObject.type_register(MainToolbar)

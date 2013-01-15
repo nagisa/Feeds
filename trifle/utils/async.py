@@ -2,7 +2,8 @@ from concurrent import futures
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
-from threading import Thread, Lock
+from threading import Thread, Lock, current_thread
+from queue import Queue
 """
 A module for easy combination of MainLoop and off-MainThread processing.
 
@@ -15,7 +16,7 @@ Usage example:
     def callback(job, success):
         success # Boolean indicating if job succeeded. If it's false, expect
                 # exception.
-        job.result()
+        job.result
         exe.stop()
 
     job.connect('finished', callback) # Get notified when a job is complete
@@ -28,70 +29,62 @@ class Job(GObject.Object):
     __gsignals__ = {
         'finished': (GObject.SignalFlags.RUN_LAST, None, [bool])
     }
+    result = GObject.property(type=object, default=None)
+
+
+class ExecutorJob(Job):
     future = GObject.property(type=object)
 
-    def __init__(self, fn, args, kw, **kwargs):
-        self._fn, self._args, self._kw = fn, args, kw
-        super(Job, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(ExecutorJob, self).__init__(*args, **kwargs)
 
-    def execute(self, executor):
-        self.future = executor.submit(self._fn, *self._args, **self._kw)
-        self.future.add_done_callback(self.on_done)
+        def bind(s, p):
+            cb = lambda x: GLib.idle_add(self.finished)
+            self.future.add_done_callback(cb)
+        self.connect('notify::future', bind)
 
-    def on_done(self, future):
-        def emit_signals(job, future):
-            job.emit('finished', future.exception() is None)
-        GLib.idle_add(emit_signals, self, future)
-
+    @GObject.property
     def result(self):
-        """ Result of computation """
         return self.future.result()
 
+    @GObject.property
     def exception(self):
         return self.future.exception()
+
+    def finished(self):
+        self.emit('finished', self.exception is None)
 
 
 class JobExecutor(Thread):
     def __init__(self):
         super(JobExecutor, self).__init__(daemon=True)
-        self._submissions = []
-        self._lock = Lock()
-        self._should_stop = False
-        self.running = False
+        # Contains items in form of (Job, fn, args, kwargs)
+        # if second argument is None, it indicates thread should finish by
+        # reaching that specific element
+        self._jobs = Queue()
 
     def run(self):
-        running = True
-        self._executor = executor = futures.ProcessPoolExecutor()
+        executor = futures.ProcessPoolExecutor()
         while True:
-            while self._submissions:
-                job = self._submissions.pop()
-                job.execute(executor)
-
-            self._lock.acquire()
-            if self._should_stop:
+            job, fn, args, kwargs = self._jobs.get()
+            if fn is None:
                 break
+            job.future = executor.submit(fn, *args, **kwargs)
 
-        self._executor.shutdown(wait=True)
+        executor.shutdown(wait=True)
         GLib.idle_add(self.join)
 
     def submit(self, fn, *args, **kwargs):
         """ Will submit a job for processing. It doesn't matter if you submit
         your jobs before calling .start() or after.
         """
-        job = Job(fn, args, kwargs)
-        self._submissions.append(job)
-        self.do_iter()
+        job = ExecutorJob()
+        self._jobs.put((job, fn, args, kwargs,))
         return job
-
-    def do_iter(self):
-        try:
-            self._lock.release()
-        except RuntimeError:
-            pass
 
     def stop(self):
         """ Notifies worker it should stop. Worker will stop only when it
-        completes (cancellation is completion as well) all schedulled work.
+        completes (cancellation is completion as well) all work schedulled
+        before call of this function.
         """
-        self._should_stop = True
-        self.do_iter()
+        self._jobs.put((None, None, None, None,))

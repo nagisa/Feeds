@@ -55,6 +55,9 @@ class Application(Gtk.Application):
 
     @staticmethod
     def on_startup(self):
+        # Start the sqlite driver
+        sqlite.start()
+
         # Initialize application menu
         actions = [('synchronize', self.on_sync),
                    ('subscribe', self.on_subscribe),
@@ -87,12 +90,14 @@ class Application(Gtk.Application):
         window = views.windows.ApplicationWindow(items_model=self.items_model,
                                                  sub_model=self.subscr_model)
         window.set_application(self)
-
         window.show_all()
 
     @staticmethod
     def on_shutdown(self):
-        sqlite.force_commit()
+        sqlite._jobs.join()
+        sqlite.commit()
+        sqlite.stop()
+        sqlite.join()
 
     def on_show_prefs(self, action, data=None):
         props = {'modal': True, 'transient-for': self.get_active_window()}
@@ -122,9 +127,8 @@ class Application(Gtk.Application):
 
         def on_items_sync_done(synchronizer, data=None):
             self.items_model.update()
-
             notification = views.notifications.notification
-            unread = models.feeds.Store.unread_count()
+            unread = self.items_model.unread_count()
             notification.notify_unread_count(unread)
 
         def on_flags_sync_done(synchronizer, data=None):
