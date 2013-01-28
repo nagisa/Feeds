@@ -264,9 +264,9 @@ class Subscriptions(base.SyncObject):
         q = '; DELETE FROM '.join(('subscriptions', 'labels', 'labels_fk'))
         sqlite.executescript('DELETE FROM ' + q)
         res = json.loads(msg.response_body.data)['subscriptions']
-        # Filter out all items without htmlUrl in them. They likely
-        # are dead feeds even GReader doesn't handle.
-        res = list(filter(lambda r: 'htmlUrl' in r, res))
+        # Some items do not have htmlUrl
+        for d in res:
+            d.setdefault('htmlUrl')
 
         # Reinsert items
         q = '''INSERT INTO subscriptions(id, url, title)
@@ -338,8 +338,9 @@ class Favicons(base.SyncObject):
     def on_site_uris(self, job, success):
         uri = 'https://getfavicon.appspot.com/{0}?defaulticon=none'
         for site_uri, in job.result:
-            if not site_uri.startswith('http') or (self.has_icon(site_uri)
-               and not random.randint(0, 200) == 0):
+            if site_uri is None or not site_uri.startswith('http'):
+                continue
+            elif self.has_icon(site_uri) and not random.randint(0, 200) == 0:
                 # Resync only 0.5% of icons. It's unlikely that icon changes
                 # or becomes available
                continue

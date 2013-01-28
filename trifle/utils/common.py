@@ -115,6 +115,8 @@ def split_id(combined_ids):
 
 
 def icon_name(origin_url):
+    if origin_url is None:
+        return None
     value = bytes(origin_url, 'utf-8')
     fname = hashlib.md5(value).hexdigest()
     return os.path.join(const.FAVICON_PATH, fname)
@@ -125,9 +127,9 @@ def icon_pixbuf(url):
     if nothing found
     """
     fpath = icon_name(url)
-    if not os.path.isfile(fpath):
+    if fpath is not None and not os.path.isfile(fpath):
         selections = ['image-loading']
-    elif os.path.getsize(fpath) > 10:
+    elif fpath is not None and os.path.getsize(fpath) > 10:
         return GdkPixbuf.Pixbuf.new_from_file_at_size(fpath, 16, 16)
     else:
         selections = ['application-rss+xml', 'application-atom+xml',
