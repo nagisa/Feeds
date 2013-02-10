@@ -35,7 +35,8 @@ class Keyring(GObject.Object):
             GLib.idle_add(self.emit, 'ask-password')
 
     def credentials_response(self, username, password):
-        self.set_credentials(username, password)
+        if username is not None and password is not None:
+            self.set_credentials(username, password)
         GLib.idle_add(self.emit, 'password-loaded')
 
     def set_credentials(self, username, password):
