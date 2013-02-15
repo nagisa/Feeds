@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import os
+from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
 
@@ -8,6 +9,10 @@ from trifle.utils import ItemsColumn as Col, CONTENT_PATH, sqlite, StateIds
 
 
 class Store(Gtk.ListStore):
+    __gsignals__ = {
+        'updated': (GObject.SignalFlags.RUN_LAST, None, []),
+    }
+
     def __init__(self, *args, **kwargs):
         cols = (object, # Item ID
                 GObject.TYPE_STRING, # Title
@@ -62,6 +67,7 @@ class Store(Gtk.ListStore):
 
         self.handler_unblock(self.row_ch_handler)
         self.set_sort_column_id(Col.TIMESTAMP, Gtk.SortType.DESCENDING)
+        GLib.idle_add(self.emit, 'updated')
 
     def unforce_all(self):
         if len(self.forced) == 0:

@@ -127,15 +127,18 @@ class Application(Gtk.Application):
 
         def on_items_sync_done(synchronizer, data=None):
             self.items_model.update()
+            connect_once(self.items_model, 'updated', notify)
+
+        def notify(model, data=None):
             notification = views.notifications.notification
-            unread = self.items_model.unread_count()
-            notification.notify_unread_count(unread)
+            notification.notify_unread_count(model.unread_count())
 
         def on_flags_sync_done(synchronizer, data=None):
             def cb(*args):
                 ids.sync()
                 return False
             # Delay next stage so servers can clean up their caches.
+            # Still doesn't always work...
             GLib.timeout_add_seconds(1, cb)
 
         logger.debug('Starting synchronization')
