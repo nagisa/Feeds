@@ -1,4 +1,4 @@
-from gi.repository import Notify, GObject
+from gi.repository import Notify, GObject, GLib
 from gettext import gettext as _, ngettext
 
 from trifle import models
@@ -15,11 +15,14 @@ class Notification(Notify.Notification):
 
     def show(self):
         self.set_hint_string("desktop-entry", "trifle")
-        if models.settings.settings['notifications']:
-            self.visible = True
-            super(Notification, self).show()
-        else:
-            logger.warning('Notification was not shown')
+        try:
+            if models.settings.settings['notifications']:
+                self.visible = True
+                super(Notification, self).show()
+            else:
+                logger.warning('Notification was not shown')
+        except GLib.GError:
+            logger.exception('Notification was not shown')
 
     def on_close(self, *args):
         self.visible = False
