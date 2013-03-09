@@ -4,6 +4,7 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Secret
+from gi.repository import SecretUnstable as SU
 from gi.repository import Soup
 
 from trifle.models import settings
@@ -48,8 +49,33 @@ SCHEMA = Secret.Schema.new('apps.trifle', Secret.SchemaFlags.NONE, {
                               'app': Secret.SchemaAttributeType.STRING,
                               'user': Secret.SchemaAttributeType.STRING})
 
+def try_unlock(func):
+    """
+    Will try to unlock default collection where passwords are supposed to
+    be, as it is not necesarrily unlocked when we query the database.
+    Async!
+    """
+    def load_collection(s, res, data):
+        data['service'] = s.get_finish(res)
+        SU.Collection.for_alias(data['service'], 'default',
+                                SU.CollectionFlags.NONE, None,
+                                unlock_collection, data)
+
+    def unlock_collection(col, res, data):
+        SU.Service.unlock(data['service'],
+                          [SU.Collection.for_alias_finish(res)], None,
+                          lambda *x: func(*data['args'], **data['kwargs']),
+                          None)
+
+    def get_service(*args, **kwargs):
+        data = {'args': args, 'kwargs': kwargs}
+        SU.Service.get(SU.ServiceFlags.NONE, None, load_collection, data)
+
+    return get_service
+
 
 class SecretKeyring(Keyring):
+    @try_unlock
     def load_credentials(self):
 
         def loaded(source, result, data):
@@ -67,6 +93,7 @@ class SecretKeyring(Keyring):
             attrs = {'app': 'trifle', 'user': self.username}
             Secret.password_lookup(SCHEMA, attrs, None, loaded, None)
 
+    @try_unlock
     def set_credentials(self, username, password):
         def stored(source, result, data):
             if not Secret.password_store_finish(result):
