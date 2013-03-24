@@ -173,8 +173,10 @@ class Application(Gtk.Application):
 
     def on_ask_password(self, keyring, callback):
         # TODO: Should not show login dialog when the internet is not available
+
         # Could not login, because credentials were incorrect
         def on_destroy(dialog, callback):
+            current = GLib.get_monotonic_time()
             callback()
 
         props = {'modal': True, 'transient_for': self.get_active_window()}
