@@ -12,7 +12,8 @@ from trifle.utils import const, async, get_data_path
 
 class SQLite(threading.Thread):
     def __init__(self, *args, **kwargs):
-        super(SQLite, self).__init__(daemon=True)
+        super(SQLite, self).__init__()
+        self.daemon = True
         # Contains jobs in form of (SQLiteJob, callable, args, kwargs)
         self._jobs = queue.Queue()
         self._args, self._kwargs = args, kwargs
